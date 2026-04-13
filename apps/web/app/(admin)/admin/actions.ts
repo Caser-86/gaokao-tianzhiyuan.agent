@@ -15,20 +15,19 @@ const parseQueueId = (rawValue: FormDataEntryValue | null): number => {
   return value;
 };
 
-export async function approveReviewQueueAction(formData: FormData): Promise<string | undefined> {
+export async function approveReviewQueueAction(formData: FormData): Promise<void> {
   try {
     const queueId = parseQueueId(formData.get('queueId'));
     const reviewedBy = String(formData.get('reviewedBy') ?? 'web-admin');
 
     await approveReviewQueueItem(queueId, reviewedBy);
     revalidatePath('/admin');
-    return undefined;
   } catch {
-    return '审核操作失败，请稍后重试';
+    return;
   }
 }
 
-export async function rejectReviewQueueAction(formData: FormData): Promise<string | undefined> {
+export async function rejectReviewQueueAction(formData: FormData): Promise<void> {
   try {
     const queueId = parseQueueId(formData.get('queueId'));
     const reviewedBy = String(formData.get('reviewedBy') ?? 'web-admin');
@@ -36,8 +35,7 @@ export async function rejectReviewQueueAction(formData: FormData): Promise<strin
 
     await rejectReviewQueueItem(queueId, reviewedBy, reviewNote || undefined);
     revalidatePath('/admin');
-    return undefined;
   } catch {
-    return '审核操作失败，请稍后重试';
+    return;
   }
 }

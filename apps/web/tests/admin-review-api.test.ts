@@ -160,7 +160,7 @@ test('approveReviewQueueAction revalidates the admin page after success', async 
   expect(revalidatePath).toHaveBeenCalledWith('/admin');
 });
 
-test('rejectReviewQueueAction returns an error message when the API fails', async () => {
+test('rejectReviewQueueAction resolves without returning a value when the API fails', async () => {
   fetchMock.mockResolvedValueOnce({
     ok: false,
     status: 500,
@@ -174,5 +174,5 @@ test('rejectReviewQueueAction returns an error message when the API fails', asyn
 
   const result = await rejectReviewQueueAction(formData);
 
-  expect(result).toBe('审核操作失败，请稍后重试');
+  expect(result).toBeUndefined();
 });
