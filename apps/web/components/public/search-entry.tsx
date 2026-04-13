@@ -1,3 +1,7 @@
+'use client';
+
+import { trackPlatformEvent } from '../../lib/platform-events';
+
 type SearchEntryProps = {
   title: string;
   description: string;
@@ -13,9 +17,20 @@ export default function SearchEntry({ title, description, quickPrompts }: Search
 
       <div className="chip-row">
         {quickPrompts.map((prompt) => (
-          <span key={prompt} className="chip">
+          <button
+            key={prompt}
+            type="button"
+            className="chip"
+            onClick={() => {
+              void trackPlatformEvent({
+                eventName: 'quick_prompt_clicked',
+                step: 'homepage_masthead',
+                metadata: { prompt },
+              });
+            }}
+          >
             {prompt}
-          </span>
+          </button>
         ))}
       </div>
 

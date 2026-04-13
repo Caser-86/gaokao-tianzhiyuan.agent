@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import PlatformHomepageShelf from '../components/public/platform-homepage-shelf';
 import SearchEntry from '../components/public/search-entry';
 import { listPlatformProducts } from '../lib/platform-api';
 import { getSearchEntry, listMajors, listSchools } from '../lib/public-content-api';
@@ -60,26 +61,7 @@ export default async function HomePage() {
           </article>
         </section>
 
-        <section className="panel" style={{ marginTop: 28 }}>
-          <h2 className="panel-title">精选服务</h2>
-          {productPayload.items.length === 0 ? (
-            <p>平台服务暂时不可用，请稍后再试。</p>
-          ) : (
-            <div className="catalog-list">
-              {productPayload.items.map((product) => (
-                <article key={product.slug} className="catalog-card">
-                  <strong>{product.name}</strong>
-                  <p>{product.description}</p>
-                  <div className="meta">
-                    {product.entitlements.map((entitlement) => (
-                      <span key={entitlement}>{entitlement}</span>
-                    ))}
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
+        <PlatformHomepageShelf products={productPayload.items} />
       </main>
     );
   } catch {
