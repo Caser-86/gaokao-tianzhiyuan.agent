@@ -65,6 +65,16 @@ def test_school_detail_returns_modular_sections() -> None:
             },
         ],
         "related_majors": ["architecture", "microelectronics", "computer-science"],
+        "ranking_references": [
+            {
+                "source": "\u8f6f\u79d1\u4e2d\u56fd\u5927\u5b66\u6392\u540d",
+                "year": 2025,
+                "label": "\u5168\u56fd\u7b2c 15 \u540d",
+                "scope": "\u7efc\u5408\u7c7b\u9ad8\u6821",
+                "note": "\u7528\u4e8e\u7efc\u5408\u5b9e\u529b\u53c2\u8003\uff0c\u4e0d\u7b49\u540c\u4e8e\u5177\u4f53\u4e13\u4e1a\u4f18\u52bf\u3002",
+                "url": "https://example.com/rankings/southeast-university",
+            }
+        ],
     }
 
 
@@ -108,6 +118,16 @@ def test_major_detail_returns_career_and_risk_sections() -> None:
             },
         ],
         "related_schools": ["southeast-university", "west-china-medical-center"],
+        "ranking_references": [
+            {
+                "source": "\u6559\u80b2\u90e8\u5b66\u79d1\u8bc4\u4f30",
+                "year": 2023,
+                "label": "\u4e34\u5e8a\u533b\u5b66 A-",
+                "scope": "\u4e00\u7ea7\u5b66\u79d1",
+                "note": "\u9002\u5408\u4f5c\u4e3a\u533b\u5b66\u5b66\u79d1\u5b9e\u529b\u53c2\u8003\u3002",
+                "url": "https://example.com/rankings/clinical-medicine",
+            }
+        ],
     }
 
 
