@@ -1,20 +1,9 @@
-from typing import Any
-
-from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlmodel import SQLModel, create_engine
 
 
-class Base(DeclarativeBase):
-    """Base class for ORM models."""
-
-
-def get_engine(url: str, **kwargs: Any):
-    """Create an engine for the given URL with future-ready defaults."""
-
+def get_engine(url: str, **kwargs: object):
     return create_engine(url, future=True, **kwargs)
 
 
-def get_session_factory(engine):
-    """Create a configurable session factory tied to the provided engine."""
-
-    return sessionmaker(bind=engine, future=True)
+def create_all_models(engine) -> None:
+    SQLModel.metadata.create_all(engine)

@@ -1,35 +1,31 @@
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from datetime import datetime, timezone
 
-from app.models.content import School, SchoolContentVersion
+from sqlmodel import Session, select
+
+from app.models.content import SchoolContentVersion
 
 
 def publish_school_version(
-    session: Session, school_name: str, content: str
+    session: Session, school_id: int, version_id: int, operator: str
 ) -> SchoolContentVersion:
-    """
-    Record a new published content version for the given school name.
-    """
-
-    school = session.scalar(select(School).where(School.name == school_name))
-    if school is None:
-        school = School(name=school_name)
-        session.add(school)
-        session.flush()
-
-    highest_version = session.scalar(
-        select(func.max(SchoolContentVersion.version)).where(
-            SchoolContentVersion.school_id == school.id
-        )
+    stmt = select(SchoolContentVersion).where(
+        SchoolContentVersion.id == version_id,
+        SchoolContentVersion.school_id == school_id,
     )
-    next_version = (highest_version or 0) + 1
+    version = session.exec(stmt).one()
 
-    version = SchoolContentVersion(
-        school=school,
-        version=next_version,
-        content=content,
+    published_stmt = select(SchoolContentVersion).where(
+        SchoolContentVersion.school_id == school_id,
+        SchoolContentVersion.status == "published",
+        SchoolContentVersion.id != version_id,
     )
+    published_versions = session.exec(published_stmt).all()
+    for published in published_versions:
+        published.status = "archived"
+
+    version.status = "published"
+    version.published_by = operator
+    version.published_at = datetime.now(timezone.utc)
+
     session.add(version)
-    session.flush()
-    session.refresh(version, attribute_names=["school"])
     return version
