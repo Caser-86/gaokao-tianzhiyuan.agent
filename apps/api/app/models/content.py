@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
+from sqlalchemy import Index, UniqueConstraint, text
 from sqlalchemy.orm import Mapped
 from sqlmodel import Field, SQLModel
 
@@ -21,6 +22,20 @@ class School(SQLModel, table=True):
 
 
 class SchoolContentVersion(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint(
+            "school_id",
+            "version",
+            name="uq_school_content_versions_school_id_version",
+        ),
+        Index(
+            "uq_school_content_versions_one_published_per_school",
+            "school_id",
+            unique=True,
+            sqlite_where=text("status = 'published'"),
+        ),
+    )
+
     id: Optional[int] = Field(default=None, primary_key=True)
     school_id: int = Field(foreign_key="school.id", nullable=False, index=True)
     version: int = Field(..., nullable=False)
