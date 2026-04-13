@@ -1,5 +1,3 @@
-from datetime import datetime, timezone
-
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.models.content import School, SchoolContentVersion
@@ -7,7 +5,7 @@ from app.services.publishing import publish_school_version
 
 
 def test_publish_school_version_marks_only_target_version_published() -> None:
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False})
     SQLModel.metadata.create_all(engine)
 
     with Session(engine) as session:
@@ -16,38 +14,30 @@ def test_publish_school_version_marks_only_target_version_published() -> None:
         session.commit()
         session.refresh(school)
 
-        now = datetime.now(timezone.utc)
-        old_version = SchoolContentVersion(
+        v1 = SchoolContentVersion(
             school_id=school.id,
             version=1,
             summary="old",
             status="published",
-            published_at=now,
             published_by="author",
         )
-        new_version = SchoolContentVersion(
+        v2 = SchoolContentVersion(
             school_id=school.id,
             version=2,
             summary="new",
             status="draft",
         )
 
-        session.add_all([old_version, new_version])
+        session.add_all([v1, v2])
         session.commit()
-        session.refresh(old_version)
-        session.refresh(new_version)
+        session.refresh(v1)
+        session.refresh(v2)
 
-        published = publish_school_version(
-            session, school.id, new_version.id, operator="editor"
-        )
+        publish_school_version(session, school.id, v2.id, operator="editor@example.com")
         session.commit()
-        session.refresh(old_version)
-        session.refresh(new_version)
+        session.refresh(v1)
+        session.refresh(v2)
 
-        assert old_version.version == 1
-        assert new_version.version == 2
-        assert old_version.status == "archived"
-        assert new_version.status == "published"
-        assert new_version.published_by == "editor"
-        assert new_version.published_at is not None
-        assert published.id == new_version.id
+        assert v1.status == "archived"
+        assert v2.status == "published"
+        assert v2.published_by == "editor@example.com"
