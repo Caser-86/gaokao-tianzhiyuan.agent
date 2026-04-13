@@ -65,6 +65,7 @@ const PLATFORM_SECTION_TITLE = '\u7cbe\u9009\u670d\u52a1';
 const PROMPT_TEXT = '\u9009\u62e9\u4ea7\u54c1\u540e\u67e5\u770b\u80fd\u529b\u5305\u3002';
 const PLATFORM_UNAVAILABLE_TITLE = '\u5e73\u53f0\u670d\u52a1\u6682\u65f6\u4e0d\u53ef\u7528';
 const RANKING_SECTION_TITLE = '\u53c2\u8003\u699c\u5355';
+const RANKING_HINT_TEXT = '\u4e0d\u540c\u699c\u5355\u53e3\u5f84\u4e0d\u540c\uff0c\u7ed3\u679c\u4ec5\u4f9b\u53c2\u8003\u3002';
 const PUBLIC_ERROR_TEXT =
   '\u516c\u5f00\u5185\u5bb9\u52a0\u8f7d\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002';
 
@@ -229,9 +230,10 @@ test('school page renders API-backed detail data', async () => {
   expect(screen.getByRole('heading', { name: '\u4e1c\u5357\u5927\u5b66' })).toBeInTheDocument();
   expect(screen.getByText('\u5b66\u6821\u4eae\u70b9')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: RANKING_SECTION_TITLE })).toBeInTheDocument();
+  expect(screen.getByText(RANKING_HINT_TEXT)).toBeInTheDocument();
   expect(screen.getByText('\u8f6f\u79d1\u4e2d\u56fd\u5927\u5b66\u6392\u540d 2025')).toBeInTheDocument();
   expect(
-    screen.getByRole('link', { name: '\u67e5\u770b\u6765\u6e90' }),
+    screen.getByRole('link', { name: '\u67e5\u770b\u6765\u6e90\u539f\u6587' }),
   ).toHaveAttribute('href', 'https://example.com/rankings/southeast-university');
 });
 
@@ -251,6 +253,7 @@ test('school page omits ranking references when none are available', async () =>
   render(await SchoolPage({ params: Promise.resolve({ slug: 'southeast-university' }) }));
 
   expect(screen.queryByRole('heading', { name: RANKING_SECTION_TITLE })).not.toBeInTheDocument();
+  expect(screen.queryByText(RANKING_HINT_TEXT)).not.toBeInTheDocument();
 });
 
 test('school page calls notFound on 404 detail responses', async () => {
@@ -305,6 +308,10 @@ test('major page renders ranking references when present', async () => {
   render(await MajorPage({ params: Promise.resolve({ slug: 'clinical-medicine' }) }));
 
   expect(screen.getByRole('heading', { name: RANKING_SECTION_TITLE })).toBeInTheDocument();
+  expect(screen.getByText(RANKING_HINT_TEXT)).toBeInTheDocument();
   expect(screen.getByText('\u6559\u80b2\u90e8\u5b66\u79d1\u8bc4\u4f30 2023')).toBeInTheDocument();
   expect(screen.getByText('\u4e34\u5e8a\u533b\u5b66 A-')).toBeInTheDocument();
+  expect(
+    screen.getByRole('link', { name: '\u67e5\u770b\u6765\u6e90\u539f\u6587' }),
+  ).toHaveAttribute('href', 'https://example.com/rankings/clinical-medicine');
 });
