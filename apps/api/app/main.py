@@ -1,9 +1,12 @@
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 
 from .config import settings
 
 
 app = FastAPI(title=settings.app_name)
+api_router = APIRouter(prefix=settings.api_prefix)
+
+app.include_router(api_router)
 
 
 @app.get("/health")
