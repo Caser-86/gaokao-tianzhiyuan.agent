@@ -24,3 +24,29 @@ def build_review_candidate(
         "has_changes": bool(changed_fields),
         "status": status,
     }
+
+
+def build_review_queue_payload(candidate: Mapping[str, object]) -> dict[str, object]:
+    """Map service candidate output into the ReviewQueue schema."""
+    status = candidate.get("status")
+    if not isinstance(status, str):
+        raise ValueError("Review candidate must include string field 'status'.")
+
+    entity_type = candidate.get("entity_type")
+    if not isinstance(entity_type, str):
+        raise ValueError("Review candidate must include string field 'entity_type'.")
+
+    entity_id = candidate.get("entity_id")
+    if not isinstance(entity_id, int):
+        raise ValueError("Review candidate must include integer field 'entity_id'.")
+
+    diff_summary = candidate.get("diff_summary")
+    if not isinstance(diff_summary, list):
+        raise ValueError("Review candidate must include list field 'diff_summary'.")
+
+    return {
+        "entity_type": entity_type,
+        "entity_id": entity_id,
+        "diff_summary": diff_summary.copy(),
+        "review_status": status,
+    }
