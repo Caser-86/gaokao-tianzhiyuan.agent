@@ -7,6 +7,9 @@
     "test": "node ./node_modules/vitest/vitest.mjs run"
   },
   "dependencies": {
+    "@emnapi/core": "1.9.2",
+    "@emnapi/runtime": "1.9.2",
+    "env": "file:./vendor/env-shim",
     "next": "15.4.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",

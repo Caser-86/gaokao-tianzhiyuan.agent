@@ -1,0 +1,5 @@
+{
+  "name": "env",
+  "private": true,
+  "main": "index.js"
+}
