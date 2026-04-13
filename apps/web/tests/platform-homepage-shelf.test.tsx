@@ -114,9 +114,15 @@ test('selecting products renders merged entitlements from the API', async () => 
   const { container } = renderShelf();
 
   fireEvent.click(
-    screen.getByRole('button', { name: '\u9009\u62e9\u5fd7\u613f\u5feb\u62a5\u8ba2\u9605' }),
+    screen.getByRole('button', {
+      name: '\u52a0\u5165\u80fd\u529b\u9884\u89c8\u5fd7\u613f\u5feb\u62a5\u8ba2\u9605',
+    }),
   );
-  fireEvent.click(screen.getByRole('button', { name: '\u9009\u62e9\u6df1\u5ea6\u62a5\u544a\u5305' }));
+  fireEvent.click(
+    screen.getByRole('button', {
+      name: '\u52a0\u5165\u80fd\u529b\u9884\u89c8\u6df1\u5ea6\u62a5\u544a\u5305',
+    }),
+  );
 
   await waitFor(() => {
     expect(evaluatePlatformEntitlementsMock).toHaveBeenLastCalledWith(
@@ -157,7 +163,9 @@ test('renders fallback copy and keeps the raw key for unknown entitlements', asy
   const { container } = renderShelf();
 
   fireEvent.click(
-    screen.getByRole('button', { name: '\u9009\u62e9\u5fd7\u613f\u5feb\u62a5\u8ba2\u9605' }),
+    screen.getByRole('button', {
+      name: '\u52a0\u5165\u80fd\u529b\u9884\u89c8\u5fd7\u613f\u5feb\u62a5\u8ba2\u9605',
+    }),
   );
 
   const previewSection = getPreviewSection(container);
@@ -182,7 +190,9 @@ test('shows a local error when entitlement evaluation fails', async () => {
   const { container } = renderShelf();
 
   fireEvent.click(
-    screen.getByRole('button', { name: '\u9009\u62e9\u5fd7\u613f\u5feb\u62a5\u8ba2\u9605' }),
+    screen.getByRole('button', {
+      name: '\u52a0\u5165\u80fd\u529b\u9884\u89c8\u5fd7\u613f\u5feb\u62a5\u8ba2\u9605',
+    }),
   );
 
   await waitFor(() => {
@@ -199,7 +209,9 @@ test('tracks product CTA clicks with the server-provided API base URL', async ()
   renderShelf();
 
   fireEvent.click(
-    screen.getByRole('button', { name: '\u9009\u62e9\u5fd7\u613f\u5feb\u62a5\u8ba2\u9605' }),
+    screen.getByRole('button', {
+      name: '\u52a0\u5165\u80fd\u529b\u9884\u89c8\u5fd7\u613f\u5feb\u62a5\u8ba2\u9605',
+    }),
   );
 
   await waitFor(() => {
@@ -211,5 +223,23 @@ test('tracks product CTA clicks with the server-provided API base URL', async ()
       },
       'https://api.gaokao.test',
     );
+  });
+});
+
+test('updates the CTA label after a product joins the entitlement preview', async () => {
+  renderShelf();
+
+  fireEvent.click(
+    screen.getByRole('button', {
+      name: '\u52a0\u5165\u80fd\u529b\u9884\u89c8\u5fd7\u613f\u5feb\u62a5\u8ba2\u9605',
+    }),
+  );
+
+  await waitFor(() => {
+    expect(
+      screen.getByRole('button', {
+        name: '\u5df2\u52a0\u5165\u80fd\u529b\u9884\u89c8\u5fd7\u613f\u5feb\u62a5\u8ba2\u9605',
+      }),
+    ).toBeInTheDocument();
   });
 });

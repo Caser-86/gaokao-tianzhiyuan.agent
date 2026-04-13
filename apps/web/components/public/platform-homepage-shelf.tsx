@@ -81,9 +81,9 @@ export default function PlatformHomepageShelf({
 
   return (
     <section className="panel" style={{ marginTop: 28 }}>
-      <h2 className="panel-title">精选服务</h2>
+      <h2 className="panel-title">{'\u7cbe\u9009\u670d\u52a1'}</h2>
       {products.length === 0 ? (
-        <p>平台服务暂时不可用，请稍后再试。</p>
+        <p>{'\u5e73\u53f0\u670d\u52a1\u6682\u65f6\u4e0d\u53ef\u7528\uff0c\u8bf7\u7a0d\u540e\u518d\u8bd5\u3002'}</p>
       ) : (
         <>
           <div className="catalog-list">
@@ -123,7 +123,9 @@ export default function PlatformHomepageShelf({
                       );
                     }}
                   >
-                    {isSelected ? `取消选择${product.name}` : `选择${product.name}`}
+                    {isSelected
+                      ? `\u5df2\u52a0\u5165\u80fd\u529b\u9884\u89c8${product.name}`
+                      : `\u52a0\u5165\u80fd\u529b\u9884\u89c8${product.name}`}
                   </button>
                 </article>
               );
@@ -131,13 +133,13 @@ export default function PlatformHomepageShelf({
           </div>
 
           <section className="panel" style={{ marginTop: 20 }}>
-            <h3 className="panel-title">能力预览</h3>
+            <h3 className="panel-title">{'\u80fd\u529b\u9884\u89c8'}</h3>
             {selectedProductSlugs.length === 0 ? (
-              <p>选择产品后查看能力包。</p>
+              <p>{'\u9009\u62e9\u4ea7\u54c1\u540e\u67e5\u770b\u80fd\u529b\u5305\u3002'}</p>
             ) : entitlementState.status === 'loading' ? (
-              <p>正在加载能力预览...</p>
+              <p>{'\u6b63\u5728\u52a0\u8f7d\u80fd\u529b\u9884\u89c8...'}</p>
             ) : entitlementState.status === 'error' ? (
-              <p>能力预览加载失败，请稍后再试。</p>
+              <p>{'\u80fd\u529b\u9884\u89c8\u52a0\u8f7d\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u518d\u8bd5\u3002'}</p>
             ) : (
               <ul className="feature-list">
                 {entitlementState.entitlements.map((entitlement) => {

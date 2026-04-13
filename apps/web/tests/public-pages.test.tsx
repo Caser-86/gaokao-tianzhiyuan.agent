@@ -128,7 +128,9 @@ test('home page renders API-backed search, catalog, and product data', async () 
   expect(screen.getByText('\u4e34\u5e8a\u533b\u5b66')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: PLATFORM_SECTION_TITLE })).toBeInTheDocument();
   expect(
-    screen.getByRole('button', { name: '\u9009\u62e9\u5fd7\u613f\u5feb\u62a5\u8ba2\u9605' }),
+    screen.getByRole('button', {
+      name: '\u52a0\u5165\u80fd\u529b\u9884\u89c8\u5fd7\u613f\u5feb\u62a5\u8ba2\u9605',
+    }),
   ).toBeInTheDocument();
   expect(screen.getByText(PROMPT_TEXT)).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: SCHOOL_SECTION_TITLE }).closest('article')).toHaveAttribute(
