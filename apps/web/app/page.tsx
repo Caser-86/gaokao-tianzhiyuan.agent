@@ -1,8 +1,9 @@
 import Link from 'next/link';
 
 import PlatformHomepageShelf from '../components/public/platform-homepage-shelf';
+import PlatformUnavailablePanel from '../components/public/platform-unavailable-panel';
 import SearchEntry from '../components/public/search-entry';
-import { listPlatformProducts } from '../lib/platform-api';
+import { type PlatformProduct, listPlatformProducts } from '../lib/platform-api';
 import { getSearchEntry, listMajors, listSchools } from '../lib/public-content-api';
 
 const getApiBaseUrl = () => process.env.GAOKAO_AGENT_API_URL ?? 'http://127.0.0.1:8000';
@@ -10,12 +11,18 @@ const getApiBaseUrl = () => process.env.GAOKAO_AGENT_API_URL ?? 'http://127.0.0.
 export default async function HomePage() {
   try {
     const apiBaseUrl = getApiBaseUrl();
-    const [searchEntry, schoolPayload, majorPayload, productPayload] = await Promise.all([
+    const [searchEntry, schoolPayload, majorPayload] = await Promise.all([
       getSearchEntry(),
       listSchools(),
       listMajors(),
-      listPlatformProducts().catch(() => ({ items: [] })),
     ]);
+    let productPayload: { items: PlatformProduct[] } | null = null;
+
+    try {
+      productPayload = await listPlatformProducts();
+    } catch {
+      productPayload = null;
+    }
 
     return (
       <main className="page-shell">
@@ -27,7 +34,7 @@ export default async function HomePage() {
         />
 
         <section className="grid two" style={{ marginTop: 28 }}>
-          <article className="panel">
+          <article id="school-catalog" className="panel">
             <h2 className="panel-title">学校速查</h2>
             <div className="catalog-list">
               {schoolPayload.items.map((school) => (
@@ -65,7 +72,11 @@ export default async function HomePage() {
           </article>
         </section>
 
-        <PlatformHomepageShelf apiBaseUrl={apiBaseUrl} products={productPayload.items} />
+        {productPayload ? (
+          <PlatformHomepageShelf apiBaseUrl={apiBaseUrl} products={productPayload.items} />
+        ) : (
+          <PlatformUnavailablePanel />
+        )}
       </main>
     );
   } catch {
