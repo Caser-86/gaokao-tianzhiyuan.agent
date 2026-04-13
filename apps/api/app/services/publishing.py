@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from sqlmodel import Session, select
 
-from app.models.content import SchoolContentVersion
+from app.models.content import SchoolContentVersion, VersionStatus
 
 
 def publish_school_version(
@@ -16,14 +16,14 @@ def publish_school_version(
 
     published_stmt = select(SchoolContentVersion).where(
         SchoolContentVersion.school_id == school_id,
-        SchoolContentVersion.status == "published",
+        SchoolContentVersion.status == VersionStatus.published,
         SchoolContentVersion.id != version_id,
     )
     published_versions = session.exec(published_stmt).all()
     for published in published_versions:
-        published.status = "archived"
+        published.status = VersionStatus.archived
 
-    version.status = "published"
+    version.status = VersionStatus.published
     version.published_by = operator
     version.published_at = datetime.now(timezone.utc)
 

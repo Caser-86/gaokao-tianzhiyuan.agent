@@ -1,50 +1,53 @@
 from datetime import datetime, timezone
 
-from sqlmodel import Session, create_engine
+from sqlmodel import Session, SQLModel, create_engine
 
-from app.db import create_all_models, get_engine
 from app.models.content import School, SchoolContentVersion
 from app.services.publishing import publish_school_version
 
 
 def test_publish_school_version_marks_only_target_version_published() -> None:
-    engine = get_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    create_all_models(engine)
+    engine = create_engine("sqlite:///:memory:")
+    SQLModel.metadata.create_all(engine)
 
     with Session(engine) as session:
-        school = School(name="Example University", slug="example-university")
+        school = School(name="示例大学", slug="example-university")
         session.add(school)
         session.commit()
         session.refresh(school)
 
         now = datetime.now(timezone.utc)
-        v1 = SchoolContentVersion(
+        old_version = SchoolContentVersion(
             school_id=school.id,
-            summary="Published summary",
+            version=1,
+            summary="old",
             status="published",
             published_at=now,
-            published_by="author@example.com",
+            published_by="author",
         )
-        v2 = SchoolContentVersion(
+        new_version = SchoolContentVersion(
             school_id=school.id,
-            summary="Draft summary",
+            version=2,
+            summary="new",
             status="draft",
         )
 
-        session.add_all([v1, v2])
+        session.add_all([old_version, new_version])
         session.commit()
-        session.refresh(v1)
-        session.refresh(v2)
+        session.refresh(old_version)
+        session.refresh(new_version)
 
         published = publish_school_version(
-            session, school.id, v2.id, operator="editor@example.com"
+            session, school.id, new_version.id, operator="editor"
         )
         session.commit()
-        session.refresh(v1)
-        session.refresh(v2)
+        session.refresh(old_version)
+        session.refresh(new_version)
 
-        assert v1.status == "archived"
-        assert v2.status == "published"
-        assert v2.published_by == "editor@example.com"
-        assert v2.published_at is not None
-        assert published.id == v2.id
+        assert old_version.version == 1
+        assert new_version.version == 2
+        assert old_version.status == "archived"
+        assert new_version.status == "published"
+        assert new_version.published_by == "editor"
+        assert new_version.published_at is not None
+        assert published.id == new_version.id

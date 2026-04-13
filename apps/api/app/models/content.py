@@ -23,6 +23,7 @@ class School(SQLModel, table=True):
 class SchoolContentVersion(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     school_id: int = Field(foreign_key="school.id", nullable=False, index=True)
+    version: int = Field(..., nullable=False)
     summary: str = Field(..., nullable=False)
     status: VersionStatus = Field(
         default=VersionStatus.draft, nullable=False, index=True
