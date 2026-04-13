@@ -18,6 +18,9 @@ class ReviewQueue(SQLModel, table=True):
     )
     priority: str = Field(default="normal", nullable=False, index=False)
     review_status: str = Field(default="pending_review", nullable=False)
+    reviewed_by: Optional[str] = Field(default=None, nullable=True)
+    reviewed_at: Optional[datetime] = Field(default=None, nullable=True)
+    review_note: Optional[str] = Field(default=None, nullable=True)
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc), nullable=False
     )
