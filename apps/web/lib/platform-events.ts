@@ -4,13 +4,17 @@ export type PlatformEventPayload = {
   metadata: Record<string, string>;
 };
 
-const getPlatformApiUrl = (): string =>
+const getPlatformApiUrl = (apiBaseUrl?: string): string =>
+  apiBaseUrl ??
   process.env.NEXT_PUBLIC_GAOKAO_AGENT_API_URL ??
   process.env.GAOKAO_AGENT_API_URL ??
   'http://127.0.0.1:8000';
 
-export async function trackPlatformEvent(payload: PlatformEventPayload): Promise<void> {
-  await fetch(`${getPlatformApiUrl()}/api/platform/events`, {
+export async function trackPlatformEvent(
+  payload: PlatformEventPayload,
+  apiBaseUrl?: string,
+): Promise<void> {
+  await fetch(`${getPlatformApiUrl(apiBaseUrl)}/api/platform/events`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

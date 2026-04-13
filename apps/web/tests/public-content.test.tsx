@@ -44,6 +44,7 @@ test('renders modular public sections', () => {
 test('renders search entry prompts for candidates and parents', () => {
   render(
     <SearchEntry
+      apiBaseUrl="https://api.gaokao.test"
       title="高考志愿助手"
       description="帮你看学校、专业、地域、就业和坑点。"
       quickPrompts={['查学校', '查专业', '看地域对比']}
@@ -56,9 +57,10 @@ test('renders search entry prompts for candidates and parents', () => {
   expect(screen.getByRole('button', { name: '看地域对比' })).toBeInTheDocument();
 });
 
-test('tracks quick prompt clicks on the homepage entry', async () => {
+test('tracks quick prompt clicks with the server-provided API base URL', async () => {
   render(
     <SearchEntry
+      apiBaseUrl="https://api.gaokao.test"
       title="高考志愿助手"
       description="帮你看学校、专业、地域、就业和坑点。"
       quickPrompts={['查学校']}
@@ -68,10 +70,13 @@ test('tracks quick prompt clicks on the homepage entry', async () => {
   fireEvent.click(screen.getByRole('button', { name: '查学校' }));
 
   await waitFor(() => {
-    expect(trackPlatformEventMock).toHaveBeenCalledWith({
-      eventName: 'quick_prompt_clicked',
-      step: 'homepage_masthead',
-      metadata: { prompt: '查学校' },
-    });
+    expect(trackPlatformEventMock).toHaveBeenCalledWith(
+      {
+        eventName: 'quick_prompt_clicked',
+        step: 'homepage_masthead',
+        metadata: { prompt: '查学校' },
+      },
+      'https://api.gaokao.test',
+    );
   });
 });

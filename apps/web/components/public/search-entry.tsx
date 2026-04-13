@@ -3,12 +3,18 @@
 import { trackPlatformEvent } from '../../lib/platform-events';
 
 type SearchEntryProps = {
+  apiBaseUrl: string;
   title: string;
   description: string;
   quickPrompts: string[];
 };
 
-export default function SearchEntry({ title, description, quickPrompts }: SearchEntryProps) {
+export default function SearchEntry({
+  apiBaseUrl,
+  title,
+  description,
+  quickPrompts,
+}: SearchEntryProps) {
   return (
     <section className="masthead">
       <span className="eyebrow">考生与家长对话助手</span>
@@ -26,7 +32,7 @@ export default function SearchEntry({ title, description, quickPrompts }: Search
                 eventName: 'quick_prompt_clicked',
                 step: 'homepage_masthead',
                 metadata: { prompt },
-              });
+              }, apiBaseUrl);
             }}
           >
             {prompt}

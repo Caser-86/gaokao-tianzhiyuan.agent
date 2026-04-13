@@ -5,8 +5,11 @@ import SearchEntry from '../components/public/search-entry';
 import { listPlatformProducts } from '../lib/platform-api';
 import { getSearchEntry, listMajors, listSchools } from '../lib/public-content-api';
 
+const getApiBaseUrl = () => process.env.GAOKAO_AGENT_API_URL ?? 'http://127.0.0.1:8000';
+
 export default async function HomePage() {
   try {
+    const apiBaseUrl = getApiBaseUrl();
     const [searchEntry, schoolPayload, majorPayload, productPayload] = await Promise.all([
       getSearchEntry(),
       listSchools(),
@@ -17,6 +20,7 @@ export default async function HomePage() {
     return (
       <main className="page-shell">
         <SearchEntry
+          apiBaseUrl={apiBaseUrl}
           title={searchEntry.title}
           description={searchEntry.description}
           quickPrompts={searchEntry.quickPrompts}
@@ -61,7 +65,7 @@ export default async function HomePage() {
           </article>
         </section>
 
-        <PlatformHomepageShelf products={productPayload.items} />
+        <PlatformHomepageShelf apiBaseUrl={apiBaseUrl} products={productPayload.items} />
       </main>
     );
   } catch {

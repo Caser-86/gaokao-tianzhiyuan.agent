@@ -4,10 +4,14 @@ import type { PlatformProduct } from '../../lib/platform-api';
 import { trackPlatformEvent } from '../../lib/platform-events';
 
 type PlatformHomepageShelfProps = {
+  apiBaseUrl: string;
   products: PlatformProduct[];
 };
 
-export default function PlatformHomepageShelf({ products }: PlatformHomepageShelfProps) {
+export default function PlatformHomepageShelf({
+  apiBaseUrl,
+  products,
+}: PlatformHomepageShelfProps) {
   return (
     <section className="panel" style={{ marginTop: 28 }}>
       <h2 className="panel-title">精选服务</h2>
@@ -32,7 +36,7 @@ export default function PlatformHomepageShelf({ products }: PlatformHomepageShel
                     eventName: 'product_cta_clicked',
                     step: 'homepage_product_shelf',
                     metadata: { productSlug: product.slug },
-                  });
+                  }, apiBaseUrl);
                 }}
               >
                 {`查看${product.name}`}

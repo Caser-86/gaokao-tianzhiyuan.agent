@@ -16,9 +16,10 @@ beforeEach(() => {
   trackPlatformEventMock.mockResolvedValue(undefined);
 });
 
-test('tracks product CTA clicks without blocking the button interaction', async () => {
+test('tracks product CTA clicks with the server-provided API base URL', async () => {
   render(
     <PlatformHomepageShelf
+      apiBaseUrl="https://api.gaokao.test"
       products={[
         {
           slug: 'insight-weekly',
@@ -33,10 +34,13 @@ test('tracks product CTA clicks without blocking the button interaction', async 
   fireEvent.click(screen.getByRole('button', { name: '查看志愿快报订阅' }));
 
   await waitFor(() => {
-    expect(trackPlatformEventMock).toHaveBeenCalledWith({
-      eventName: 'product_cta_clicked',
-      step: 'homepage_product_shelf',
-      metadata: { productSlug: 'insight-weekly' },
-    });
+    expect(trackPlatformEventMock).toHaveBeenCalledWith(
+      {
+        eventName: 'product_cta_clicked',
+        step: 'homepage_product_shelf',
+        metadata: { productSlug: 'insight-weekly' },
+      },
+      'https://api.gaokao.test',
+    );
   });
 });
