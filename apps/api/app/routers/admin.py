@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Header, HTTPException, status
 
-router = APIRouter(prefix="/admin")
+router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
-def get_admin_header(x_admin_token: str | None = Header(None, alias="X-Admin-Token")) -> None:
-    if not x_admin_token:
+def require_admin(x_admin_token: str | None = Header(default=None)) -> None:
+    if x_admin_token != "dev-admin-token":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="admin authentication required",
@@ -12,5 +12,6 @@ def get_admin_header(x_admin_token: str | None = Header(None, alias="X-Admin-Tok
 
 
 @router.get("/review-queue")
-def review_queue(admin_header: None = Depends(get_admin_header)) -> dict[str, list[dict[str, str]]]:
-    return {"review_queue": []}
+def list_review_queue(x_admin_token: str | None = Header(default=None)) -> dict[str, list]:
+    require_admin(x_admin_token)
+    return {"items": []}

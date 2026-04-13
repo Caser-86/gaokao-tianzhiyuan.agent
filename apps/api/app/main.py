@@ -1,15 +1,11 @@
-from fastapi import APIRouter, FastAPI
+from fastapi import FastAPI
 
 from .config import settings
-from .routers import admin
+from .routers.admin import router as admin_router
 
 
 app = FastAPI(title=settings.app_name)
-api_router = APIRouter(prefix=settings.api_prefix)
-
-api_router.include_router(admin.router)
-
-app.include_router(api_router)
+app.include_router(admin_router)
 
 
 @app.get("/health")
