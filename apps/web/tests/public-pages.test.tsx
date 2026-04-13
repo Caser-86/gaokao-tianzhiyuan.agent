@@ -61,7 +61,7 @@ beforeEach(() => {
   notFoundMock.mockClear();
 });
 
-test('home page renders API-backed search and catalog data', async () => {
+test('home page renders API-backed search, catalog, and product data', async () => {
   getSearchEntryMock.mockResolvedValue({
     title: '高考志愿助手',
     description: '帮助考生和家长快速看学校、专业、地域与就业。',
@@ -109,8 +109,8 @@ test('home page renders API-backed search and catalog data', async () => {
   expect(screen.getByText('东南大学')).toBeInTheDocument();
   expect(screen.getByText('临床医学')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '精选服务' })).toBeInTheDocument();
-  expect(screen.getByText('志愿快报订阅')).toBeInTheDocument();
-  expect(screen.getByText('持续跟踪学校、专业和风险变化。')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '选择志愿快报订阅' })).toBeInTheDocument();
+  expect(screen.getByText('选择产品后查看能力包。')).toBeInTheDocument();
 });
 
 test('home page renders an explicit error state on public API failure', async () => {
