@@ -131,6 +131,38 @@ def test_major_detail_returns_career_and_risk_sections() -> None:
     }
 
 
+def test_school_detail_returns_ranking_references_for_west_china() -> None:
+    response = client.get("/api/public/schools/west-china-medical-center")
+
+    assert response.status_code == 200
+    assert response.json()["ranking_references"] == [
+        {
+            "source": "\u8f6f\u79d1\u4e2d\u56fd\u533b\u5b66\u9662\u6821\u6392\u540d",
+            "year": 2025,
+            "label": "\u5168\u56fd\u524d 10",
+            "scope": "\u533b\u5b66\u9662\u6821",
+            "note": "\u9002\u5408\u4f5c\u4e3a\u4e34\u5e8a\u533b\u5b66\u57f9\u517b\u5e73\u53f0\u7684\u6a2a\u5411\u53c2\u8003\u3002",
+            "url": "https://example.com/rankings/west-china-medical-center",
+        }
+    ]
+
+
+def test_major_detail_returns_ranking_references_for_computer_science() -> None:
+    response = client.get("/api/public/majors/computer-science")
+
+    assert response.status_code == 200
+    assert response.json()["ranking_references"] == [
+        {
+            "source": "\u6559\u80b2\u90e8\u5b66\u79d1\u8bc4\u4f30",
+            "year": 2023,
+            "label": "\u8ba1\u7b97\u673a\u79d1\u5b66\u4e0e\u6280\u672f B+",
+            "scope": "\u4e00\u7ea7\u5b66\u79d1",
+            "note": "\u9002\u5408\u4f5c\u4e3a\u9662\u6821\u8ba1\u7b97\u673a\u5b66\u79d1\u5b9e\u529b\u53c2\u8003\u3002",
+            "url": "https://example.com/rankings/computer-science",
+        }
+    ]
+
+
 def test_list_majors_returns_catalog_cards() -> None:
     response = client.get("/api/public/majors")
 
