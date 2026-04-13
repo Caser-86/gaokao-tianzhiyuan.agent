@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import PageSectionRenderer from '../../../components/public/page-section-renderer';
+import RankingReferenceList from '../../../components/public/ranking-reference-list';
 import { PublicApiError, getSchoolBySlug } from '../../../lib/public-content-api';
 
 type SchoolPageProps = {
@@ -37,6 +38,7 @@ export default async function SchoolPage({ params }: SchoolPageProps) {
         </section>
 
         <PageSectionRenderer sections={school.sections} />
+        <RankingReferenceList references={school.rankingReferences} />
       </main>
     );
   } catch (error) {

@@ -64,6 +64,7 @@ const MAJOR_SECTION_TITLE = '\u4e13\u4e1a\u901f\u67e5';
 const PLATFORM_SECTION_TITLE = '\u7cbe\u9009\u670d\u52a1';
 const PROMPT_TEXT = '\u9009\u62e9\u4ea7\u54c1\u540e\u67e5\u770b\u80fd\u529b\u5305\u3002';
 const PLATFORM_UNAVAILABLE_TITLE = '\u5e73\u53f0\u670d\u52a1\u6682\u65f6\u4e0d\u53ef\u7528';
+const RANKING_SECTION_TITLE = '\u53c2\u8003\u699c\u5355';
 const PUBLIC_ERROR_TEXT =
   '\u516c\u5f00\u5185\u5bb9\u52a0\u8f7d\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002';
 
@@ -211,12 +212,45 @@ test('school page renders API-backed detail data', async () => {
       },
     ],
     relatedMajors: ['architecture'],
+    rankingReferences: [
+      {
+        source: '\u8f6f\u79d1\u4e2d\u56fd\u5927\u5b66\u6392\u540d',
+        year: 2025,
+        label: '\u5168\u56fd\u7b2c 15 \u540d',
+        scope: '\u7efc\u5408\u7c7b\u9ad8\u6821',
+        note: '\u7528\u4e8e\u7efc\u5408\u5b9e\u529b\u53c2\u8003\uff0c\u4e0d\u7b49\u540c\u4e8e\u5177\u4f53\u4e13\u4e1a\u4f18\u52bf\u3002',
+        url: 'https://example.com/rankings/southeast-university',
+      },
+    ],
   });
 
   render(await SchoolPage({ params: Promise.resolve({ slug: 'southeast-university' }) }));
 
   expect(screen.getByRole('heading', { name: '\u4e1c\u5357\u5927\u5b66' })).toBeInTheDocument();
   expect(screen.getByText('\u5b66\u6821\u4eae\u70b9')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: RANKING_SECTION_TITLE })).toBeInTheDocument();
+  expect(screen.getByText('\u8f6f\u79d1\u4e2d\u56fd\u5927\u5b66\u6392\u540d 2025')).toBeInTheDocument();
+  expect(
+    screen.getByRole('link', { name: '\u67e5\u770b\u6765\u6e90' }),
+  ).toHaveAttribute('href', 'https://example.com/rankings/southeast-university');
+});
+
+test('school page omits ranking references when none are available', async () => {
+  getSchoolBySlugMock.mockResolvedValue({
+    slug: 'southeast-university',
+    name: '\u4e1c\u5357\u5927\u5b66',
+    region: '\u6c5f\u82cf',
+    city: '\u5357\u4eac',
+    tags: ['985'],
+    summary: '\u5de5\u79d1\u89c1\u957f\u3002',
+    sections: [],
+    relatedMajors: ['architecture'],
+    rankingReferences: [],
+  });
+
+  render(await SchoolPage({ params: Promise.resolve({ slug: 'southeast-university' }) }));
+
+  expect(screen.queryByRole('heading', { name: RANKING_SECTION_TITLE })).not.toBeInTheDocument();
 });
 
 test('school page calls notFound on 404 detail responses', async () => {
@@ -245,4 +279,32 @@ test('major page renders an explicit error state on non-404 failures', async () 
   render(await MajorPage({ params: Promise.resolve({ slug: 'clinical-medicine' }) }));
 
   expect(screen.getByText(PUBLIC_ERROR_TEXT)).toBeInTheDocument();
+});
+
+test('major page renders ranking references when present', async () => {
+  getMajorBySlugMock.mockResolvedValue({
+    slug: 'clinical-medicine',
+    name: '\u4e34\u5e8a\u533b\u5b66',
+    discipline: '\u533b\u5b66',
+    recommendedRegions: ['\u6c5f\u82cf', '\u56db\u5ddd'],
+    summary: '\u57f9\u517b\u5468\u671f\u957f\u3002',
+    sections: [],
+    relatedSchools: ['southeast-university'],
+    rankingReferences: [
+      {
+        source: '\u6559\u80b2\u90e8\u5b66\u79d1\u8bc4\u4f30',
+        year: 2023,
+        label: '\u4e34\u5e8a\u533b\u5b66 A-',
+        scope: '\u4e00\u7ea7\u5b66\u79d1',
+        note: '\u9002\u5408\u4f5c\u4e3a\u533b\u5b66\u5b66\u79d1\u5b9e\u529b\u53c2\u8003\u3002',
+        url: 'https://example.com/rankings/clinical-medicine',
+      },
+    ],
+  });
+
+  render(await MajorPage({ params: Promise.resolve({ slug: 'clinical-medicine' }) }));
+
+  expect(screen.getByRole('heading', { name: RANKING_SECTION_TITLE })).toBeInTheDocument();
+  expect(screen.getByText('\u6559\u80b2\u90e8\u5b66\u79d1\u8bc4\u4f30 2023')).toBeInTheDocument();
+  expect(screen.getByText('\u4e34\u5e8a\u533b\u5b66 A-')).toBeInTheDocument();
 });

@@ -6,6 +6,15 @@ export type PageSection = {
   items: string[];
 };
 
+export type RankingReference = {
+  source: string;
+  year: number;
+  label: string;
+  scope?: string;
+  note?: string;
+  url?: string;
+};
+
 export type SearchEntryData = {
   title: string;
   description: string;
@@ -32,11 +41,13 @@ export type MajorSummary = {
 export type SchoolDetail = SchoolSummary & {
   sections: PageSection[];
   relatedMajors: string[];
+  rankingReferences: RankingReference[];
 };
 
 export type MajorDetail = MajorSummary & {
   sections: PageSection[];
   relatedSchools: string[];
+  rankingReferences: RankingReference[];
 };
 
 export class PublicApiError extends Error {
@@ -118,6 +129,7 @@ export async function getSchoolBySlug(slug: string): Promise<SchoolDetail> {
     summary: string;
     sections: PageSection[];
     related_majors: string[];
+    ranking_references?: RankingReference[];
   }>(`/api/public/schools/${slug}`);
 
   return {
@@ -129,6 +141,7 @@ export async function getSchoolBySlug(slug: string): Promise<SchoolDetail> {
     summary: payload.summary,
     sections: payload.sections,
     relatedMajors: payload.related_majors,
+    rankingReferences: payload.ranking_references ?? [],
   };
 }
 
@@ -141,6 +154,7 @@ export async function getMajorBySlug(slug: string): Promise<MajorDetail> {
     summary: string;
     sections: PageSection[];
     related_schools: string[];
+    ranking_references?: RankingReference[];
   }>(`/api/public/majors/${slug}`);
 
   return {
@@ -151,5 +165,6 @@ export async function getMajorBySlug(slug: string): Promise<MajorDetail> {
     summary: payload.summary,
     sections: payload.sections,
     relatedSchools: payload.related_schools,
+    rankingReferences: payload.ranking_references ?? [],
   };
 }

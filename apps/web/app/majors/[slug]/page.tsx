@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import PageSectionRenderer from '../../../components/public/page-section-renderer';
+import RankingReferenceList from '../../../components/public/ranking-reference-list';
 import { PublicApiError, getMajorBySlug } from '../../../lib/public-content-api';
 
 type MajorPageProps = {
@@ -36,6 +37,7 @@ export default async function MajorPage({ params }: MajorPageProps) {
         </section>
 
         <PageSectionRenderer sections={major.sections} />
+        <RankingReferenceList references={major.rankingReferences} />
       </main>
     );
   } catch (error) {
