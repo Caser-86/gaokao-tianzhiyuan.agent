@@ -63,6 +63,37 @@ test('shows an empty prompt before any products are selected', () => {
   expect(within(getPreviewSection(container)).queryByRole('list')).not.toBeInTheDocument();
 });
 
+test('renders user-facing entitlement titles in product card metadata', () => {
+  renderShelf();
+
+  const firstCard = screen.getAllByRole('article')[0];
+
+  expect(
+    within(firstCard).getByText('\u9662\u6821\u57fa\u7840\u4fe1\u606f\u67e5\u770b'),
+  ).toBeInTheDocument();
+  expect(within(firstCard).queryByText('school_basic_access')).not.toBeInTheDocument();
+});
+
+test('keeps raw keys visible for unknown product entitlements', () => {
+  render(
+    <PlatformHomepageShelf
+      apiBaseUrl="https://api.gaokao.test"
+      products={[
+        {
+          slug: 'future-pack',
+          name: 'Future Pack',
+          description: 'Upcoming capability bundle.',
+          entitlements: ['future_capability'],
+        },
+      ]}
+    />,
+  );
+
+  const onlyCard = screen.getAllByRole('article')[0];
+
+  expect(within(onlyCard).getByText('future_capability')).toBeInTheDocument();
+});
+
 test('selecting products renders merged entitlements from the API', async () => {
   evaluatePlatformEntitlementsMock.mockImplementation((productSlugs: string[]) => {
     if (productSlugs.length === 2) {

@@ -95,9 +95,17 @@ export default function PlatformHomepageShelf({
                   <strong>{product.name}</strong>
                   <p>{product.description}</p>
                   <div className="meta">
-                    {product.entitlements.map((entitlement) => (
-                      <span key={entitlement}>{entitlement}</span>
-                    ))}
+                    {product.entitlements.map((entitlement) => {
+                      const entitlementCopy = getPlatformEntitlementCopy(entitlement);
+
+                      return (
+                        <span key={entitlement}>
+                          {isUnknownPlatformEntitlement(entitlement)
+                            ? entitlementCopy.rawKey
+                            : entitlementCopy.title}
+                        </span>
+                      );
+                    })}
                   </div>
                   <button
                     type="button"
