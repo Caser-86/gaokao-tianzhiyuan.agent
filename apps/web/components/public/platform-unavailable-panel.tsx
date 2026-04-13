@@ -1,6 +1,11 @@
+'use client';
+
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function PlatformUnavailablePanel() {
+  const router = useRouter();
+
   return (
     <section className="panel" style={{ marginTop: 28 }}>
       <div className="label">平台服务</div>
@@ -10,9 +15,9 @@ export default function PlatformUnavailablePanel() {
         <Link href="#school-catalog" className="chip">
           先去查学校
         </Link>
-        <Link href="/" className="chip">
+        <button type="button" className="chip" onClick={() => router.refresh()}>
           稍后再试
-        </Link>
+        </button>
       </div>
     </section>
   );

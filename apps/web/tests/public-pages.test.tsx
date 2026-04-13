@@ -10,6 +10,7 @@ const {
   getSchoolBySlugMock,
   getMajorBySlugMock,
   notFoundMock,
+  refreshMock,
 } = vi.hoisted(() => ({
   MockPublicApiError: class MockPublicApiError extends Error {
     status: number;
@@ -28,6 +29,7 @@ const {
   notFoundMock: vi.fn(() => {
     throw new Error('NEXT_NOT_FOUND');
   }),
+  refreshMock: vi.fn(),
 }));
 
 vi.mock('../lib/public-content-api', () => ({
@@ -45,6 +47,9 @@ vi.mock('../lib/platform-api', () => ({
 
 vi.mock('next/navigation', () => ({
   notFound: notFoundMock,
+  useRouter: () => ({
+    refresh: refreshMock,
+  }),
 }));
 
 import HomePage from '../app/page';
@@ -70,6 +75,7 @@ beforeEach(() => {
   getSchoolBySlugMock.mockReset();
   getMajorBySlugMock.mockReset();
   notFoundMock.mockClear();
+  refreshMock.mockReset();
 });
 
 test('home page renders API-backed search, catalog, and product data', async () => {
@@ -181,8 +187,8 @@ test('home page renders a platform unavailable panel when platform products fail
     screen.getByRole('link', { name: '\u5148\u53bb\u67e5\u5b66\u6821' }),
   ).toHaveAttribute('href', '#school-catalog');
   expect(
-    screen.getByRole('link', { name: '\u7a0d\u540e\u518d\u8bd5' }),
-  ).toHaveAttribute('href', '/');
+    screen.getByRole('button', { name: '\u7a0d\u540e\u518d\u8bd5' }),
+  ).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: SCHOOL_SECTION_TITLE })).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: MAJOR_SECTION_TITLE })).toBeInTheDocument();
 });
