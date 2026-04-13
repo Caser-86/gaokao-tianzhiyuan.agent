@@ -1,0 +1,199 @@
+{
+  "search_entry": {
+    "title": "高考志愿助手",
+    "description": "帮考生和家长看学校、专业、地域、就业和坑点，适合微信公众号查询与推送场景。",
+    "quick_prompts": ["查学校", "查专业", "看地域对比"]
+  },
+  "schools": [
+    {
+      "slug": "southeast-university",
+      "name": "东南大学",
+      "region": "江苏",
+      "city": "南京",
+      "tags": ["985", "双一流", "工科强校"],
+      "summary": "建筑、电子、工科实力强，适合理工基础扎实且想留在长三角发展的考生。",
+      "sections": [
+        {
+          "type": "highlights",
+          "title": "学校亮点",
+          "items": [
+            "建筑、土木、电子科学与技术长期强势。",
+            "南京区位好，实习与升学资源密集。",
+            "整体学风偏硬核，适合自驱型学生。"
+          ]
+        },
+        {
+          "type": "major_recommendations",
+          "title": "推荐专业",
+          "items": [
+            "建筑学：行业认可度高，但学习强度大。",
+            "电子科学与技术：适配芯片与硬科技就业方向。",
+            "计算机类：保研和就业都比较稳。"
+          ]
+        },
+        {
+          "type": "pitfalls",
+          "title": "报考坑点",
+          "items": [
+            "热门专业分流竞争强，不能只看学校名气。",
+            "部分专业培养节奏紧，读书压力不小。",
+            "建筑类需要长期投入，不适合只图学校牌子报考。"
+          ]
+        }
+      ],
+      "related_majors": ["architecture", "microelectronics", "computer-science"]
+    },
+    {
+      "slug": "west-china-medical-center",
+      "name": "华西医学中心",
+      "region": "四川",
+      "city": "成都",
+      "tags": ["医学强校", "西部龙头", "附属医院强"],
+      "summary": "临床医学培养实力强，适合想走医学长线发展、能接受高强度培养的考生。",
+      "sections": [
+        {
+          "type": "highlights",
+          "title": "学校亮点",
+          "items": [
+            "附属医院资源丰富，临床见习和规培衔接较好。",
+            "西部地区医学品牌强，区域影响力明显。",
+            "科研、临床、升学路径相对完整。"
+          ]
+        },
+        {
+          "type": "pitfalls",
+          "title": "报考坑点",
+          "items": [
+            "医学学习周期长，前期回报并不快。",
+            "不能把医学当作单纯稳定职业来报考。",
+            "不同附属体系和方向差异明显，要看清培养目标。"
+          ]
+        }
+      ],
+      "related_majors": ["clinical-medicine"]
+    }
+  ],
+  "majors": [
+    {
+      "slug": "clinical-medicine",
+      "name": "临床医学",
+      "discipline": "医学",
+      "recommended_regions": ["江苏", "浙江", "四川"],
+      "summary": "培养周期长、学习压力高，但职业壁垒强，适合抗压强且愿意长期投入的考生。",
+      "sections": [
+        {
+          "type": "fit_for",
+          "title": "适合人群",
+          "items": [
+            "能接受长培养周期和持续考试压力。",
+            "对临床一线工作有真实兴趣，不只看稳定性。",
+            "家庭能接受前期投入大、回报来得慢。"
+          ]
+        },
+        {
+          "type": "career_paths",
+          "title": "就业去向",
+          "items": [
+            "三甲医院临床岗",
+            "规培后继续专培或读研深造",
+            "医学科研与医院管理方向"
+          ]
+        },
+        {
+          "type": "pitfalls",
+          "title": "坑点提醒",
+          "items": [
+            "本科毕业直接高质量就业并不轻松，读研读博很常见。",
+            "值班和规培强度高，不能只看社会印象。",
+            "医学口碑、附属医院实力、城市资源差异很大。"
+          ]
+        }
+      ],
+      "related_schools": ["southeast-university", "west-china-medical-center"]
+    },
+    {
+      "slug": "computer-science",
+      "name": "计算机科学与技术",
+      "discipline": "工学",
+      "recommended_regions": ["北京", "上海", "广东", "江苏"],
+      "summary": "就业面广、迭代快，适合逻辑能力强、愿意持续学习的考生。",
+      "sections": [
+        {
+          "type": "fit_for",
+          "title": "适合人群",
+          "items": [
+            "数理逻辑较好，愿意长期学习新技术。",
+            "对编程和工程化解决问题有兴趣。",
+            "能接受行业周期和就业竞争波动。"
+          ]
+        },
+        {
+          "type": "pitfalls",
+          "title": "坑点提醒",
+          "items": [
+            "不能只看高薪叙事，学校平台和个人能力差距会很大。",
+            "行业变化快，需要持续更新技能。",
+            "课程不等于岗位技能，实习和项目经历很重要。"
+          ]
+        }
+      ],
+      "related_schools": ["southeast-university"]
+    },
+    {
+      "slug": "architecture",
+      "name": "建筑学",
+      "discipline": "工学",
+      "recommended_regions": ["江苏", "上海", "浙江"],
+      "summary": "专业认可度高，但学习和作品压力大，适合真正喜欢设计与空间表达的考生。",
+      "sections": [
+        {
+          "type": "fit_for",
+          "title": "适合人群",
+          "items": [
+            "愿意投入大量时间做设计和作品。",
+            "能接受长期训练带来的高强度节奏。",
+            "对空间、美学、工程结合有真实兴趣。"
+          ]
+        },
+        {
+          "type": "pitfalls",
+          "title": "坑点提醒",
+          "items": [
+            "学习成本和时间投入大，不适合跟风。",
+            "行业周期影响明显，要看清就业环境。",
+            "院校平台与地域资源对实习就业影响很大。"
+          ]
+        }
+      ],
+      "related_schools": ["southeast-university"]
+    },
+    {
+      "slug": "microelectronics",
+      "name": "微电子科学与工程",
+      "discipline": "工学",
+      "recommended_regions": ["江苏", "上海", "陕西"],
+      "summary": "适合想进入芯片与硬科技方向、数理基础较好的考生。",
+      "sections": [
+        {
+          "type": "career_paths",
+          "title": "就业去向",
+          "items": [
+            "芯片设计与验证",
+            "半导体工艺与制造",
+            "器件研发与系统集成"
+          ]
+        },
+        {
+          "type": "pitfalls",
+          "title": "坑点提醒",
+          "items": [
+            "课程难度和门槛较高，基础薄弱会比较吃力。",
+            "岗位方向细分多，要尽早理解产业链差异。",
+            "部分岗位更看重深造背景和项目经历。"
+          ]
+        }
+      ],
+      "related_schools": ["southeast-university"]
+    }
+  ]
+}
