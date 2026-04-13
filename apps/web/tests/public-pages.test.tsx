@@ -6,6 +6,7 @@ const {
   getSearchEntryMock,
   listSchoolsMock,
   listMajorsMock,
+  listPlatformProductsMock,
   getSchoolBySlugMock,
   getMajorBySlugMock,
   notFoundMock,
@@ -21,6 +22,7 @@ const {
   getSearchEntryMock: vi.fn(),
   listSchoolsMock: vi.fn(),
   listMajorsMock: vi.fn(),
+  listPlatformProductsMock: vi.fn(),
   getSchoolBySlugMock: vi.fn(),
   getMajorBySlugMock: vi.fn(),
   notFoundMock: vi.fn(() => {
@@ -37,6 +39,10 @@ vi.mock('../lib/public-content-api', () => ({
   getMajorBySlug: getMajorBySlugMock,
 }));
 
+vi.mock('../lib/platform-api', () => ({
+  listPlatformProducts: listPlatformProductsMock,
+}));
+
 vi.mock('next/navigation', () => ({
   notFound: notFoundMock,
 }));
@@ -49,6 +55,7 @@ beforeEach(() => {
   getSearchEntryMock.mockReset();
   listSchoolsMock.mockReset();
   listMajorsMock.mockReset();
+  listPlatformProductsMock.mockReset();
   getSchoolBySlugMock.mockReset();
   getMajorBySlugMock.mockReset();
   notFoundMock.mockClear();
@@ -85,16 +92,31 @@ test('home page renders API-backed search and catalog data', async () => {
     ],
     total: 1,
   });
+  listPlatformProductsMock.mockResolvedValue({
+    items: [
+      {
+        slug: 'insight-weekly',
+        name: '志愿快报订阅',
+        description: '持续跟踪学校、专业和风险变化。',
+        entitlements: ['school_basic_access', 'risk_alert_access'],
+      },
+    ],
+  });
 
   render(await HomePage());
 
   expect(screen.getByRole('heading', { name: '高考志愿助手' })).toBeInTheDocument();
   expect(screen.getByText('东南大学')).toBeInTheDocument();
   expect(screen.getByText('临床医学')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: '精选服务' })).toBeInTheDocument();
+  expect(screen.getByText('志愿快报订阅')).toBeInTheDocument();
+  expect(screen.getByText('持续跟踪学校、专业和风险变化。')).toBeInTheDocument();
 });
 
 test('home page renders an explicit error state on public API failure', async () => {
-  getSearchEntryMock.mockRejectedValue(new Error('boom'));
+  getSearchEntryMock.mockImplementation(() => {
+    throw new Error('boom');
+  });
 
   render(await HomePage());
 
