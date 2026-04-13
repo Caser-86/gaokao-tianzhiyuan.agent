@@ -19,14 +19,16 @@ import PlatformHomepageShelf from '../components/public/platform-homepage-shelf'
 const homepageProducts = [
   {
     slug: 'insight-weekly',
-    name: 'Insight Weekly',
-    description: 'Track school, major, and risk changes.',
+    name: '\u5fd7\u613f\u5feb\u62a5\u8ba2\u9605',
+    description:
+      '\u9002\u5408\u6301\u7eed\u63a5\u6536\u5b66\u6821\u3001\u4e13\u4e1a\u548c\u98ce\u9669\u53d8\u5316\u63d0\u9192\u3002',
     entitlements: ['school_basic_access'],
   },
   {
     slug: 'deep-dive-pack',
-    name: 'Deep Dive Pack',
-    description: 'Compare schools, majors, and regional options in depth.',
+    name: '\u6df1\u5ea6\u62a5\u544a\u5305',
+    description:
+      '\u9002\u5408\u9700\u8981\u5b66\u6821\u3001\u4e13\u4e1a\u3001\u5730\u533a\u548c\u5c31\u4e1a\u6df1\u5ea6\u5206\u6790\u7684\u5bb6\u5ead\u3002',
     entitlements: ['school_deep_dive_access'],
   },
 ];
@@ -111,8 +113,10 @@ test('selecting products renders merged entitlements from the API', async () => 
 
   const { container } = renderShelf();
 
-  fireEvent.click(screen.getAllByRole('button')[0]);
-  fireEvent.click(screen.getAllByRole('button')[1]);
+  fireEvent.click(
+    screen.getByRole('button', { name: '\u9009\u62e9\u5fd7\u613f\u5feb\u62a5\u8ba2\u9605' }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '\u9009\u62e9\u6df1\u5ea6\u62a5\u544a\u5305' }));
 
   await waitFor(() => {
     expect(evaluatePlatformEntitlementsMock).toHaveBeenLastCalledWith(
@@ -152,7 +156,9 @@ test('renders fallback copy and keeps the raw key for unknown entitlements', asy
 
   const { container } = renderShelf();
 
-  fireEvent.click(screen.getAllByRole('button')[0]);
+  fireEvent.click(
+    screen.getByRole('button', { name: '\u9009\u62e9\u5fd7\u613f\u5feb\u62a5\u8ba2\u9605' }),
+  );
 
   const previewSection = getPreviewSection(container);
 
@@ -175,7 +181,9 @@ test('shows a local error when entitlement evaluation fails', async () => {
 
   const { container } = renderShelf();
 
-  fireEvent.click(screen.getAllByRole('button')[0]);
+  fireEvent.click(
+    screen.getByRole('button', { name: '\u9009\u62e9\u5fd7\u613f\u5feb\u62a5\u8ba2\u9605' }),
+  );
 
   await waitFor(() => {
     expect(evaluatePlatformEntitlementsMock).toHaveBeenCalledWith(
@@ -190,7 +198,9 @@ test('shows a local error when entitlement evaluation fails', async () => {
 test('tracks product CTA clicks with the server-provided API base URL', async () => {
   renderShelf();
 
-  fireEvent.click(screen.getAllByRole('button')[0]);
+  fireEvent.click(
+    screen.getByRole('button', { name: '\u9009\u62e9\u5fd7\u613f\u5feb\u62a5\u8ba2\u9605' }),
+  );
 
   await waitFor(() => {
     expect(trackPlatformEventMock).toHaveBeenCalledWith(
