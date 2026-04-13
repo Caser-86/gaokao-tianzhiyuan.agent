@@ -16,6 +16,36 @@ vi.mock('../lib/platform-events', () => ({
 
 import PlatformHomepageShelf from '../components/public/platform-homepage-shelf';
 
+const homepageProducts = [
+  {
+    slug: 'insight-weekly',
+    name: 'Insight Weekly',
+    description: 'Track school, major, and risk changes.',
+    entitlements: ['school_basic_access'],
+  },
+  {
+    slug: 'deep-dive-pack',
+    name: 'Deep Dive Pack',
+    description: 'Compare schools, majors, and regional options in depth.',
+    entitlements: ['school_deep_dive_access'],
+  },
+];
+
+const renderShelf = () =>
+  render(
+    <PlatformHomepageShelf
+      apiBaseUrl="https://api.gaokao.test"
+      products={homepageProducts}
+    />,
+  );
+
+const getPreviewSection = (container: HTMLElement) => {
+  const previewSection = container.querySelectorAll('section.panel')[1];
+
+  expect(previewSection).toBeTruthy();
+  return previewSection as HTMLElement;
+};
+
 beforeEach(() => {
   evaluatePlatformEntitlementsMock.mockReset();
   evaluatePlatformEntitlementsMock.mockResolvedValue({
@@ -27,21 +57,10 @@ beforeEach(() => {
 });
 
 test('shows an empty prompt before any products are selected', () => {
-  render(
-    <PlatformHomepageShelf
-      apiBaseUrl="https://api.gaokao.test"
-      products={[
-        {
-          slug: 'insight-weekly',
-          name: '志愿快报订阅',
-          description: '持续跟踪学校、专业和风险变化。',
-          entitlements: ['school_basic_access'],
-        },
-      ]}
-    />,
-  );
+  const { container } = renderShelf();
 
-  expect(screen.getByText('选择产品后查看能力包。')).toBeInTheDocument();
+  expect(evaluatePlatformEntitlementsMock).not.toHaveBeenCalled();
+  expect(within(getPreviewSection(container)).queryByRole('list')).not.toBeInTheDocument();
 });
 
 test('selecting products renders merged entitlements from the API', async () => {
@@ -59,28 +78,10 @@ test('selecting products renders merged entitlements from the API', async () => 
     });
   });
 
-  render(
-    <PlatformHomepageShelf
-      apiBaseUrl="https://api.gaokao.test"
-      products={[
-        {
-          slug: 'insight-weekly',
-          name: '志愿快报订阅',
-          description: '持续跟踪学校、专业和风险变化。',
-          entitlements: ['school_basic_access'],
-        },
-        {
-          slug: 'deep-dive-pack',
-          name: '深度报告包',
-          description: '适合需要学校、专业、地域和就业深度分析的家庭。',
-          entitlements: ['school_deep_dive_access'],
-        },
-      ]}
-    />,
-  );
+  const { container } = renderShelf();
 
-  fireEvent.click(screen.getByRole('button', { name: '选择志愿快报订阅' }));
-  fireEvent.click(screen.getByRole('button', { name: '选择深度报告包' }));
+  fireEvent.click(screen.getAllByRole('button')[0]);
+  fireEvent.click(screen.getAllByRole('button')[1]);
 
   await waitFor(() => {
     expect(evaluatePlatformEntitlementsMock).toHaveBeenLastCalledWith(
@@ -89,55 +90,76 @@ test('selecting products renders merged entitlements from the API', async () => 
     );
   });
 
-  const previewSection = screen.getByRole('heading', { name: '能力预览' }).closest('section');
+  const previewSection = getPreviewSection(container);
 
-  expect(previewSection).not.toBeNull();
-  expect(within(previewSection as HTMLElement).getByText('major_basic_access')).toBeInTheDocument();
+  await waitFor(() => {
+    expect(
+      within(previewSection).getByText('\u4e13\u4e1a\u57fa\u7840\u4fe1\u606f\u67e5\u770b'),
+    ).toBeInTheDocument();
+  });
+
   expect(
-    within(previewSection as HTMLElement).getByText('school_deep_dive_access'),
+    within(previewSection).getByText(
+      '\u67e5\u770b\u4e13\u4e1a\u7684\u57f9\u517b\u65b9\u5411\u3001\u9009\u79d1\u8981\u6c42\u548c\u57fa\u7840\u89e3\u8bfb\u3002',
+    ),
   ).toBeInTheDocument();
+  expect(
+    within(previewSection).getByText('\u9662\u6821\u6df1\u5ea6\u5206\u6790'),
+  ).toBeInTheDocument();
+  expect(
+    within(previewSection).getByText(
+      '\u67e5\u770b\u9662\u6821\u5206\u6570\u8d8b\u52bf\u3001\u5f55\u53d6\u5c42\u6b21\u548c\u6df1\u5ea6\u89e3\u8bfb\u3002',
+    ),
+  ).toBeInTheDocument();
+});
+
+test('renders fallback copy and keeps the raw key for unknown entitlements', async () => {
+  evaluatePlatformEntitlementsMock.mockResolvedValueOnce({
+    product_slugs: ['insight-weekly'],
+    entitlements: ['future_capability'],
+  });
+
+  const { container } = renderShelf();
+
+  fireEvent.click(screen.getAllByRole('button')[0]);
+
+  const previewSection = getPreviewSection(container);
+
+  await waitFor(() => {
+    expect(
+      within(previewSection).getByText('\u66f4\u591a\u5e73\u53f0\u80fd\u529b'),
+    ).toBeInTheDocument();
+  });
+
+  expect(
+    within(previewSection).getByText(
+      '\u8be5\u80fd\u529b\u5df2\u5f00\u901a\uff0c\u8be6\u7ec6\u8bf4\u660e\u5373\u5c06\u8865\u5145\u3002',
+    ),
+  ).toBeInTheDocument();
+  expect(within(previewSection).getByText('future_capability')).toBeInTheDocument();
 });
 
 test('shows a local error when entitlement evaluation fails', async () => {
   evaluatePlatformEntitlementsMock.mockRejectedValueOnce(new Error('boom'));
 
-  render(
-    <PlatformHomepageShelf
-      apiBaseUrl="https://api.gaokao.test"
-      products={[
-        {
-          slug: 'insight-weekly',
-          name: '志愿快报订阅',
-          description: '持续跟踪学校、专业和风险变化。',
-          entitlements: ['school_basic_access'],
-        },
-      ]}
-    />,
-  );
+  const { container } = renderShelf();
 
-  fireEvent.click(screen.getByRole('button', { name: '选择志愿快报订阅' }));
+  fireEvent.click(screen.getAllByRole('button')[0]);
 
   await waitFor(() => {
-    expect(screen.getByText('能力预览加载失败，请稍后再试。')).toBeInTheDocument();
+    expect(evaluatePlatformEntitlementsMock).toHaveBeenCalledWith(
+      ['insight-weekly'],
+      'https://api.gaokao.test',
+    );
   });
+
+  expect(within(getPreviewSection(container)).queryByRole('list')).not.toBeInTheDocument();
 });
 
 test('tracks product CTA clicks with the server-provided API base URL', async () => {
-  render(
-    <PlatformHomepageShelf
-      apiBaseUrl="https://api.gaokao.test"
-      products={[
-        {
-          slug: 'insight-weekly',
-          name: '志愿快报订阅',
-          description: '持续跟踪学校、专业和风险变化。',
-          entitlements: ['school_basic_access'],
-        },
-      ]}
-    />,
-  );
+  renderShelf();
 
-  fireEvent.click(screen.getByRole('button', { name: '选择志愿快报订阅' }));
+  fireEvent.click(screen.getAllByRole('button')[0]);
 
   await waitFor(() => {
     expect(trackPlatformEventMock).toHaveBeenCalledWith(

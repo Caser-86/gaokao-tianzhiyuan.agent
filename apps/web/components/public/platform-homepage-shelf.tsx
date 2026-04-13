@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from 'react';
 
+import {
+  getPlatformEntitlementCopy,
+  isUnknownPlatformEntitlement,
+} from '../../lib/platform-entitlement-labels';
 import type { PlatformProduct } from '../../lib/platform-api';
 import { evaluatePlatformEntitlements } from '../../lib/platform-entitlements';
 import { trackPlatformEvent } from '../../lib/platform-events';
@@ -128,9 +132,19 @@ export default function PlatformHomepageShelf({
               <p>能力预览加载失败，请稍后再试。</p>
             ) : (
               <ul className="feature-list">
-                {entitlementState.entitlements.map((entitlement) => (
-                  <li key={entitlement}>{entitlement}</li>
-                ))}
+                {entitlementState.entitlements.map((entitlement) => {
+                  const entitlementCopy = getPlatformEntitlementCopy(entitlement);
+
+                  return (
+                    <li key={entitlement}>
+                      <strong>{entitlementCopy.title}</strong>
+                      <p>{entitlementCopy.description}</p>
+                      {isUnknownPlatformEntitlement(entitlement) ? (
+                        <small>{entitlementCopy.rawKey}</small>
+                      ) : null}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>
