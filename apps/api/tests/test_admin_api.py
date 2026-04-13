@@ -13,9 +13,10 @@ def test_review_queue_endpoint_requires_admin_header() -> None:
 
 
 def test_review_queue_endpoint_returns_empty_items_for_valid_admin_token() -> None:
+    admin_token = settings.admin_token
     response = client.get(
         "/api/admin/review-queue",
-        headers={"x-admin-token": "dev-admin-token"},
+        headers={"x-admin-token": admin_token},
     )
     assert response.status_code == 200
     assert response.json() == {"items": []}
