@@ -28,6 +28,7 @@ export type SchoolSummary = {
   city: string;
   tags: string[];
   summary: string;
+  hasRankingReferences?: boolean;
 };
 
 export type MajorSummary = {
@@ -36,6 +37,7 @@ export type MajorSummary = {
   discipline: string;
   recommendedRegions: string[];
   summary: string;
+  hasRankingReferences?: boolean;
 };
 
 export type SchoolDetail = SchoolSummary & {
@@ -92,7 +94,31 @@ export async function getSearchEntry(): Promise<SearchEntryData> {
 }
 
 export async function listSchools(): Promise<{ items: SchoolSummary[]; total: number }> {
-  return fetchPublicJson<{ items: SchoolSummary[]; total: number }>('/api/public/schools');
+  const payload = await fetchPublicJson<{
+    items: Array<{
+      slug: string;
+      name: string;
+      region: string;
+      city: string;
+      tags: string[];
+      summary: string;
+      has_ranking_references?: boolean;
+    }>;
+    total: number;
+  }>('/api/public/schools');
+
+  return {
+    items: payload.items.map((item) => ({
+      slug: item.slug,
+      name: item.name,
+      region: item.region,
+      city: item.city,
+      tags: item.tags,
+      summary: item.summary,
+      hasRankingReferences: item.has_ranking_references ?? false,
+    })),
+    total: payload.total,
+  };
 }
 
 export async function listMajors(): Promise<{ items: MajorSummary[]; total: number }> {
@@ -103,6 +129,7 @@ export async function listMajors(): Promise<{ items: MajorSummary[]; total: numb
       discipline: string;
       recommended_regions: string[];
       summary: string;
+      has_ranking_references?: boolean;
     }>;
     total: number;
   }>('/api/public/majors');
@@ -114,6 +141,7 @@ export async function listMajors(): Promise<{ items: MajorSummary[]; total: numb
       discipline: item.discipline,
       recommendedRegions: item.recommended_regions,
       summary: item.summary,
+      hasRankingReferences: item.has_ranking_references ?? false,
     })),
     total: payload.total,
   };

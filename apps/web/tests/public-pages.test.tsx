@@ -66,6 +66,7 @@ const PROMPT_TEXT = '\u9009\u62e9\u4ea7\u54c1\u540e\u67e5\u770b\u80fd\u529b\u530
 const PLATFORM_UNAVAILABLE_TITLE = '\u5e73\u53f0\u670d\u52a1\u6682\u65f6\u4e0d\u53ef\u7528';
 const RANKING_SECTION_TITLE = '\u53c2\u8003\u699c\u5355';
 const RANKING_HINT_TEXT = '\u4e0d\u540c\u699c\u5355\u53e3\u5f84\u4e0d\u540c\uff0c\u7ed3\u679c\u4ec5\u4f9b\u53c2\u8003\u3002';
+const RANKING_BADGE_TEXT = '\u542b\u53c2\u8003\u699c\u5355';
 const PUBLIC_ERROR_TEXT =
   '\u516c\u5f00\u5185\u5bb9\u52a0\u8f7d\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002';
 
@@ -95,9 +96,19 @@ test('home page renders API-backed search, catalog, and product data', async () 
         city: '\u5357\u4eac',
         tags: ['985'],
         summary: '\u5de5\u79d1\u89c1\u957f\u3002',
+        hasRankingReferences: true,
+      },
+      {
+        slug: 'plain-school',
+        name: '\u666e\u901a\u5b66\u6821',
+        region: '\u5c71\u4e1c',
+        city: '\u6d4e\u5357',
+        tags: ['\u53cc\u975e'],
+        summary: '\u65e0\u989d\u5916\u699c\u5355\u793a\u4f8b\u3002',
+        hasRankingReferences: false,
       },
     ],
-    total: 1,
+    total: 2,
   });
   listMajorsMock.mockResolvedValue({
     items: [
@@ -107,9 +118,18 @@ test('home page renders API-backed search, catalog, and product data', async () 
         discipline: '\u533b\u5b66',
         recommendedRegions: ['\u6c5f\u82cf', '\u6d59\u6c5f'],
         summary: '\u57f9\u517b\u5468\u671f\u957f\u3002',
+        hasRankingReferences: true,
+      },
+      {
+        slug: 'plain-major',
+        name: '\u666e\u901a\u4e13\u4e1a',
+        discipline: '\u5de5\u5b66',
+        recommendedRegions: ['\u6cb3\u5317'],
+        summary: '\u65e0\u989d\u5916\u699c\u5355\u793a\u4f8b\u3002',
+        hasRankingReferences: false,
       },
     ],
-    total: 1,
+    total: 2,
   });
   listPlatformProductsMock.mockResolvedValue({
     items: [
@@ -128,6 +148,7 @@ test('home page renders API-backed search, catalog, and product data', async () 
   expect(screen.getByRole('heading', { name: HOME_TITLE })).toBeInTheDocument();
   expect(screen.getByText('\u4e1c\u5357\u5927\u5b66')).toBeInTheDocument();
   expect(screen.getByText('\u4e34\u5e8a\u533b\u5b66')).toBeInTheDocument();
+  expect(screen.getAllByText(RANKING_BADGE_TEXT)).toHaveLength(2);
   expect(screen.getByRole('heading', { name: PLATFORM_SECTION_TITLE })).toBeInTheDocument();
   expect(
     screen.getByRole('button', {

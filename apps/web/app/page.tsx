@@ -47,6 +47,7 @@ export default async function HomePage() {
                     {school.tags.map((tag) => (
                       <span key={tag}>{tag}</span>
                     ))}
+                    {school.hasRankingReferences ? <span>{'\u542b\u53c2\u8003\u699c\u5355'}</span> : null}
                   </div>
                 </Link>
               ))}
@@ -65,6 +66,7 @@ export default async function HomePage() {
                     {major.recommendedRegions.slice(0, 3).map((region) => (
                       <span key={region}>{region}</span>
                     ))}
+                    {major.hasRankingReferences ? <span>{'\u542b\u53c2\u8003\u699c\u5355'}</span> : null}
                   </div>
                 </Link>
               ))}
