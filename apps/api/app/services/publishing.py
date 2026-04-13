@@ -22,10 +22,12 @@ def publish_school_version(
     published_versions = session.exec(published_stmt).all()
     for published in published_versions:
         published.status = VersionStatus.archived
+        session.add(published)
 
     version.status = VersionStatus.published
     version.published_by = operator
     version.published_at = datetime.now(timezone.utc)
 
     session.add(version)
+    session.flush()
     return version

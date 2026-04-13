@@ -5,11 +5,11 @@ from app.services.publishing import publish_school_version
 
 
 def test_publish_school_version_marks_only_target_version_published() -> None:
-    engine = create_engine("sqlite://", connect_args={"check_same_thread": False})
+    engine = create_engine('sqlite://', connect_args={'check_same_thread': False})
     SQLModel.metadata.create_all(engine)
 
     with Session(engine) as session:
-        school = School(name="示例大学", slug="example-university")
+        school = School(name='示例大学', slug='example-university')
         session.add(school)
         session.commit()
         session.refresh(school)
@@ -17,27 +17,26 @@ def test_publish_school_version_marks_only_target_version_published() -> None:
         v1 = SchoolContentVersion(
             school_id=school.id,
             version=1,
-            summary="old",
-            status="published",
-            published_by="author",
+            summary='old',
+            status='published',
         )
         v2 = SchoolContentVersion(
             school_id=school.id,
             version=2,
-            summary="new",
-            status="draft",
+            summary='new',
+            status='draft',
         )
 
-        session.add_all([v1, v2])
+        session.add(v1)
+        session.add(v2)
         session.commit()
         session.refresh(v1)
         session.refresh(v2)
 
-        publish_school_version(session, school.id, v2.id, operator="editor@example.com")
-        session.commit()
+        publish_school_version(session, school.id, v2.id, operator='editor@example.com')
         session.refresh(v1)
         session.refresh(v2)
 
-        assert v1.status == "archived"
-        assert v2.status == "published"
-        assert v2.published_by == "editor@example.com"
+        assert v1.status == 'archived'
+        assert v2.status == 'published'
+        assert v2.published_by == 'editor@example.com'
