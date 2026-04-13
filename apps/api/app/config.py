@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     api_prefix: str = "/api"
     environment: str = "development"
     admin_token: str = DEFAULT_ADMIN_TOKEN
+    database_url: str = "sqlite:///./gaokao-agent.db"
 
     @model_validator(mode="after")
     def validate_admin_token(self) -> "Settings":
