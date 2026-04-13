@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Header, HTTPException, status
 
+from ..config import settings
+
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
 def require_admin(x_admin_token: str | None = Header(default=None)) -> None:
-    if x_admin_token != "dev-admin-token":
+    if x_admin_token != settings.admin_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="admin authentication required",

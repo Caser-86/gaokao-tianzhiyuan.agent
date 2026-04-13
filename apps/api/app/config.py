@@ -6,6 +6,7 @@ class Settings(BaseSettings):
 
     app_name: str = "gaokao-agent-api"
     api_prefix: str = "/api"
+    admin_token: str = "dev-admin-token"
 
 
 settings = Settings()
