@@ -47,6 +47,7 @@ def list_schools(*, region: str | None = None, keyword: str | None = None) -> di
                 "city": school["city"],
                 "tags": school["tags"],
                 "summary": school["summary"],
+                "has_ranking_references": bool(school.get("ranking_references")),
             }
         )
 
@@ -65,6 +66,7 @@ def list_majors() -> dict[str, Any]:
             "discipline": major["discipline"],
             "recommended_regions": major["recommended_regions"],
             "summary": major["summary"],
+            "has_ranking_references": bool(major.get("ranking_references")),
         }
         for major in majors
     ]
