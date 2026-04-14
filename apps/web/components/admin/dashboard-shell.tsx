@@ -46,6 +46,12 @@ type DashboardShellProps = {
   featuredSchedule: AdminFeaturedPreviewDay[];
   summarySchools?: AdminContentSummaryEntity[];
   summaryMajors?: AdminContentSummaryEntity[];
+  showScheduledMissingSchoolSummariesOnly?: boolean;
+  showScheduledMissingSchoolSummariesOnlyHref?: string;
+  showAllScheduledSchoolSummariesHref?: string;
+  showScheduledMissingMajorSummariesOnly?: boolean;
+  showScheduledMissingMajorSummariesOnlyHref?: string;
+  showAllScheduledMajorSummariesHref?: string;
   sectionSchools?: AdminContentSectionsEntity[];
   sectionMajors?: AdminContentSectionsEntity[];
   relatedSchools?: AdminRelatedSchoolEntity[];
@@ -310,6 +316,12 @@ export default function DashboardShell({
   featuredSchedule,
   summarySchools = [],
   summaryMajors = [],
+  showScheduledMissingSchoolSummariesOnly = false,
+  showScheduledMissingSchoolSummariesOnlyHref,
+  showAllScheduledSchoolSummariesHref,
+  showScheduledMissingMajorSummariesOnly = false,
+  showScheduledMissingMajorSummariesOnlyHref,
+  showAllScheduledMajorSummariesHref,
   sectionSchools = [],
   sectionMajors = [],
   relatedSchools = [],
@@ -585,6 +597,76 @@ export default function DashboardShell({
             major.relatedSchools.length === 0 && scheduledMissingMajorRelatedSlugs.has(major.slug),
         )
       : sortedRelatedMajors;
+  const sortedSummarySchools = [...summarySchools].sort((left, right) => {
+    const leftMissing = left.summary.trim() === '' ? 0 : 1;
+    const rightMissing = right.summary.trim() === '' ? 0 : 1;
+    if (leftMissing !== rightMissing) {
+      return leftMissing - rightMissing;
+    }
+
+    const priorityDifference =
+      relatedCoveragePriority(
+        left.slug,
+        featuredSchoolSlugs,
+        todayPreviewSchoolSlugs,
+        nextPreviewSchoolSlugs,
+      ) -
+      relatedCoveragePriority(
+        right.slug,
+        featuredSchoolSlugs,
+        todayPreviewSchoolSlugs,
+        nextPreviewSchoolSlugs,
+      );
+    if (priorityDifference !== 0) {
+      return priorityDifference;
+    }
+
+    return left.name.localeCompare(right.name, 'zh-CN');
+  });
+  const sortedSummaryMajors = [...summaryMajors].sort((left, right) => {
+    const leftMissing = left.summary.trim() === '' ? 0 : 1;
+    const rightMissing = right.summary.trim() === '' ? 0 : 1;
+    if (leftMissing !== rightMissing) {
+      return leftMissing - rightMissing;
+    }
+
+    const priorityDifference =
+      relatedCoveragePriority(
+        left.slug,
+        featuredMajorSlugs,
+        todayPreviewMajorSlugs,
+        nextPreviewMajorSlugs,
+      ) -
+      relatedCoveragePriority(
+        right.slug,
+        featuredMajorSlugs,
+        todayPreviewMajorSlugs,
+        nextPreviewMajorSlugs,
+      );
+    if (priorityDifference !== 0) {
+      return priorityDifference;
+    }
+
+    return left.name.localeCompare(right.name, 'zh-CN');
+  });
+  const missingSchoolSummaries = sortedSummarySchools.filter((school) => school.summary.trim() === '');
+  const missingMajorSummaries = sortedSummaryMajors.filter((major) => major.summary.trim() === '');
+  const scheduledMissingSchoolSummariesCount = missingSchoolSummaries.filter((school) =>
+    scheduledMissingSchoolSlugs.has(school.slug),
+  ).length;
+  const scheduledMissingMajorSummariesCount = missingMajorSummaries.filter((major) =>
+    scheduledMissingMajorRelatedSlugs.has(major.slug),
+  ).length;
+  const displayedSummarySchools = showScheduledMissingSchoolSummariesOnly
+    ? sortedSummarySchools.filter(
+        (school) => school.summary.trim() === '' && scheduledMissingSchoolSlugs.has(school.slug),
+      )
+    : sortedSummarySchools;
+  const displayedSummaryMajors = showScheduledMissingMajorSummariesOnly
+    ? sortedSummaryMajors.filter(
+        (major) => major.summary.trim() === '' && scheduledMissingMajorRelatedSlugs.has(major.slug),
+      )
+    : sortedSummaryMajors;
 
   const schoolFilterLinks = (
     <p>
@@ -659,6 +741,14 @@ export default function DashboardShell({
 
     if (showScheduledMissingMajorRelatedOnly) {
       searchParams.set('scheduled_missing_major_related', '1');
+    }
+
+    if (showScheduledMissingSchoolSummariesOnly) {
+      searchParams.set('scheduled_missing_school_summaries', '1');
+    }
+
+    if (showScheduledMissingMajorSummariesOnly) {
+      searchParams.set('scheduled_missing_major_summaries', '1');
     }
 
     return `/admin?${searchParams.toString()}`;
@@ -828,16 +918,38 @@ export default function DashboardShell({
         )}
       </section>
 
-      <section aria-labelledby="school-content-summary-heading">
+      <section
+        aria-labelledby="school-content-summary-heading"
+        data-testid="school-summary-section"
+      >
         <h2 id="school-content-summary-heading">学校摘要编辑</h2>
 
         {contentSummaryError ? <p>{contentSummaryError}</p> : null}
 
         {!contentSummaryError ? (
           <div>
-            {summarySchools.length === 0 ? <p>当前没有可编辑的学校摘要</p> : null}
-            {summarySchools.map((school) => (
-              <div key={school.slug}>
+            <p>{`已配置学校摘要 ${sortedSummarySchools.length - missingSchoolSummaries.length} 所，待补学校摘要 ${missingSchoolSummaries.length} 所`}</p>
+            {showScheduledMissingSchoolSummariesOnlyHref ||
+            showAllScheduledSchoolSummariesHref ? (
+              <p>
+                {!showScheduledMissingSchoolSummariesOnly &&
+                showScheduledMissingSchoolSummariesOnlyHref ? (
+                  <a href={showScheduledMissingSchoolSummariesOnlyHref}>{`仅看近期待补学校摘要（${scheduledMissingSchoolSummariesCount}）`}</a>
+                ) : null}
+                {showScheduledMissingSchoolSummariesOnly && showAllScheduledSchoolSummariesHref ? (
+                  <a href={showAllScheduledSchoolSummariesHref}>查看全部学校摘要</a>
+                ) : null}
+              </p>
+            ) : null}
+            {displayedSummarySchools.length === 0 ? (
+              <p>
+                {showScheduledMissingSchoolSummariesOnly
+                  ? '当前没有近期待补学校摘要'
+                  : '当前没有可编辑的学校摘要'}
+              </p>
+            ) : null}
+            {displayedSummarySchools.map((school) => (
+              <div key={school.slug} id={`school-summary-${school.slug}`}>
                 <ContentSummaryForm entity={school} action={updateSchoolSummaryAction} />
               </div>
             ))}
@@ -845,21 +957,103 @@ export default function DashboardShell({
         ) : null}
       </section>
 
-      <section aria-labelledby="major-content-summary-heading">
+      <section
+        aria-labelledby="missing-school-summary-heading"
+        data-testid="missing-school-summary-section"
+      >
+        <h2 id="missing-school-summary-heading">{`待补学校摘要（${missingSchoolSummaries.length}）`}</h2>
+
+        {contentSummaryError ? null : missingSchoolSummaries.length === 0 ? (
+          <p>当前没有待补学校摘要</p>
+        ) : (
+          <>
+            <p>{`今日待补 ${missingSchoolSummaries.filter((school) => todayPreviewSchoolSlugs.has(school.slug)).length} 所，下一轮待补 ${missingSchoolSummaries.filter((school) => nextPreviewSchoolSlugs.has(school.slug)).length} 所`}</p>
+            <ul>
+              {missingSchoolSummaries.map((school) => (
+                <li key={school.slug}>
+                  <a href={`#school-summary-${school.slug}`}>{school.name}</a>
+                  <span>{school.slug}</span>
+                  {featuredSchoolSlugs.has(school.slug) ? <span>当前展示</span> : null}
+                  {todayPreviewSchoolSlugs.has(school.slug) ? (
+                    <a href="#featured-school-preview-heading">今日展示</a>
+                  ) : null}
+                  {nextPreviewSchoolSlugs.has(school.slug) ? (
+                    <a href="#next-featured-school-preview-heading">下一轮展示</a>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
+
+      <section
+        aria-labelledby="major-content-summary-heading"
+        data-testid="major-summary-section"
+      >
         <h2 id="major-content-summary-heading">专业摘要编辑</h2>
 
         {contentSummaryError ? <p>{contentSummaryError}</p> : null}
 
         {!contentSummaryError ? (
           <div>
-            {summaryMajors.length === 0 ? <p>当前没有可编辑的专业摘要</p> : null}
-            {summaryMajors.map((major) => (
-              <div key={major.slug}>
+            <p>{`已配置专业摘要 ${sortedSummaryMajors.length - missingMajorSummaries.length} 个，待补专业摘要 ${missingMajorSummaries.length} 个`}</p>
+            {showScheduledMissingMajorSummariesOnlyHref ||
+            showAllScheduledMajorSummariesHref ? (
+              <p>
+                {!showScheduledMissingMajorSummariesOnly &&
+                showScheduledMissingMajorSummariesOnlyHref ? (
+                  <a href={showScheduledMissingMajorSummariesOnlyHref}>{`仅看近期待补专业摘要（${scheduledMissingMajorSummariesCount}）`}</a>
+                ) : null}
+                {showScheduledMissingMajorSummariesOnly && showAllScheduledMajorSummariesHref ? (
+                  <a href={showAllScheduledMajorSummariesHref}>查看全部专业摘要</a>
+                ) : null}
+              </p>
+            ) : null}
+            {displayedSummaryMajors.length === 0 ? (
+              <p>
+                {showScheduledMissingMajorSummariesOnly
+                  ? '当前没有近期待补专业摘要'
+                  : '当前没有可编辑的专业摘要'}
+              </p>
+            ) : null}
+            {displayedSummaryMajors.map((major) => (
+              <div key={major.slug} id={`major-summary-${major.slug}`}>
                 <ContentSummaryForm entity={major} action={updateMajorSummaryAction} />
               </div>
             ))}
           </div>
         ) : null}
+      </section>
+
+      <section
+        aria-labelledby="missing-major-summary-heading"
+        data-testid="missing-major-summary-section"
+      >
+        <h2 id="missing-major-summary-heading">{`待补专业摘要（${missingMajorSummaries.length}）`}</h2>
+
+        {contentSummaryError ? null : missingMajorSummaries.length === 0 ? (
+          <p>当前没有待补专业摘要</p>
+        ) : (
+          <>
+            <p>{`今日待补 ${missingMajorSummaries.filter((major) => todayPreviewMajorSlugs.has(major.slug)).length} 个，下一轮待补 ${missingMajorSummaries.filter((major) => nextPreviewMajorSlugs.has(major.slug)).length} 个`}</p>
+            <ul>
+              {missingMajorSummaries.map((major) => (
+                <li key={major.slug}>
+                  <a href={`#major-summary-${major.slug}`}>{major.name}</a>
+                  <span>{major.slug}</span>
+                  {featuredMajorSlugs.has(major.slug) ? <span>当前展示</span> : null}
+                  {todayPreviewMajorSlugs.has(major.slug) ? (
+                    <a href="#featured-major-preview-heading">今日展示</a>
+                  ) : null}
+                  {nextPreviewMajorSlugs.has(major.slug) ? (
+                    <a href="#next-featured-major-preview-heading">下一轮展示</a>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </section>
 
       <section aria-labelledby="school-content-sections-heading">
@@ -1339,6 +1533,12 @@ export default function DashboardShell({
           ) : null}
           {showScheduledMissingMajorRelatedOnly ? (
             <input type="hidden" name="scheduled_missing_major_related" value="1" />
+          ) : null}
+          {showScheduledMissingSchoolSummariesOnly ? (
+            <input type="hidden" name="scheduled_missing_school_summaries" value="1" />
+          ) : null}
+          {showScheduledMissingMajorSummariesOnly ? (
+            <input type="hidden" name="scheduled_missing_major_summaries" value="1" />
           ) : null}
           <button type="submit">查看该日轮换</button>
         </form>
