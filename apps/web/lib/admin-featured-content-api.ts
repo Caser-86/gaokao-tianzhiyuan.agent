@@ -23,6 +23,15 @@ export type AdminFeaturedPreviewDay = {
   majors: AdminFeaturedPreviewItem[];
 };
 
+export type AdminFeaturedSchoolImageSuggestion = {
+  slug: string;
+  name: string;
+  status: 'found' | 'missing' | 'failed';
+  sourceUrl: string | null;
+  suggestedImageUrl: string | null;
+  message: string | null;
+};
+
 export type AdminRotationRule = {
   enabled: boolean;
   frequencyDays: number;
@@ -267,6 +276,36 @@ export async function updateFeaturedSchool(
     name: payload.name,
     isFeatured: payload.is_featured,
     heroImageUrl: payload.hero_image_url ?? '',
+  };
+}
+
+export async function suggestFeaturedSchoolImage(
+  slug: string,
+): Promise<AdminFeaturedSchoolImageSuggestion> {
+  const response = await fetch(
+    `${getApiUrl()}/api/admin/featured-content/schools/${slug}/suggest-image`,
+    {
+      method: 'POST',
+      headers: buildHeaders(),
+      cache: 'no-store',
+    },
+  );
+  const payload = await parseResponse<{
+    slug: string;
+    name: string;
+    status: 'found' | 'missing' | 'failed';
+    source_url?: string | null;
+    suggested_image_url?: string | null;
+    message?: string | null;
+  }>(response);
+
+  return {
+    slug: payload.slug,
+    name: payload.name,
+    status: payload.status,
+    sourceUrl: payload.source_url ?? null,
+    suggestedImageUrl: payload.suggested_image_url ?? null,
+    message: payload.message ?? null,
   };
 }
 

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 
 import {
+  suggestFeaturedSchoolImage,
   updateFeaturedMajor,
   updateFeaturedSchool,
   updateMajorRotationRule,
@@ -172,6 +173,11 @@ export async function updateFeaturedSchoolAction(formData: FormData): Promise<vo
   } catch {
     return;
   }
+}
+
+export async function suggestSchoolImageAction(formData: FormData) {
+  const slug = parseRequiredSlug(formData.get('slug'));
+  return suggestFeaturedSchoolImage(slug);
 }
 
 export async function updateFeaturedMajorAction(formData: FormData): Promise<void> {

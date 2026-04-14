@@ -13,6 +13,7 @@ import {
 } from '../lib/admin-review-api';
 import {
   listFeaturedContent,
+  suggestFeaturedSchoolImage,
   updateFeaturedMajor,
   updateFeaturedSchool,
   updateMajorRotationRule,
@@ -21,6 +22,7 @@ import {
 import {
   approveReviewQueueAction,
   rejectReviewQueueAction,
+  suggestSchoolImageAction,
   updateFeaturedMajorAction,
   updateFeaturedSchoolAction,
   updateMajorRotationAction,
@@ -393,6 +395,35 @@ test('updateFeaturedSchool posts feature state and image url', async () => {
   );
 });
 
+test('suggestFeaturedSchoolImage posts to the school suggestion endpoint', async () => {
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      slug: 'southeast-university',
+      name: '东南大学',
+      status: 'found',
+      source_url: 'https://www.seu.edu.cn/',
+      suggested_image_url: 'https://www.seu.edu.cn/assets/hero.jpg',
+      message: null,
+    }),
+  });
+
+  const payload = await suggestFeaturedSchoolImage('southeast-university');
+
+  expect(fetchMock).toHaveBeenCalledWith(
+    'http://api.example.com/api/admin/featured-content/schools/southeast-university/suggest-image',
+    expect.objectContaining({
+      method: 'POST',
+      headers: expect.objectContaining({
+        'x-admin-token': 'secret-token',
+      }),
+      cache: 'no-store',
+    }),
+  );
+  expect(payload.status).toBe('found');
+  expect(payload.suggestedImageUrl).toBe('https://www.seu.edu.cn/assets/hero.jpg');
+});
+
 test('updateFeaturedMajor posts feature state', async () => {
   fetchMock.mockResolvedValueOnce({
     ok: true,
@@ -511,6 +542,32 @@ test('updateFeaturedSchoolAction revalidates the admin page after success', asyn
   await updateFeaturedSchoolAction(formData);
 
   expect(revalidatePath).toHaveBeenCalledWith('/admin');
+});
+
+test('suggestSchoolImageAction returns the suggested candidate payload', async () => {
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      slug: 'southeast-university',
+      name: '东南大学',
+      status: 'found',
+      source_url: 'https://www.seu.edu.cn/',
+      suggested_image_url: 'https://www.seu.edu.cn/assets/hero.jpg',
+      message: null,
+    }),
+  });
+
+  const formData = new FormData();
+  formData.set('slug', 'southeast-university');
+
+  await expect(suggestSchoolImageAction(formData)).resolves.toEqual({
+    slug: 'southeast-university',
+    name: '东南大学',
+    status: 'found',
+    sourceUrl: 'https://www.seu.edu.cn/',
+    suggestedImageUrl: 'https://www.seu.edu.cn/assets/hero.jpg',
+    message: null,
+  });
 });
 
 test('updateFeaturedMajorAction revalidates the admin page after success', async () => {
