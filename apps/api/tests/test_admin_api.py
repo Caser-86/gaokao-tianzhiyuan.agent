@@ -62,6 +62,26 @@ def featured_content_file(tmp_path, monkeypatch):
                         "is_featured": True,
                     },
                 ],
+                "rotation": {
+                    "schools": {
+                        "enabled": True,
+                        "frequency_days": 1,
+                        "window_size": 1,
+                        "ordered_slugs": [
+                            "southeast-university",
+                            "west-china-medical-center",
+                        ],
+                    },
+                    "majors": {
+                        "enabled": True,
+                        "frequency_days": 1,
+                        "window_size": 1,
+                        "ordered_slugs": [
+                            "clinical-medicine",
+                            "computer-science",
+                        ],
+                    },
+                },
             },
             ensure_ascii=False,
             indent=2,
@@ -213,6 +233,28 @@ def test_featured_content_endpoint_returns_school_and_major_configuration(
     } in payload["majors"]
 
 
+    assert payload["rotation"] == {
+        "schools": {
+            "enabled": True,
+            "frequency_days": 1,
+            "window_size": 1,
+            "ordered_slugs": [
+                "southeast-university",
+                "west-china-medical-center",
+            ],
+        },
+        "majors": {
+            "enabled": True,
+            "frequency_days": 1,
+            "window_size": 1,
+            "ordered_slugs": [
+                "clinical-medicine",
+                "computer-science",
+            ],
+        },
+    }
+
+
 def test_update_featured_school_persists_is_featured_and_image_url(
     admin_client,
     featured_content_file,
@@ -257,6 +299,70 @@ def test_update_featured_major_rejects_unknown_slug(
 
     assert response.status_code == 404
     assert response.json() == {"detail": "featured content entity not found"}
+
+
+def test_update_school_rotation_rule_persists_configuration(
+    admin_client,
+    featured_content_file,
+) -> None:
+    client, _engine = admin_client
+
+    response = client.post(
+        "/api/admin/featured-content/rotation/schools",
+        headers={"x-admin-token": settings.admin_token},
+        json={
+            "enabled": True,
+            "frequency_days": 2,
+            "window_size": 2,
+            "ordered_slugs": [
+                "west-china-medical-center",
+                "southeast-university",
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "enabled": True,
+        "frequency_days": 2,
+        "window_size": 2,
+        "ordered_slugs": [
+            "west-china-medical-center",
+            "southeast-university",
+        ],
+    }
+
+    saved = json.loads(featured_content_file.read_text(encoding="utf-8"))
+    assert saved["rotation"]["schools"] == {
+        "enabled": True,
+        "frequency_days": 2,
+        "window_size": 2,
+        "ordered_slugs": [
+            "west-china-medical-center",
+            "southeast-university",
+        ],
+    }
+
+
+def test_update_major_rotation_rule_rejects_unknown_slug(
+    admin_client,
+    featured_content_file,
+) -> None:
+    client, _engine = admin_client
+
+    response = client.post(
+        "/api/admin/featured-content/rotation/majors",
+        headers={"x-admin-token": settings.admin_token},
+        json={
+            "enabled": True,
+            "frequency_days": 1,
+            "window_size": 1,
+            "ordered_slugs": ["missing-major"],
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {"detail": "featured rotation slug not found"}
 
 
 def test_approve_review_queue_item_updates_status_and_audit_fields(admin_client) -> None:

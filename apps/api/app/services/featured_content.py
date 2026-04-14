@@ -7,13 +7,32 @@ from typing import Any
 FEATURED_CONTENT_PATH = Path(__file__).resolve().parents[4] / "data" / "featured-content.json"
 
 
+def _default_rotation_rule() -> dict[str, Any]:
+    return {
+        "enabled": False,
+        "frequency_days": 1,
+        "window_size": 1,
+        "ordered_slugs": [],
+    }
+
+
+def _normalize_rotation(payload: dict[str, Any]) -> dict[str, Any]:
+    rotation = payload.setdefault("rotation", {})
+    rotation.setdefault("schools", _default_rotation_rule())
+    rotation.setdefault("majors", _default_rotation_rule())
+    return rotation
+
+
 def _read_featured_content() -> dict[str, Any]:
     if not FEATURED_CONTENT_PATH.exists():
-        return {"schools": [], "majors": []}
+        payload = {"schools": [], "majors": []}
+        _normalize_rotation(payload)
+        return payload
 
     payload = json.loads(FEATURED_CONTENT_PATH.read_text(encoding="utf-8"))
     payload.setdefault("schools", [])
     payload.setdefault("majors", [])
+    _normalize_rotation(payload)
     return payload
 
 
@@ -40,10 +59,21 @@ def _catalog_entity_by_slug(entity_key: str, slug: str) -> dict[str, Any]:
     return entity
 
 
-def list_featured_content() -> dict[str, list[dict[str, Any]]]:
+def _validate_rotation_rule(entity_key: str, ordered_slugs: list[str]) -> None:
+    catalog_slugs = {item["slug"] for item in _catalog_entities(entity_key)}
+    if len(ordered_slugs) != len(set(ordered_slugs)):
+        raise ValueError("featured rotation contains duplicate slugs")
+
+    for slug in ordered_slugs:
+        if slug not in catalog_slugs:
+            raise KeyError(slug)
+
+
+def list_featured_content() -> dict[str, Any]:
     payload = _read_featured_content()
     school_config = {item["slug"]: item for item in payload["schools"]}
     major_config = {item["slug"]: item for item in payload["majors"]}
+    rotation = _normalize_rotation(payload)
 
     schools = [
         {
@@ -63,7 +93,7 @@ def list_featured_content() -> dict[str, list[dict[str, Any]]]:
         for major in _catalog_entities("majors")
     ]
 
-    return {"schools": schools, "majors": majors}
+    return {"schools": schools, "majors": majors, "rotation": rotation}
 
 
 def update_featured_school(
@@ -113,3 +143,29 @@ def update_featured_major(
         "name": major["name"],
         "is_featured": is_featured,
     }
+
+
+def update_rotation_rule(
+    rotation_key: str,
+    *,
+    enabled: bool,
+    frequency_days: int,
+    window_size: int,
+    ordered_slugs: list[str],
+) -> dict[str, Any]:
+    if frequency_days < 1 or window_size < 1:
+        raise ValueError("featured rotation values must be positive")
+
+    entity_key = "schools" if rotation_key == "schools" else "majors"
+    _validate_rotation_rule(entity_key, ordered_slugs)
+
+    payload = _read_featured_content()
+    rotation = _normalize_rotation(payload)
+    rotation[rotation_key] = {
+        "enabled": enabled,
+        "frequency_days": frequency_days,
+        "window_size": window_size,
+        "ordered_slugs": ordered_slugs,
+    }
+    _write_featured_content(payload)
+    return rotation[rotation_key]

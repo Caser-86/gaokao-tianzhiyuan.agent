@@ -20,5 +20,25 @@
       "slug": "computer-science",
       "is_featured": true
     }
-  ]
+  ],
+  "rotation": {
+    "schools": {
+      "enabled": true,
+      "frequency_days": 1,
+      "window_size": 1,
+      "ordered_slugs": [
+        "southeast-university",
+        "west-china-medical-center"
+      ]
+    },
+    "majors": {
+      "enabled": true,
+      "frequency_days": 1,
+      "window_size": 1,
+      "ordered_slugs": [
+        "clinical-medicine",
+        "computer-science"
+      ]
+    }
+  }
 }

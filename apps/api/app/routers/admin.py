@@ -9,6 +9,7 @@ from ..models.ingestion import ReviewQueue
 from ..services.featured_content import (
     list_featured_content,
     update_featured_major,
+    update_rotation_rule,
     update_featured_school,
 )
 
@@ -51,11 +52,6 @@ class FeaturedMajorConfigResponse(SQLModel):
     is_featured: bool
 
 
-class FeaturedContentResponse(SQLModel):
-    schools: list[FeaturedSchoolConfigResponse]
-    majors: list[FeaturedMajorConfigResponse]
-
-
 class FeaturedSchoolConfigRequest(SQLModel):
     is_featured: bool
     hero_image_url: str | None = None
@@ -63,6 +59,31 @@ class FeaturedSchoolConfigRequest(SQLModel):
 
 class FeaturedMajorConfigRequest(SQLModel):
     is_featured: bool
+
+
+class FeaturedRotationRuleRequest(SQLModel):
+    enabled: bool
+    frequency_days: int
+    window_size: int
+    ordered_slugs: list[str]
+
+
+class FeaturedRotationRuleResponse(SQLModel):
+    enabled: bool
+    frequency_days: int
+    window_size: int
+    ordered_slugs: list[str]
+
+
+class FeaturedContentRotationResponse(SQLModel):
+    schools: FeaturedRotationRuleResponse
+    majors: FeaturedRotationRuleResponse
+
+
+class FeaturedContentResponse(SQLModel):
+    schools: list[FeaturedSchoolConfigResponse]
+    majors: list[FeaturedMajorConfigResponse]
+    rotation: FeaturedContentRotationResponse
 
 
 def serialize_review_queue_item(item: ReviewQueue) -> ReviewQueueItemResponse:
@@ -151,6 +172,10 @@ def get_featured_content(
             FeaturedMajorConfigResponse(**major)
             for major in payload["majors"]
         ],
+        rotation=FeaturedContentRotationResponse(
+            schools=FeaturedRotationRuleResponse(**payload["rotation"]["schools"]),
+            majors=FeaturedRotationRuleResponse(**payload["rotation"]["majors"]),
+        ),
     )
 
 
@@ -199,6 +224,66 @@ def update_featured_major_config(
         ) from exc
 
     return FeaturedMajorConfigResponse(**updated)
+
+
+@router.post(
+    "/featured-content/rotation/schools",
+    response_model=FeaturedRotationRuleResponse,
+)
+def update_school_rotation_rule(
+    payload: FeaturedRotationRuleRequest,
+    _authorized: None = Depends(require_admin),
+) -> FeaturedRotationRuleResponse:
+    try:
+        updated = update_rotation_rule(
+            "schools",
+            enabled=payload.enabled,
+            frequency_days=payload.frequency_days,
+            window_size=payload.window_size,
+            ordered_slugs=payload.ordered_slugs,
+        )
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="featured rotation slug not found",
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+
+    return FeaturedRotationRuleResponse(**updated)
+
+
+@router.post(
+    "/featured-content/rotation/majors",
+    response_model=FeaturedRotationRuleResponse,
+)
+def update_major_rotation_rule(
+    payload: FeaturedRotationRuleRequest,
+    _authorized: None = Depends(require_admin),
+) -> FeaturedRotationRuleResponse:
+    try:
+        updated = update_rotation_rule(
+            "majors",
+            enabled=payload.enabled,
+            frequency_days=payload.frequency_days,
+            window_size=payload.window_size,
+            ordered_slugs=payload.ordered_slugs,
+        )
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="featured rotation slug not found",
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+
+    return FeaturedRotationRuleResponse(**updated)
 
 
 @router.post("/review-queue/{queue_id}/approve", response_model=ReviewQueueItemResponse)
