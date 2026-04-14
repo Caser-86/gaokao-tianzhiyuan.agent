@@ -1,32 +1,47 @@
 import DashboardShell from '../../../components/admin/dashboard-shell';
+import { listFeaturedContent } from '../../../lib/admin-featured-content-api';
 import { listReviewQueue } from '../../../lib/admin-review-api';
 
 import {
   approveReviewQueueAction,
   rejectReviewQueueAction,
+  updateFeaturedMajorAction,
+  updateFeaturedSchoolAction,
 } from './actions';
 
 export default async function AdminPage() {
-  try {
-    const queueItems = await listReviewQueue();
+  let queueItems = [];
+  let queueError: string | undefined;
+  let featuredSchools = [];
+  let featuredMajors = [];
+  let featuredContentError: string | undefined;
 
-    return (
-      <DashboardShell
-        title="内容运营后台"
-        queueItems={queueItems}
-        approveAction={approveReviewQueueAction}
-        rejectAction={rejectReviewQueueAction}
-      />
-    );
+  try {
+    queueItems = await listReviewQueue();
   } catch {
-    return (
-      <DashboardShell
-        title="内容运营后台"
-        queueItems={[]}
-        queueError="审核队列加载失败，请稍后重试"
-        approveAction={approveReviewQueueAction}
-        rejectAction={rejectReviewQueueAction}
-      />
-    );
+    queueError = '审核队列加载失败，请稍后重试';
   }
+
+  try {
+    const featuredContent = await listFeaturedContent();
+    featuredSchools = featuredContent.schools;
+    featuredMajors = featuredContent.majors;
+  } catch {
+    featuredContentError = '展示配置加载失败，请稍后重试';
+  }
+
+  return (
+    <DashboardShell
+      title="内容运营后台"
+      queueItems={queueItems}
+      featuredSchools={featuredSchools}
+      featuredMajors={featuredMajors}
+      queueError={queueError}
+      featuredContentError={featuredContentError}
+      approveAction={approveReviewQueueAction}
+      rejectAction={rejectReviewQueueAction}
+      updateFeaturedSchoolAction={updateFeaturedSchoolAction}
+      updateFeaturedMajorAction={updateFeaturedMajorAction}
+    />
+  );
 }

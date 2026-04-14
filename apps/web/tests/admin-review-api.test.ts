@@ -12,8 +12,15 @@ import {
   rejectReviewQueueItem,
 } from '../lib/admin-review-api';
 import {
+  listFeaturedContent,
+  updateFeaturedMajor,
+  updateFeaturedSchool,
+} from '../lib/admin-featured-content-api';
+import {
   approveReviewQueueAction,
   rejectReviewQueueAction,
+  updateFeaturedMajorAction,
+  updateFeaturedSchoolAction,
 } from '../app/(admin)/admin/actions';
 
 const fetchMock = vi.fn();
@@ -158,6 +165,168 @@ test('approveReviewQueueAction revalidates the admin page after success', async 
   await approveReviewQueueAction(formData);
 
   expect(revalidatePath).toHaveBeenCalledWith('/admin');
+});
+
+test('listFeaturedContent sends authenticated request and maps admin config', async () => {
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      schools: [
+        {
+          slug: 'southeast-university',
+          name: '东南大学',
+          is_featured: true,
+          hero_image_url: 'https://cdn.example.com/southeast.jpg',
+        },
+      ],
+      majors: [
+        {
+          slug: 'clinical-medicine',
+          name: '临床医学',
+          is_featured: true,
+        },
+      ],
+    }),
+  });
+
+  const payload = await listFeaturedContent();
+
+  expect(fetchMock).toHaveBeenCalledWith(
+    'http://api.example.com/api/admin/featured-content',
+    expect.objectContaining({
+      headers: expect.objectContaining({
+        'x-admin-token': 'secret-token',
+      }),
+      cache: 'no-store',
+    }),
+  );
+  expect(payload.schools[0]).toEqual({
+    slug: 'southeast-university',
+    name: '东南大学',
+    isFeatured: true,
+    heroImageUrl: 'https://cdn.example.com/southeast.jpg',
+  });
+  expect(payload.majors[0]).toEqual({
+    slug: 'clinical-medicine',
+    name: '临床医学',
+    isFeatured: true,
+  });
+});
+
+test('updateFeaturedSchool posts feature state and image url', async () => {
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      slug: 'southeast-university',
+      name: '东南大学',
+      is_featured: true,
+      hero_image_url: 'https://cdn.example.com/southeast.jpg',
+    }),
+  });
+
+  await updateFeaturedSchool('southeast-university', true, 'https://cdn.example.com/southeast.jpg');
+
+  expect(fetchMock).toHaveBeenCalledWith(
+    'http://api.example.com/api/admin/featured-content/schools/southeast-university',
+    expect.objectContaining({
+      method: 'POST',
+      headers: expect.objectContaining({
+        'Content-Type': 'application/json',
+        'x-admin-token': 'secret-token',
+      }),
+      body: JSON.stringify({
+        is_featured: true,
+        hero_image_url: 'https://cdn.example.com/southeast.jpg',
+      }),
+    }),
+  );
+});
+
+test('updateFeaturedMajor posts feature state', async () => {
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      slug: 'clinical-medicine',
+      name: '临床医学',
+      is_featured: false,
+    }),
+  });
+
+  await updateFeaturedMajor('clinical-medicine', false);
+
+  expect(fetchMock).toHaveBeenCalledWith(
+    'http://api.example.com/api/admin/featured-content/majors/clinical-medicine',
+    expect.objectContaining({
+      method: 'POST',
+      headers: expect.objectContaining({
+        'Content-Type': 'application/json',
+        'x-admin-token': 'secret-token',
+      }),
+      body: JSON.stringify({
+        is_featured: false,
+      }),
+    }),
+  );
+});
+
+test('updateFeaturedSchoolAction revalidates admin and home pages after success', async () => {
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      slug: 'southeast-university',
+      name: '东南大学',
+      is_featured: true,
+      hero_image_url: 'https://cdn.example.com/southeast.jpg',
+    }),
+  });
+
+  const formData = new FormData();
+  formData.set('slug', 'southeast-university');
+  formData.set('isFeatured', 'on');
+  formData.set('heroImageUrl', 'https://cdn.example.com/southeast.jpg');
+
+  await updateFeaturedSchoolAction(formData);
+
+  expect(fetchMock).toHaveBeenCalledWith(
+    'http://api.example.com/api/admin/featured-content/schools/southeast-university',
+    expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({
+        is_featured: true,
+        hero_image_url: 'https://cdn.example.com/southeast.jpg',
+      }),
+    }),
+  );
+  expect(revalidatePath).toHaveBeenCalledWith('/admin');
+  expect(revalidatePath).toHaveBeenCalledWith('/');
+});
+
+test('updateFeaturedMajorAction revalidates admin and home pages after success', async () => {
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      slug: 'clinical-medicine',
+      name: '临床医学',
+      is_featured: false,
+    }),
+  });
+
+  const formData = new FormData();
+  formData.set('slug', 'clinical-medicine');
+
+  await updateFeaturedMajorAction(formData);
+
+  expect(fetchMock).toHaveBeenCalledWith(
+    'http://api.example.com/api/admin/featured-content/majors/clinical-medicine',
+    expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({
+        is_featured: false,
+      }),
+    }),
+  );
+  expect(revalidatePath).toHaveBeenCalledWith('/admin');
+  expect(revalidatePath).toHaveBeenCalledWith('/');
 });
 
 test('rejectReviewQueueAction resolves without returning a value when the API fails', async () => {

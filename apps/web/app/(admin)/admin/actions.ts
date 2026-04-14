@@ -6,6 +6,10 @@ import {
   approveReviewQueueItem,
   rejectReviewQueueItem,
 } from '../../../lib/admin-review-api';
+import {
+  updateFeaturedMajor,
+  updateFeaturedSchool,
+} from '../../../lib/admin-featured-content-api';
 
 const parseQueueId = (rawValue: FormDataEntryValue | null): number => {
   const value = typeof rawValue === 'string' ? Number.parseInt(rawValue, 10) : Number.NaN;
@@ -35,6 +39,41 @@ export async function rejectReviewQueueAction(formData: FormData): Promise<void>
 
     await rejectReviewQueueItem(queueId, reviewedBy, reviewNote || undefined);
     revalidatePath('/admin');
+  } catch {
+    return;
+  }
+}
+
+export async function updateFeaturedSchoolAction(formData: FormData): Promise<void> {
+  try {
+    const slug = String(formData.get('slug') ?? '').trim();
+    const heroImageUrl = String(formData.get('heroImageUrl') ?? '').trim();
+    const isFeatured = formData.get('isFeatured') === 'on';
+
+    if (!slug) {
+      throw new Error('slug is required');
+    }
+
+    await updateFeaturedSchool(slug, isFeatured, heroImageUrl);
+    revalidatePath('/admin');
+    revalidatePath('/');
+  } catch {
+    return;
+  }
+}
+
+export async function updateFeaturedMajorAction(formData: FormData): Promise<void> {
+  try {
+    const slug = String(formData.get('slug') ?? '').trim();
+    const isFeatured = formData.get('isFeatured') === 'on';
+
+    if (!slug) {
+      throw new Error('slug is required');
+    }
+
+    await updateFeaturedMajor(slug, isFeatured);
+    revalidatePath('/admin');
+    revalidatePath('/');
   } catch {
     return;
   }

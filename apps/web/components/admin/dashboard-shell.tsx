@@ -1,3 +1,8 @@
+import type {
+  AdminFeaturedMajor,
+  AdminFeaturedSchool,
+} from '../../lib/admin-featured-content-api';
+
 export type AdminReviewItem = {
   id: number;
   entity_type: string;
@@ -15,9 +20,14 @@ export type AdminReviewItem = {
 type DashboardShellProps = {
   title: string;
   queueItems: AdminReviewItem[];
+  featuredSchools: AdminFeaturedSchool[];
+  featuredMajors: AdminFeaturedMajor[];
   queueError?: string;
+  featuredContentError?: string;
   approveAction: (formData: FormData) => Promise<void>;
   rejectAction: (formData: FormData) => Promise<void>;
+  updateFeaturedSchoolAction: (formData: FormData) => Promise<void>;
+  updateFeaturedMajorAction: (formData: FormData) => Promise<void>;
 };
 
 const cards = ['待审核内容', '最近发布', '抓取状态'];
@@ -25,9 +35,14 @@ const cards = ['待审核内容', '最近发布', '抓取状态'];
 export default function DashboardShell({
   title,
   queueItems,
+  featuredSchools,
+  featuredMajors,
   queueError,
+  featuredContentError,
   approveAction,
   rejectAction,
+  updateFeaturedSchoolAction,
+  updateFeaturedMajorAction,
 }: DashboardShellProps) {
   return (
     <main>
@@ -73,6 +88,54 @@ export default function DashboardShell({
             ))}
           </div>
         ) : null}
+      </section>
+
+      <section aria-labelledby="featured-schools-heading">
+        <h2 id="featured-schools-heading">学校展示配置</h2>
+
+        {featuredContentError ? <p>{featuredContentError}</p> : null}
+
+        {!featuredContentError ? (
+          <div>
+            {featuredSchools.map((school) => (
+              <form key={school.slug} action={updateFeaturedSchoolAction}>
+                <input type="hidden" name="slug" value={school.slug} />
+                <label>
+                  <input type="checkbox" name="isFeatured" defaultChecked={school.isFeatured} />
+                  {school.name}
+                </label>
+                <p>{school.slug}</p>
+                <input
+                  type="text"
+                  name="heroImageUrl"
+                  defaultValue={school.heroImageUrl}
+                  aria-label={`学校图片 ${school.slug}`}
+                />
+                <button type="submit">保存</button>
+              </form>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      <section aria-labelledby="featured-majors-heading">
+        <h2 id="featured-majors-heading">专业展示配置</h2>
+
+        {featuredContentError ? null : (
+          <div>
+            {featuredMajors.map((major) => (
+              <form key={major.slug} action={updateFeaturedMajorAction}>
+                <input type="hidden" name="slug" value={major.slug} />
+                <label>
+                  <input type="checkbox" name="isFeatured" defaultChecked={major.isFeatured} />
+                  {major.name}
+                </label>
+                <p>{major.slug}</p>
+                <button type="submit">保存</button>
+              </form>
+            ))}
+          </div>
+        )}
       </section>
     </main>
   );
