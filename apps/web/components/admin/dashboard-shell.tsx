@@ -32,6 +32,7 @@ type DashboardShellProps = {
   nextFeaturedSchoolPreview: AdminFeaturedPreviewItem[];
   nextFeaturedMajorPreview: AdminFeaturedPreviewItem[];
   featuredSchedule: AdminFeaturedPreviewDay[];
+  highlightedScheduleDate?: string;
   selectedPreviewDateValue: string;
   selectedDatePreview: AdminFeaturedPreviewDay | null;
   selectedDateError?: string;
@@ -79,6 +80,7 @@ export default function DashboardShell({
   nextFeaturedSchoolPreview,
   nextFeaturedMajorPreview,
   featuredSchedule,
+  highlightedScheduleDate,
   selectedPreviewDateValue,
   selectedDatePreview,
   selectedDateError,
@@ -353,6 +355,7 @@ export default function DashboardShell({
               <article key={day.date}>
                 <h3>{day.date}</h3>
                 <p>{day.weekday}</p>
+                {day.date === highlightedScheduleDate ? <p>当前查看</p> : null}
                 <p>学校</p>
                 {day.schools.length === 0 ? (
                   <p>当天没有展示学校</p>

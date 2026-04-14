@@ -50,6 +50,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const previewDate = resolvedSearchParams?.preview_date?.trim() || undefined;
   const normalizedPreviewDate = previewDate ? shiftIsoDate(previewDate, 0) : null;
   const todayPreviewDate = todayIsoDate();
+  const highlightedScheduleDate =
+    normalizedPreviewDate ?? (!previewDate ? todayPreviewDate : undefined);
   const previousPreviewDate = previewDate ? shiftIsoDate(previewDate, -1) : null;
   const nextPreviewDate = previewDate ? shiftIsoDate(previewDate, 1) : null;
   const todayPreviewDateHref =
@@ -114,6 +116,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       nextFeaturedSchoolPreview={nextFeaturedSchoolPreview}
       nextFeaturedMajorPreview={nextFeaturedMajorPreview}
       featuredSchedule={featuredSchedule}
+      highlightedScheduleDate={highlightedScheduleDate}
       selectedPreviewDateValue={previewDate ?? ''}
       selectedDatePreview={selectedDatePreview}
       selectedDateError={selectedDateError}

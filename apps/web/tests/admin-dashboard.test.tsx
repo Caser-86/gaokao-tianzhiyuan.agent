@@ -63,8 +63,8 @@ const nextMajorPreview = [
 ];
 
 const selectedDatePreview = {
-  date: '2026-04-20',
-  weekday: '周一',
+  date: '2026-04-15',
+  weekday: '周三',
   schools: schoolPreview,
   majors: majorPreview,
 };
@@ -84,7 +84,7 @@ const sevenDaySchedule = [
   },
 ];
 
-test('renders admin dashboard heading, selected-date preview, next preview, and review queue items', () => {
+test('renders admin dashboard heading, date preview shortcuts, and schedule highlight', () => {
   render(
     <DashboardShell
       title="内容运营后台"
@@ -111,12 +111,13 @@ test('renders admin dashboard heading, selected-date preview, next preview, and 
       nextFeaturedSchoolPreview={nextSchoolPreview}
       nextFeaturedMajorPreview={nextMajorPreview}
       featuredSchedule={sevenDaySchedule}
-      selectedPreviewDateValue="2026-04-20"
+      selectedPreviewDateValue="2026-04-15"
       selectedDatePreview={selectedDatePreview}
       selectedDateError={undefined}
       todayPreviewDateHref="/admin?preview_date=2026-04-14"
-      previousPreviewDateHref="/admin?preview_date=2026-04-19"
-      nextPreviewDateHref="/admin?preview_date=2026-04-21"
+      previousPreviewDateHref="/admin?preview_date=2026-04-14"
+      nextPreviewDateHref="/admin?preview_date=2026-04-16"
+      highlightedScheduleDate="2026-04-15"
       approveAction={async () => undefined}
       rejectAction={async () => undefined}
       updateFeaturedSchoolAction={async () => undefined}
@@ -125,6 +126,17 @@ test('renders admin dashboard heading, selected-date preview, next preview, and 
       updateMajorRotationAction={async () => undefined}
     />,
   );
+
+  const schoolPreviewRegion = screen.getByRole('region', { name: '今日展示学校' });
+  const majorPreviewRegion = screen.getByRole('region', { name: '今日展示专业' });
+  const nextSchoolPreviewRegion = screen.getByRole('region', { name: '下一轮展示学校' });
+  const nextMajorPreviewRegion = screen.getByRole('region', { name: '下一轮展示专业' });
+  const selectedSchoolPreviewRegion = screen.getByRole('region', { name: '该日展示学校' });
+  const selectedMajorPreviewRegion = screen.getByRole('region', { name: '该日展示专业' });
+  const scheduleRegion = screen.getByRole('region', { name: '未来 7 天轮换预览' });
+  const highlightedScheduleDay = within(scheduleRegion)
+    .getByRole('heading', { name: '2026-04-15' })
+    .closest('article');
 
   expect(screen.getByRole('heading', { name: '内容运营后台' })).toBeInTheDocument();
   expect(screen.getByText('待审核内容')).toBeInTheDocument();
@@ -140,14 +152,6 @@ test('renders admin dashboard heading, selected-date preview, next preview, and 
   );
   expect(screen.getByRole('heading', { name: '专业轮换规则' })).toBeInTheDocument();
   expect(screen.getByLabelText('专业轮换顺序')).toHaveValue('clinical-medicine');
-
-  const schoolPreviewRegion = screen.getByRole('region', { name: '今日展示学校' });
-  const majorPreviewRegion = screen.getByRole('region', { name: '今日展示专业' });
-  const nextSchoolPreviewRegion = screen.getByRole('region', { name: '下一轮展示学校' });
-  const nextMajorPreviewRegion = screen.getByRole('region', { name: '下一轮展示专业' });
-  const selectedSchoolPreviewRegion = screen.getByRole('region', { name: '该日展示学校' });
-  const selectedMajorPreviewRegion = screen.getByRole('region', { name: '该日展示专业' });
-
   expect(within(schoolPreviewRegion).getByText('东南大学')).toBeInTheDocument();
   expect(within(schoolPreviewRegion).getByText('southeast-university')).toBeInTheDocument();
   expect(within(majorPreviewRegion).getByText('临床医学')).toBeInTheDocument();
@@ -157,10 +161,10 @@ test('renders admin dashboard heading, selected-date preview, next preview, and 
   expect(within(nextMajorPreviewRegion).getByText('计算机科学与技术')).toBeInTheDocument();
   expect(within(nextMajorPreviewRegion).getByText('computer-science')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '指定日期预览' })).toBeInTheDocument();
-  expect(screen.getByDisplayValue('2026-04-20')).toBeInTheDocument();
+  expect(screen.getByDisplayValue('2026-04-15')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '查看前一天' })).toHaveAttribute(
     'href',
-    '/admin?preview_date=2026-04-19',
+    '/admin?preview_date=2026-04-14',
   );
   expect(screen.getByRole('link', { name: '回到今天' })).toHaveAttribute(
     'href',
@@ -168,23 +172,25 @@ test('renders admin dashboard heading, selected-date preview, next preview, and 
   );
   expect(screen.getByRole('link', { name: '查看后一天' })).toHaveAttribute(
     'href',
-    '/admin?preview_date=2026-04-21',
+    '/admin?preview_date=2026-04-16',
   );
   expect(within(selectedSchoolPreviewRegion).getByText('东南大学')).toBeInTheDocument();
   expect(within(selectedSchoolPreviewRegion).getByText('southeast-university')).toBeInTheDocument();
   expect(within(selectedMajorPreviewRegion).getByText('临床医学')).toBeInTheDocument();
   expect(within(selectedMajorPreviewRegion).getByText('clinical-medicine')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '未来 7 天轮换预览' })).toBeInTheDocument();
-  expect(screen.getByText('2026-04-14')).toBeInTheDocument();
-  expect(screen.getByText('周二')).toBeInTheDocument();
-  expect(screen.getByText('2026-04-15')).toBeInTheDocument();
-  expect(screen.getByText('周三')).toBeInTheDocument();
+  expect(within(scheduleRegion).getByText('2026-04-14')).toBeInTheDocument();
+  expect(within(scheduleRegion).getByText('周二')).toBeInTheDocument();
+  expect(within(scheduleRegion).getByRole('heading', { name: '2026-04-15' })).toBeInTheDocument();
+  expect(within(scheduleRegion).getByText('周三')).toBeInTheDocument();
+  expect(highlightedScheduleDay).not.toBeNull();
+  expect(within(highlightedScheduleDay as HTMLElement).getByText('当前查看')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '通过' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '驳回' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '查看该日轮换' })).toBeInTheDocument();
 });
 
-test('renders helper text when no selected preview date is provided', () => {
+test('renders helper text and highlights today when no selected preview date is provided', () => {
   render(
     <DashboardShell
       title="内容运营后台"
@@ -197,11 +203,13 @@ test('renders helper text when no selected preview date is provided', () => {
       featuredMajorPreview={[]}
       nextFeaturedSchoolPreview={[]}
       nextFeaturedMajorPreview={[]}
-      featuredSchedule={[]}
+      featuredSchedule={sevenDaySchedule}
       selectedPreviewDateValue=""
       selectedDatePreview={null}
       selectedDateError={undefined}
+      highlightedScheduleDate="2026-04-14"
       previousPreviewDateHref={undefined}
+      todayPreviewDateHref={undefined}
       nextPreviewDateHref={undefined}
       approveAction={async () => undefined}
       rejectAction={async () => undefined}
@@ -212,13 +220,17 @@ test('renders helper text when no selected preview date is provided', () => {
     />,
   );
 
+  const renderedTodayScheduleDay = screen.getByText('2026-04-14').closest('article');
+
   expect(screen.getByText('选择一个日期查看当天轮换结果')).toBeInTheDocument();
+  expect(renderedTodayScheduleDay).not.toBeNull();
+  expect(within(renderedTodayScheduleDay as HTMLElement).getByText('当前查看')).toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '回到今天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看前一天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看后一天' })).not.toBeInTheDocument();
 });
 
-test('renders selected-date validation error and empty state when needed', () => {
+test('renders selected-date validation error and no schedule highlight when needed', () => {
   render(
     <DashboardShell
       title="内容运营后台"
@@ -231,11 +243,13 @@ test('renders selected-date validation error and empty state when needed', () =>
       featuredMajorPreview={[]}
       nextFeaturedSchoolPreview={[]}
       nextFeaturedMajorPreview={[]}
-      featuredSchedule={[]}
+      featuredSchedule={sevenDaySchedule}
       selectedPreviewDateValue="2026-99-99"
       selectedDatePreview={null}
       selectedDateError="预览日期格式无效"
+      highlightedScheduleDate={undefined}
       previousPreviewDateHref={undefined}
+      todayPreviewDateHref={undefined}
       nextPreviewDateHref={undefined}
       approveAction={async () => undefined}
       rejectAction={async () => undefined}
@@ -251,8 +265,8 @@ test('renders selected-date validation error and empty state when needed', () =>
   expect(screen.getByText('当前没有可展示专业')).toBeInTheDocument();
   expect(screen.getByText('当前没有下一轮展示学校')).toBeInTheDocument();
   expect(screen.getByText('当前没有下一轮展示专业')).toBeInTheDocument();
-  expect(screen.getByText('当前没有未来轮换预览')).toBeInTheDocument();
   expect(screen.getByText('预览日期格式无效')).toBeInTheDocument();
+  expect(screen.queryByText('当前查看')).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '回到今天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看前一天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看后一天' })).not.toBeInTheDocument();
@@ -275,7 +289,9 @@ test('renders error state when queue loading fails', () => {
       selectedPreviewDateValue=""
       selectedDatePreview={null}
       selectedDateError={undefined}
+      highlightedScheduleDate={undefined}
       previousPreviewDateHref={undefined}
+      todayPreviewDateHref={undefined}
       nextPreviewDateHref={undefined}
       queueError="审核队列加载失败，请稍后重试"
       approveAction={async () => undefined}
@@ -288,6 +304,7 @@ test('renders error state when queue loading fails', () => {
   );
 
   expect(screen.getByText('审核队列加载失败，请稍后重试')).toBeInTheDocument();
+  expect(screen.queryByText('当前查看')).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '回到今天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看前一天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看后一天' })).not.toBeInTheDocument();

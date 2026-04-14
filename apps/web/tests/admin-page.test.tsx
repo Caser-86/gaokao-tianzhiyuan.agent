@@ -30,7 +30,7 @@ beforeEach(() => {
   listFeaturedContentMock.mockReset();
 });
 
-test('renders queue items, selected-date preview, next preview, and schedule returned by the admin api client', async () => {
+test('renders queue items, date preview shortcuts, and schedule highlight returned by the admin api client', async () => {
   listReviewQueueMock.mockResolvedValue([
     {
       id: 31,
@@ -140,8 +140,8 @@ test('renders queue items, selected-date preview, next preview, and schedule ret
         },
       ],
       selectedDate: {
-        date: '2026-04-20',
-        weekday: '周一',
+        date: '2026-04-15',
+        weekday: '周三',
         schools: [
           {
             slug: 'southeast-university',
@@ -162,12 +162,12 @@ test('renders queue items, selected-date preview, next preview, and schedule ret
   render(
     await AdminPage({
       searchParams: Promise.resolve({
-        preview_date: '2026-04-20',
+        preview_date: '2026-04-15',
       }),
     }),
   );
 
-  expect(listFeaturedContentMock).toHaveBeenCalledWith('2026-04-20');
+  expect(listFeaturedContentMock).toHaveBeenCalledWith('2026-04-15');
   expect(screen.getByRole('heading', { name: '内容运营后台' })).toBeInTheDocument();
   expect(screen.getByText('school #901')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '学校展示配置' })).toBeInTheDocument();
@@ -186,10 +186,10 @@ test('renders queue items, selected-date preview, next preview, and schedule ret
   expect(screen.getByRole('heading', { name: '下一轮展示学校' })).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '下一轮展示专业' })).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '指定日期预览' })).toBeInTheDocument();
-  expect(screen.getByDisplayValue('2026-04-20')).toBeInTheDocument();
+  expect(screen.getByDisplayValue('2026-04-15')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '查看前一天' })).toHaveAttribute(
     'href',
-    '/admin?preview_date=2026-04-19',
+    '/admin?preview_date=2026-04-14',
   );
   expect(screen.getByRole('link', { name: '回到今天' })).toHaveAttribute(
     'href',
@@ -197,21 +197,27 @@ test('renders queue items, selected-date preview, next preview, and schedule ret
   );
   expect(screen.getByRole('link', { name: '查看后一天' })).toHaveAttribute(
     'href',
-    '/admin?preview_date=2026-04-21',
+    '/admin?preview_date=2026-04-16',
   );
 
   const selectedSchoolPreview = screen.getByRole('region', { name: '该日展示学校' });
   const selectedMajorPreview = screen.getByRole('region', { name: '该日展示专业' });
+  const scheduleRegion = screen.getByRole('region', { name: '未来 7 天轮换预览' });
+  const selectedScheduleDay = within(scheduleRegion)
+    .getByRole('heading', { name: '2026-04-15' })
+    .closest('article');
 
   expect(within(selectedSchoolPreview).getByText('东南大学')).toBeInTheDocument();
   expect(within(selectedSchoolPreview).getByText('southeast-university')).toBeInTheDocument();
   expect(within(selectedMajorPreview).getByText('临床医学')).toBeInTheDocument();
   expect(within(selectedMajorPreview).getByText('clinical-medicine')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '未来 7 天轮换预览' })).toBeInTheDocument();
-  expect(screen.getByText('2026-04-14')).toBeInTheDocument();
-  expect(screen.getByText('周二')).toBeInTheDocument();
-  expect(screen.getByText('2026-04-15')).toBeInTheDocument();
-  expect(screen.getByText('周三')).toBeInTheDocument();
+  expect(within(scheduleRegion).getByText('2026-04-14')).toBeInTheDocument();
+  expect(within(scheduleRegion).getByText('周二')).toBeInTheDocument();
+  expect(within(scheduleRegion).getByRole('heading', { name: '2026-04-15' })).toBeInTheDocument();
+  expect(within(scheduleRegion).getByText('周三')).toBeInTheDocument();
+  expect(selectedScheduleDay).not.toBeNull();
+  expect(within(selectedScheduleDay as HTMLElement).getByText('当前查看')).toBeInTheDocument();
 });
 
 test('renders selected-date validation error when preview_date is invalid', async () => {
@@ -242,7 +248,14 @@ test('renders selected-date validation error when preview_date is invalid', asyn
         schools: [],
         majors: [],
       },
-      schedule: [],
+      schedule: [
+        {
+          date: '2026-04-14',
+          weekday: '周二',
+          schools: [],
+          majors: [],
+        },
+      ],
       selectedDate: null,
       selectedDateError: '预览日期格式无效',
     },
@@ -258,12 +271,13 @@ test('renders selected-date validation error when preview_date is invalid', asyn
 
   expect(listFeaturedContentMock).toHaveBeenCalledWith('2026-99-99');
   expect(screen.getByText('预览日期格式无效')).toBeInTheDocument();
+  expect(screen.queryByText('当前查看')).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '回到今天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看前一天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看后一天' })).not.toBeInTheDocument();
 });
 
-test('renders queue error when loading fails', async () => {
+test('renders queue error while still highlighting today when no preview date is selected', async () => {
   listReviewQueueMock.mockRejectedValue(new Error('boom'));
   listFeaturedContentMock.mockResolvedValue({
     schools: [],
@@ -291,7 +305,14 @@ test('renders queue error when loading fails', async () => {
         schools: [],
         majors: [],
       },
-      schedule: [],
+      schedule: [
+        {
+          date: '2026-04-14',
+          weekday: '周二',
+          schools: [],
+          majors: [],
+        },
+      ],
       selectedDate: null,
       selectedDateError: null,
     },
@@ -299,7 +320,11 @@ test('renders queue error when loading fails', async () => {
 
   render(await AdminPage({}));
 
+  const todayScheduleDay = screen.getByText('2026-04-14').closest('article');
+
   expect(screen.getByText('审核队列加载失败，请稍后重试')).toBeInTheDocument();
+  expect(todayScheduleDay).not.toBeNull();
+  expect(within(todayScheduleDay as HTMLElement).getByText('当前查看')).toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '回到今天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看前一天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看后一天' })).not.toBeInTheDocument();
