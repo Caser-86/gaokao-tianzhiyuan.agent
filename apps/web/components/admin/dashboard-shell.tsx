@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   AdminFeaturedMajor,
   AdminFeaturedPreviewDay,
   AdminFeaturedPreviewItem,
@@ -137,6 +137,9 @@ export default function DashboardShell({
     .filter((school) => !school.heroImageUrl)
     .map(({ slug, name }) => ({ slug, name }));
   const schoolsWithImagesCount = featuredSchools.length - schoolsMissingImages.length;
+  const scheduledMissingImagesCount = schoolsMissingImages.filter((school) =>
+    scheduledMissingSchoolSlugs.has(school.slug),
+  ).length;
   const displayedFeaturedSchools = showScheduledMissingImageSchoolsOnly
     ? sortedFeaturedSchools.filter(
         (school) => !school.heroImageUrl && scheduledMissingSchoolSlugs.has(school.slug),
@@ -150,7 +153,7 @@ export default function DashboardShell({
       {!showMissingImageSchoolsOnly &&
       !showScheduledMissingImageSchoolsOnly &&
       showMissingImageSchoolsOnlyHref ? (
-        <a href={showMissingImageSchoolsOnlyHref}>仅看待补图片学校</a>
+        <a href={showMissingImageSchoolsOnlyHref}>{`仅看待补图片学校（${schoolsMissingImages.length}）`}</a>
       ) : null}
       {!showScheduledMissingImageSchoolsOnly && showScheduledMissingImageSchoolsOnlyHref ? (
         <>
@@ -159,7 +162,7 @@ export default function DashboardShell({
           showMissingImageSchoolsOnlyHref
             ? ' '
             : null}
-          <a href={showScheduledMissingImageSchoolsOnlyHref}>仅看近期缺图学校</a>
+          <a href={showScheduledMissingImageSchoolsOnlyHref}>{`仅看近期缺图学校（${scheduledMissingImagesCount}）`}</a>
         </>
       ) : null}
       {(showMissingImageSchoolsOnly || showScheduledMissingImageSchoolsOnly) &&
@@ -172,13 +175,13 @@ export default function DashboardShell({
       {showScheduledMissingImageSchoolsOnly && showMissingImageSchoolsOnlyHref ? (
         <>
           {' '}
-          <a href={showMissingImageSchoolsOnlyHref}>仅看待补图片学校</a>
+          <a href={showMissingImageSchoolsOnlyHref}>{`仅看待补图片学校（${schoolsMissingImages.length}）`}</a>
         </>
       ) : null}
       {showMissingImageSchoolsOnly && showScheduledMissingImageSchoolsOnlyHref ? (
         <>
           {' '}
-          <a href={showScheduledMissingImageSchoolsOnlyHref}>仅看近期缺图学校</a>
+          <a href={showScheduledMissingImageSchoolsOnlyHref}>{`仅看近期缺图学校（${scheduledMissingImagesCount}）`}</a>
         </>
       ) : null}
     </p>

@@ -88,7 +88,7 @@ test('filters the featured school configuration down to missing-image schools on
   );
 
   expect(screen.getByRole('link', { name: '查看全部学校' })).toHaveAttribute('href', '/admin');
-  expect(screen.queryByRole('link', { name: '仅看待补图片学校' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: '仅看待补图片学校（1）' })).not.toBeInTheDocument();
   expect(document.getElementById('featured-school-west-china-medical-center')).not.toBeNull();
   expect(document.getElementById('featured-school-southeast-university')).toBeNull();
 });
@@ -133,7 +133,7 @@ test('preserves the selected preview date when linking into the missing-image sc
   );
 
   expect(listFeaturedContentMock).toHaveBeenCalledWith('2026-04-15');
-  const filterLink = screen.getByRole('link', { name: '仅看待补图片学校' });
+  const filterLink = screen.getByRole('link', { name: '仅看待补图片学校（1）' });
   const filterUrl = new URL(filterLink.getAttribute('href') ?? '', 'https://example.com');
 
   expect(filterUrl.pathname).toBe('/admin');
@@ -252,10 +252,7 @@ test('links previewed schools back to their configuration rows', () => {
     within(screen.getByRole('region', { name: '今日展示学校' })).getByRole('link', {
       name: '华西医学中心',
     }),
-  ).toHaveAttribute(
-    'href',
-    '#featured-school-west-china-medical-center',
-  );
+  ).toHaveAttribute('href', '#featured-school-west-china-medical-center');
 });
 
 test('highlights missing-image schools that are scheduled for today or next', () => {
