@@ -1510,6 +1510,9 @@ export default function DashboardShell({
                   }
                 >
                   {`鏌ョ湅鏈€杩戝緟琛ユ棩鏈燂紙${nearestScheduledGapDay.date}锛?`}
+                  {nearestScheduledTopPriorityGap
+                    ? ` · 优先处理${nearestScheduledTopPriorityGap.label}`
+                    : ''}
                 </a>
               </p>
             ) : null}

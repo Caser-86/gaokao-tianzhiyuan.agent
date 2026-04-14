@@ -984,6 +984,7 @@ test('links content gap overview to the nearest scheduled gap day by anchor targ
       name: /2026-04-15.*优先处理学校图片/,
     }),
   ).toHaveAttribute('href', '/admin?preview_date=2026-04-15#featured-school-southeast-university');
+  expect(within(overviewRegion as HTMLElement).getByText(/优先处理学校图片/)).toBeInTheDocument();
 });
 
 test('adds the nearest scheduled gap date to content gap item links', () => {
