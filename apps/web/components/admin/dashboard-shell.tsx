@@ -186,7 +186,12 @@ export default function DashboardShell({
                     />
                   ) : null}
                   {school.heroImageUrl ? (
-                    <a href={school.heroImageUrl} target="_blank" rel="noreferrer">
+                    <a
+                      href={school.heroImageUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label="查看原图"
+                    >
                       查看原图
                     </a>
                   ) : null}
