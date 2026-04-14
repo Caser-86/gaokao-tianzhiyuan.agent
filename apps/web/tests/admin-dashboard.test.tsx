@@ -1210,12 +1210,12 @@ test('adds a top-priority gap shortcut to scheduled preview cards', () => {
 
   expect(
     (firstDayArticle as HTMLElement).querySelector(
-      'a[href="/admin?preview_date=2026-04-14#missing-school-images-heading"]',
+      'a[href="/admin?preview_date=2026-04-14#featured-school-southeast-university"]',
     ),
   ).not.toBeNull();
   expect(
     (secondDayArticle as HTMLElement).querySelector(
-      'a[href="/admin?preview_date=2026-04-15#missing-school-ranking-reference-heading"]',
+      'a[href="/admin?preview_date=2026-04-15#school-ranking-reference-wuhan-university"]',
     ),
   ).not.toBeNull();
 });

@@ -1191,55 +1191,90 @@ export default function DashboardShell({
   ): string | null => {
     const gapItems = [
       {
-        href: '#missing-school-images-heading',
+        href:
+          schoolsMissingImages.find((school) => schoolSlugs.has(school.slug))?.slug
+            ? `#featured-school-${schoolsMissingImages.find((school) => schoolSlugs.has(school.slug))?.slug}`
+            : '#missing-school-images-heading',
         selectedDateCount: countMatchingSlugs(schoolsMissingImages, schoolSlugs),
         nextCount: countMatchingSlugs(schoolsMissingImages, nextPreviewSchoolSlugs),
         totalCount: schoolsMissingImages.length,
       },
       {
-        href: '#missing-school-ranking-reference-heading',
+        href:
+          missingSchoolRankingReferences.find((school) => schoolSlugs.has(school.slug))?.slug
+            ? `#school-ranking-reference-${missingSchoolRankingReferences.find((school) =>
+                schoolSlugs.has(school.slug),
+              )?.slug}`
+            : '#missing-school-ranking-reference-heading',
         selectedDateCount: countMatchingSlugs(missingSchoolRankingReferences, schoolSlugs),
         nextCount: countMatchingSlugs(missingSchoolRankingReferences, nextPreviewSchoolSlugs),
         totalCount: missingSchoolRankingReferences.length,
       },
       {
-        href: '#missing-major-ranking-reference-heading',
+        href:
+          missingMajorRankingReferences.find((major) => majorSlugs.has(major.slug))?.slug
+            ? `#major-ranking-reference-${missingMajorRankingReferences.find((major) =>
+                majorSlugs.has(major.slug),
+              )?.slug}`
+            : '#missing-major-ranking-reference-heading',
         selectedDateCount: countMatchingSlugs(missingMajorRankingReferences, majorSlugs),
         nextCount: countMatchingSlugs(missingMajorRankingReferences, nextPreviewMajorSlugs),
         totalCount: missingMajorRankingReferences.length,
       },
       {
-        href: '#missing-school-summary-heading',
+        href:
+          missingSchoolSummaries.find((school) => schoolSlugs.has(school.slug))?.slug
+            ? `#school-summary-${missingSchoolSummaries.find((school) => schoolSlugs.has(school.slug))?.slug}`
+            : '#missing-school-summary-heading',
         selectedDateCount: countMatchingSlugs(missingSchoolSummaries, schoolSlugs),
         nextCount: countMatchingSlugs(missingSchoolSummaries, nextPreviewSchoolSlugs),
         totalCount: missingSchoolSummaries.length,
       },
       {
-        href: '#missing-major-summary-heading',
+        href:
+          missingMajorSummaries.find((major) => majorSlugs.has(major.slug))?.slug
+            ? `#major-summary-${missingMajorSummaries.find((major) => majorSlugs.has(major.slug))?.slug}`
+            : '#missing-major-summary-heading',
         selectedDateCount: countMatchingSlugs(missingMajorSummaries, majorSlugs),
         nextCount: countMatchingSlugs(missingMajorSummaries, nextPreviewMajorSlugs),
         totalCount: missingMajorSummaries.length,
       },
       {
-        href: '#missing-school-sections-heading',
+        href:
+          missingSchoolSections.find((school) => schoolSlugs.has(school.slug))?.slug
+            ? `#school-sections-${missingSchoolSections.find((school) => schoolSlugs.has(school.slug))?.slug}`
+            : '#missing-school-sections-heading',
         selectedDateCount: countMatchingSlugs(missingSchoolSections, schoolSlugs),
         nextCount: countMatchingSlugs(missingSchoolSections, nextPreviewSchoolSlugs),
         totalCount: missingSchoolSections.length,
       },
       {
-        href: '#missing-major-sections-heading',
+        href:
+          missingMajorSections.find((major) => majorSlugs.has(major.slug))?.slug
+            ? `#major-sections-${missingMajorSections.find((major) => majorSlugs.has(major.slug))?.slug}`
+            : '#missing-major-sections-heading',
         selectedDateCount: countMatchingSlugs(missingMajorSections, majorSlugs),
         nextCount: countMatchingSlugs(missingMajorSections, nextPreviewMajorSlugs),
         totalCount: missingMajorSections.length,
       },
       {
-        href: '#missing-school-related-content-heading',
+        href:
+          missingSchoolRelatedContent.find((school) => schoolSlugs.has(school.slug))?.slug
+            ? `#school-related-content-${missingSchoolRelatedContent.find((school) =>
+                schoolSlugs.has(school.slug),
+              )?.slug}`
+            : '#missing-school-related-content-heading',
         selectedDateCount: countMatchingSlugs(missingSchoolRelatedContent, schoolSlugs),
         nextCount: countMatchingSlugs(missingSchoolRelatedContent, nextPreviewSchoolSlugs),
         totalCount: missingSchoolRelatedContent.length,
       },
       {
-        href: '#missing-major-related-content-heading',
+        href:
+          missingMajorRelatedContent.find((major) => majorSlugs.has(major.slug))?.slug
+            ? `#major-related-content-${missingMajorRelatedContent.find((major) =>
+                majorSlugs.has(major.slug),
+              )?.slug}`
+            : '#missing-major-related-content-heading',
         selectedDateCount: countMatchingSlugs(missingMajorRelatedContent, majorSlugs),
         nextCount: countMatchingSlugs(missingMajorRelatedContent, nextPreviewMajorSlugs),
         totalCount: missingMajorRelatedContent.length,
