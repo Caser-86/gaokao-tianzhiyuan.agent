@@ -258,7 +258,10 @@ def list_current_featured_majors() -> list[dict[str, Any]]:
     return _current_rotation_window(payload["majors"], payload["rotation"]["majors"])
 
 
-def build_featured_content_preview() -> dict[str, Any]:
+def build_featured_content_preview(
+    *,
+    preview_date: date | None = None,
+) -> dict[str, Any]:
     payload = list_featured_content()
     today = date.today()
     today_entry = _preview_entry_for_date(payload, today)
@@ -278,6 +281,11 @@ def build_featured_content_preview() -> dict[str, Any]:
         _preview_entry_for_date(payload, today + timedelta(days=offset))
         for offset in range(7)
     ]
+    selected_date_entry = (
+        _preview_entry_for_date(payload, preview_date)
+        if preview_date is not None
+        else None
+    )
     return {
         "today": {
             "schools": today_entry["schools"],
@@ -285,4 +293,6 @@ def build_featured_content_preview() -> dict[str, Any]:
         },
         "next": next_preview,
         "schedule": schedule,
+        "selected_date": selected_date_entry,
+        "selected_date_error": None,
     }

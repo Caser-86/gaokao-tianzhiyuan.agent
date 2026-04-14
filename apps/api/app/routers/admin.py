@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlmodel import SQLModel, Session, select
 
 from ..config import settings
@@ -102,6 +102,8 @@ class FeaturedContentPreviewResponse(SQLModel):
     today: FeaturedTodayPreviewResponse
     next: FeaturedTodayPreviewResponse
     schedule: list[FeaturedPreviewDayResponse]
+    selected_date: FeaturedPreviewDayResponse | None = None
+    selected_date_error: str | None = None
 
 
 class FeaturedContentResponse(SQLModel):
@@ -185,10 +187,20 @@ def list_review_queue(
 
 @router.get("/featured-content", response_model=FeaturedContentResponse)
 def get_featured_content(
+    preview_date: str | None = Query(default=None),
     _authorized: None = Depends(require_admin),
 ) -> FeaturedContentResponse:
     payload = list_featured_content()
-    preview = build_featured_content_preview()
+    selected_preview_date: date | None = None
+    selected_date_error: str | None = None
+
+    if preview_date:
+        try:
+            selected_preview_date = date.fromisoformat(preview_date)
+        except ValueError:
+            selected_date_error = "预览日期格式无效"
+
+    preview = build_featured_content_preview(preview_date=selected_preview_date)
     return FeaturedContentResponse(
         schools=[
             FeaturedSchoolConfigResponse(**school)
@@ -238,6 +250,23 @@ def get_featured_content(
                 )
                 for day in preview["schedule"]
             ],
+            selected_date=(
+                FeaturedPreviewDayResponse(
+                    date=preview["selected_date"]["date"],
+                    weekday=preview["selected_date"]["weekday"],
+                    schools=[
+                        FeaturedPreviewItemResponse(**school)
+                        for school in preview["selected_date"]["schools"]
+                    ],
+                    majors=[
+                        FeaturedPreviewItemResponse(**major)
+                        for major in preview["selected_date"]["majors"]
+                    ],
+                )
+                if preview["selected_date"] is not None
+                else None
+            ),
+            selected_date_error=selected_date_error,
         ),
     )
 

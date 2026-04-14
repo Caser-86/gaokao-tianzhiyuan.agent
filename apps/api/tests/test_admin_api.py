@@ -355,6 +355,53 @@ def test_featured_content_endpoint_returns_next_preview(
     }
 
 
+def test_featured_content_endpoint_returns_selected_date_preview(
+    admin_client,
+    featured_content_file,
+) -> None:
+    client, _engine = admin_client
+
+    response = client.get(
+        "/api/admin/featured-content?preview_date=2026-04-15",
+        headers={"x-admin-token": settings.admin_token},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["preview"]["selected_date"] == {
+        "date": "2026-04-15",
+        "weekday": "周三",
+        "schools": [
+            {
+                "slug": "west-china-medical-center",
+                "name": "华西医学中心",
+            }
+        ],
+        "majors": [
+            {
+                "slug": "computer-science",
+                "name": "计算机科学与技术",
+            }
+        ],
+    }
+    assert response.json()["preview"]["selected_date_error"] is None
+
+
+def test_featured_content_endpoint_returns_local_error_for_invalid_preview_date(
+    admin_client,
+    featured_content_file,
+) -> None:
+    client, _engine = admin_client
+
+    response = client.get(
+        "/api/admin/featured-content?preview_date=2026-99-99",
+        headers={"x-admin-token": settings.admin_token},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["preview"]["selected_date"] is None
+    assert response.json()["preview"]["selected_date_error"] == "预览日期格式无效"
+
+
 def test_update_featured_school_persists_is_featured_and_image_url(
     admin_client,
     featured_content_file,
