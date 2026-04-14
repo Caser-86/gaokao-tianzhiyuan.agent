@@ -30,7 +30,7 @@ beforeEach(() => {
   listFeaturedContentMock.mockReset();
 });
 
-test('renders queue items, next preview, and schedule returned by the admin api client', async () => {
+test('renders queue items, selected-date preview, next preview, and schedule returned by the admin api client', async () => {
   listReviewQueueMock.mockResolvedValue([
     {
       id: 31,
@@ -139,11 +139,35 @@ test('renders queue items, next preview, and schedule returned by the admin api 
           ],
         },
       ],
+      selectedDate: {
+        date: '2026-04-20',
+        weekday: '周一',
+        schools: [
+          {
+            slug: 'southeast-university',
+            name: '东南大学',
+          },
+        ],
+        majors: [
+          {
+            slug: 'clinical-medicine',
+            name: '临床医学',
+          },
+        ],
+      },
+      selectedDateError: null,
     },
   });
 
-  render(await AdminPage());
+  render(
+    await AdminPage({
+      searchParams: Promise.resolve({
+        preview_date: '2026-04-20',
+      }),
+    }),
+  );
 
+  expect(listFeaturedContentMock).toHaveBeenCalledWith('2026-04-20');
   expect(screen.getByRole('heading', { name: '内容运营后台' })).toBeInTheDocument();
   expect(screen.getByText('school #901')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '学校展示配置' })).toBeInTheDocument();
@@ -161,25 +185,67 @@ test('renders queue items, next preview, and schedule returned by the admin api 
   expect(screen.getByRole('heading', { name: '今日展示专业' })).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '下一轮展示学校' })).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '下一轮展示专业' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: '指定日期预览' })).toBeInTheDocument();
+  expect(screen.getByDisplayValue('2026-04-20')).toBeInTheDocument();
 
-  const schoolPreview = screen.getByRole('region', { name: '今日展示学校' });
-  const majorPreview = screen.getByRole('region', { name: '今日展示专业' });
-  const nextSchoolPreview = screen.getByRole('region', { name: '下一轮展示学校' });
-  const nextMajorPreview = screen.getByRole('region', { name: '下一轮展示专业' });
+  const selectedSchoolPreview = screen.getByRole('region', { name: '该日展示学校' });
+  const selectedMajorPreview = screen.getByRole('region', { name: '该日展示专业' });
 
-  expect(within(schoolPreview).getByText('东南大学')).toBeInTheDocument();
-  expect(within(schoolPreview).getByText('southeast-university')).toBeInTheDocument();
-  expect(within(majorPreview).getByText('临床医学')).toBeInTheDocument();
-  expect(within(majorPreview).getByText('clinical-medicine')).toBeInTheDocument();
-  expect(within(nextSchoolPreview).getByText('华西医学中心')).toBeInTheDocument();
-  expect(within(nextSchoolPreview).getByText('west-china-medical-center')).toBeInTheDocument();
-  expect(within(nextMajorPreview).getByText('计算机科学与技术')).toBeInTheDocument();
-  expect(within(nextMajorPreview).getByText('computer-science')).toBeInTheDocument();
+  expect(within(selectedSchoolPreview).getByText('东南大学')).toBeInTheDocument();
+  expect(within(selectedSchoolPreview).getByText('southeast-university')).toBeInTheDocument();
+  expect(within(selectedMajorPreview).getByText('临床医学')).toBeInTheDocument();
+  expect(within(selectedMajorPreview).getByText('clinical-medicine')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '未来 7 天轮换预览' })).toBeInTheDocument();
   expect(screen.getByText('2026-04-14')).toBeInTheDocument();
   expect(screen.getByText('周二')).toBeInTheDocument();
   expect(screen.getByText('2026-04-15')).toBeInTheDocument();
   expect(screen.getByText('周三')).toBeInTheDocument();
+});
+
+test('renders selected-date validation error when preview_date is invalid', async () => {
+  listReviewQueueMock.mockResolvedValue([]);
+  listFeaturedContentMock.mockResolvedValue({
+    schools: [],
+    majors: [],
+    rotation: {
+      schools: {
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      },
+      majors: {
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      },
+    },
+    preview: {
+      today: {
+        schools: [],
+        majors: [],
+      },
+      next: {
+        schools: [],
+        majors: [],
+      },
+      schedule: [],
+      selectedDate: null,
+      selectedDateError: '预览日期格式无效',
+    },
+  });
+
+  render(
+    await AdminPage({
+      searchParams: Promise.resolve({
+        preview_date: '2026-99-99',
+      }),
+    }),
+  );
+
+  expect(listFeaturedContentMock).toHaveBeenCalledWith('2026-99-99');
+  expect(screen.getByText('预览日期格式无效')).toBeInTheDocument();
 });
 
 test('renders queue error when loading fails', async () => {
@@ -211,15 +277,17 @@ test('renders queue error when loading fails', async () => {
         majors: [],
       },
       schedule: [],
+      selectedDate: null,
+      selectedDateError: null,
     },
   });
 
-  render(await AdminPage());
+  render(await AdminPage({}));
 
   expect(screen.getByText('审核队列加载失败，请稍后重试')).toBeInTheDocument();
 });
 
-test('renders empty preview states when today and next preview are empty', async () => {
+test('renders empty preview states when today, next, and selected-date preview are empty', async () => {
   listReviewQueueMock.mockResolvedValue([]);
   listFeaturedContentMock.mockResolvedValue({
     schools: [],
@@ -248,14 +316,29 @@ test('renders empty preview states when today and next preview are empty', async
         majors: [],
       },
       schedule: [],
+      selectedDate: {
+        date: '2026-04-20',
+        weekday: '周一',
+        schools: [],
+        majors: [],
+      },
+      selectedDateError: null,
     },
   });
 
-  render(await AdminPage());
+  render(
+    await AdminPage({
+      searchParams: Promise.resolve({
+        preview_date: '2026-04-20',
+      }),
+    }),
+  );
 
   expect(screen.getByText('当前没有可展示学校')).toBeInTheDocument();
   expect(screen.getByText('当前没有可展示专业')).toBeInTheDocument();
   expect(screen.getByText('当前没有下一轮展示学校')).toBeInTheDocument();
   expect(screen.getByText('当前没有下一轮展示专业')).toBeInTheDocument();
   expect(screen.getByText('当前没有未来轮换预览')).toBeInTheDocument();
+  expect(screen.getByText('该日没有展示学校')).toBeInTheDocument();
+  expect(screen.getByText('该日没有展示专业')).toBeInTheDocument();
 });

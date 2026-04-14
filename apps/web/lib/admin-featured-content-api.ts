@@ -47,6 +47,8 @@ export type AdminFeaturedContent = {
       majors: AdminFeaturedPreviewItem[];
     };
     schedule: AdminFeaturedPreviewDay[];
+    selectedDate: AdminFeaturedPreviewDay | null;
+    selectedDateError: string | null;
   };
 };
 
@@ -93,8 +95,37 @@ const mapPreviewItems = (
   }>,
 ): AdminFeaturedPreviewItem[] => items ?? [];
 
-export async function listFeaturedContent(): Promise<AdminFeaturedContent> {
-  const response = await fetch(`${getApiUrl()}/api/admin/featured-content`, {
+const mapPreviewDay = (day?: {
+  date: string;
+  weekday: string;
+  schools?: Array<{
+    slug: string;
+    name: string;
+  }>;
+  majors?: Array<{
+    slug: string;
+    name: string;
+  }>;
+}): AdminFeaturedPreviewDay | null => {
+  if (!day) {
+    return null;
+  }
+
+  return {
+    date: day.date,
+    weekday: day.weekday,
+    schools: mapPreviewItems(day.schools),
+    majors: mapPreviewItems(day.majors),
+  };
+};
+
+export async function listFeaturedContent(previewDate?: string): Promise<AdminFeaturedContent> {
+  const url = new URL(`${getApiUrl()}/api/admin/featured-content`);
+  if (previewDate) {
+    url.searchParams.set('preview_date', previewDate);
+  }
+
+  const response = await fetch(url.toString(), {
     headers: buildHeaders(),
     cache: 'no-store',
   });
@@ -157,6 +188,19 @@ export async function listFeaturedContent(): Promise<AdminFeaturedContent> {
           name: string;
         }>;
       }>;
+      selected_date?: {
+        date: string;
+        weekday: string;
+        schools?: Array<{
+          slug: string;
+          name: string;
+        }>;
+        majors?: Array<{
+          slug: string;
+          name: string;
+        }>;
+      } | null;
+      selected_date_error?: string | null;
     };
   }>(response);
 
@@ -192,6 +236,8 @@ export async function listFeaturedContent(): Promise<AdminFeaturedContent> {
           schools: mapPreviewItems(day.schools),
           majors: mapPreviewItems(day.majors),
         })) ?? [],
+      selectedDate: mapPreviewDay(payload.preview?.selected_date ?? undefined),
+      selectedDateError: payload.preview?.selected_date_error ?? null,
     },
   };
 }

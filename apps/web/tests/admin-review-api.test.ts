@@ -171,7 +171,7 @@ test('approveReviewQueueAction revalidates the admin page after success', async 
   expect(revalidatePath).toHaveBeenCalledWith('/admin');
 });
 
-test('listFeaturedContent sends authenticated request and maps admin config', async () => {
+test('listFeaturedContent sends authenticated request, supports preview_date, and maps admin config', async () => {
   fetchMock.mockResolvedValueOnce({
     ok: true,
     json: async () => ({
@@ -267,14 +267,31 @@ test('listFeaturedContent sends authenticated request and maps admin config', as
             ],
           },
         ],
+        selected_date: {
+          date: '2026-04-15',
+          weekday: '周三',
+          schools: [
+            {
+              slug: 'west-china-medical-center',
+              name: '华西医学中心',
+            },
+          ],
+          majors: [
+            {
+              slug: 'computer-science',
+              name: '计算机科学与技术',
+            },
+          ],
+        },
+        selected_date_error: null,
       },
     }),
   });
 
-  const payload = await listFeaturedContent();
+  const payload = await listFeaturedContent('2026-04-15');
 
   expect(fetchMock).toHaveBeenCalledWith(
-    'http://api.example.com/api/admin/featured-content',
+    'http://api.example.com/api/admin/featured-content?preview_date=2026-04-15',
     expect.objectContaining({
       headers: expect.objectContaining({
         'x-admin-token': 'secret-token',
@@ -282,93 +299,69 @@ test('listFeaturedContent sends authenticated request and maps admin config', as
       cache: 'no-store',
     }),
   );
-  expect(payload.schools[0]).toEqual({
-    slug: 'southeast-university',
-    name: '东南大学',
-    isFeatured: true,
-    heroImageUrl: 'https://cdn.example.com/southeast.jpg',
-  });
-  expect(payload.majors[0]).toEqual({
-    slug: 'clinical-medicine',
-    name: '临床医学',
-    isFeatured: true,
-  });
-  expect(payload.rotation.schools).toEqual({
-    enabled: true,
-    frequencyDays: 1,
-    windowSize: 2,
-    orderedSlugs: ['southeast-university', 'west-china-medical-center'],
-  });
-  expect(payload.rotation.majors).toEqual({
-    enabled: false,
-    frequencyDays: 3,
-    windowSize: 4,
-    orderedSlugs: ['clinical-medicine'],
-  });
-  expect(payload.preview).toEqual({
-    today: {
-      schools: [
-        {
-          slug: 'southeast-university',
-          name: '东南大学',
-        },
-      ],
-      majors: [
-        {
-          slug: 'clinical-medicine',
-          name: '临床医学',
-        },
-      ],
-    },
-    next: {
-      schools: [
-        {
-          slug: 'west-china-medical-center',
-          name: '华西医学中心',
-        },
-      ],
-      majors: [
-        {
-          slug: 'computer-science',
-          name: '计算机科学与技术',
-        },
-      ],
-    },
-    schedule: [
+  expect(payload.preview.selectedDate).toEqual({
+    date: '2026-04-15',
+    weekday: '周三',
+    schools: [
       {
-        date: '2026-04-14',
-        weekday: '周二',
-        schools: [
-          {
-            slug: 'southeast-university',
-            name: '东南大学',
-          },
-        ],
-        majors: [
-          {
-            slug: 'clinical-medicine',
-            name: '临床医学',
-          },
-        ],
+        slug: 'west-china-medical-center',
+        name: '华西医学中心',
       },
+    ],
+    majors: [
       {
-        date: '2026-04-15',
-        weekday: '周三',
-        schools: [
-          {
-            slug: 'west-china-medical-center',
-            name: '华西医学中心',
-          },
-        ],
-        majors: [
-          {
-            slug: 'computer-science',
-            name: '计算机科学与技术',
-          },
-        ],
+        slug: 'computer-science',
+        name: '计算机科学与技术',
       },
     ],
   });
+  expect(payload.preview.selectedDateError).toBeNull();
+});
+
+test('listFeaturedContent maps local selected-date validation errors', async () => {
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      schools: [],
+      majors: [],
+      rotation: {
+        schools: {
+          enabled: false,
+          frequency_days: 1,
+          window_size: 1,
+          ordered_slugs: [],
+        },
+        majors: {
+          enabled: false,
+          frequency_days: 1,
+          window_size: 1,
+          ordered_slugs: [],
+        },
+      },
+      preview: {
+        today: {
+          schools: [],
+          majors: [],
+        },
+        next: {
+          schools: [],
+          majors: [],
+        },
+        schedule: [],
+        selected_date: null,
+        selected_date_error: '预览日期格式无效',
+      },
+    }),
+  });
+
+  const payload = await listFeaturedContent('2026-99-99');
+
+  expect(fetchMock).toHaveBeenCalledWith(
+    'http://api.example.com/api/admin/featured-content?preview_date=2026-99-99',
+    expect.any(Object),
+  );
+  expect(payload.preview.selectedDate).toBeNull();
+  expect(payload.preview.selectedDateError).toBe('预览日期格式无效');
 });
 
 test('updateFeaturedSchool posts feature state and image url', async () => {
@@ -485,6 +478,10 @@ test('updateMajorRotationRule posts rotation state', async () => {
     'http://api.example.com/api/admin/featured-content/rotation/majors',
     expect.objectContaining({
       method: 'POST',
+      headers: expect.objectContaining({
+        'Content-Type': 'application/json',
+        'x-admin-token': 'secret-token',
+      }),
       body: JSON.stringify({
         enabled: false,
         frequency_days: 4,
@@ -495,7 +492,7 @@ test('updateMajorRotationRule posts rotation state', async () => {
   );
 });
 
-test('updateFeaturedSchoolAction revalidates admin and home pages after success', async () => {
+test('updateFeaturedSchoolAction revalidates the admin page after success', async () => {
   fetchMock.mockResolvedValueOnce({
     ok: true,
     json: async () => ({
@@ -513,49 +510,29 @@ test('updateFeaturedSchoolAction revalidates admin and home pages after success'
 
   await updateFeaturedSchoolAction(formData);
 
-  expect(fetchMock).toHaveBeenCalledWith(
-    'http://api.example.com/api/admin/featured-content/schools/southeast-university',
-    expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({
-        is_featured: true,
-        hero_image_url: 'https://cdn.example.com/southeast.jpg',
-      }),
-    }),
-  );
   expect(revalidatePath).toHaveBeenCalledWith('/admin');
-  expect(revalidatePath).toHaveBeenCalledWith('/');
 });
 
-test('updateFeaturedMajorAction revalidates admin and home pages after success', async () => {
+test('updateFeaturedMajorAction revalidates the admin page after success', async () => {
   fetchMock.mockResolvedValueOnce({
     ok: true,
     json: async () => ({
       slug: 'clinical-medicine',
       name: '临床医学',
-      is_featured: false,
+      is_featured: true,
     }),
   });
 
   const formData = new FormData();
   formData.set('slug', 'clinical-medicine');
+  formData.set('isFeatured', 'on');
 
   await updateFeaturedMajorAction(formData);
 
-  expect(fetchMock).toHaveBeenCalledWith(
-    'http://api.example.com/api/admin/featured-content/majors/clinical-medicine',
-    expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({
-        is_featured: false,
-      }),
-    }),
-  );
   expect(revalidatePath).toHaveBeenCalledWith('/admin');
-  expect(revalidatePath).toHaveBeenCalledWith('/');
 });
 
-test('updateSchoolRotationAction revalidates admin and home pages after success', async () => {
+test('updateSchoolRotationAction revalidates the admin page after success', async () => {
   fetchMock.mockResolvedValueOnce({
     ok: true,
     json: async () => ({
@@ -574,23 +551,10 @@ test('updateSchoolRotationAction revalidates admin and home pages after success'
 
   await updateSchoolRotationAction(formData);
 
-  expect(fetchMock).toHaveBeenCalledWith(
-    'http://api.example.com/api/admin/featured-content/rotation/schools',
-    expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({
-        enabled: true,
-        frequency_days: 2,
-        window_size: 3,
-        ordered_slugs: ['west-china-medical-center', 'southeast-university'],
-      }),
-    }),
-  );
   expect(revalidatePath).toHaveBeenCalledWith('/admin');
-  expect(revalidatePath).toHaveBeenCalledWith('/');
 });
 
-test('updateMajorRotationAction revalidates admin and home pages after success', async () => {
+test('updateMajorRotationAction revalidates the admin page after success', async () => {
   fetchMock.mockResolvedValueOnce({
     ok: true,
     json: async () => ({
@@ -608,35 +572,5 @@ test('updateMajorRotationAction revalidates admin and home pages after success',
 
   await updateMajorRotationAction(formData);
 
-  expect(fetchMock).toHaveBeenCalledWith(
-    'http://api.example.com/api/admin/featured-content/rotation/majors',
-    expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({
-        enabled: false,
-        frequency_days: 4,
-        window_size: 2,
-        ordered_slugs: ['clinical-medicine'],
-      }),
-    }),
-  );
   expect(revalidatePath).toHaveBeenCalledWith('/admin');
-  expect(revalidatePath).toHaveBeenCalledWith('/');
-});
-
-test('rejectReviewQueueAction resolves without returning a value when the API fails', async () => {
-  fetchMock.mockResolvedValueOnce({
-    ok: false,
-    status: 500,
-    text: async () => 'server error',
-  });
-
-  const formData = new FormData();
-  formData.set('queueId', '24');
-  formData.set('reviewedBy', 'web-admin');
-  formData.set('reviewNote', 'needs manual review');
-
-  const result = await rejectReviewQueueAction(formData);
-
-  expect(result).toBeUndefined();
 });

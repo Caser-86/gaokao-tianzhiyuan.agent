@@ -27,7 +27,16 @@ const defaultRotationRule = (): AdminRotationRule => ({
   orderedSlugs: [],
 });
 
-export default async function AdminPage() {
+type AdminPageProps = {
+  searchParams?: Promise<{
+    preview_date?: string;
+  }>;
+};
+
+export default async function AdminPage({ searchParams }: AdminPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const previewDate = resolvedSearchParams?.preview_date?.trim() || undefined;
+
   let queueItems: AdminReviewItem[] = [];
   let queueError: string | undefined;
   let featuredSchools: AdminFeaturedSchool[] = [];
@@ -37,6 +46,8 @@ export default async function AdminPage() {
   let nextFeaturedSchoolPreview: AdminFeaturedPreviewItem[] = [];
   let nextFeaturedMajorPreview: AdminFeaturedPreviewItem[] = [];
   let featuredSchedule: AdminFeaturedPreviewDay[] = [];
+  let selectedDatePreview: AdminFeaturedPreviewDay | null = null;
+  let selectedDateError: string | undefined;
   let featuredContentError: string | undefined;
   let schoolRotation = defaultRotationRule();
   let majorRotation = defaultRotationRule();
@@ -48,7 +59,7 @@ export default async function AdminPage() {
   }
 
   try {
-    const featuredContent = await listFeaturedContent();
+    const featuredContent = await listFeaturedContent(previewDate);
     featuredSchools = featuredContent.schools;
     featuredMajors = featuredContent.majors;
     schoolRotation = featuredContent.rotation.schools;
@@ -58,6 +69,8 @@ export default async function AdminPage() {
     nextFeaturedSchoolPreview = featuredContent.preview.next.schools;
     nextFeaturedMajorPreview = featuredContent.preview.next.majors;
     featuredSchedule = featuredContent.preview.schedule;
+    selectedDatePreview = featuredContent.preview.selectedDate;
+    selectedDateError = featuredContent.preview.selectedDateError ?? undefined;
   } catch {
     featuredContentError = '展示配置加载失败，请稍后重试';
   }
@@ -75,6 +88,9 @@ export default async function AdminPage() {
       nextFeaturedSchoolPreview={nextFeaturedSchoolPreview}
       nextFeaturedMajorPreview={nextFeaturedMajorPreview}
       featuredSchedule={featuredSchedule}
+      selectedPreviewDateValue={previewDate ?? ''}
+      selectedDatePreview={selectedDatePreview}
+      selectedDateError={selectedDateError}
       queueError={queueError}
       featuredContentError={featuredContentError}
       approveAction={approveReviewQueueAction}

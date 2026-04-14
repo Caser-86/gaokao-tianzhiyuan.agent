@@ -32,6 +32,9 @@ type DashboardShellProps = {
   nextFeaturedSchoolPreview: AdminFeaturedPreviewItem[];
   nextFeaturedMajorPreview: AdminFeaturedPreviewItem[];
   featuredSchedule: AdminFeaturedPreviewDay[];
+  selectedPreviewDateValue: string;
+  selectedDatePreview: AdminFeaturedPreviewDay | null;
+  selectedDateError?: string;
   queueError?: string;
   featuredContentError?: string;
   approveAction: (formData: FormData) => Promise<void>;
@@ -43,6 +46,23 @@ type DashboardShellProps = {
 };
 
 const cards = ['待审核内容', '最近发布', '抓取状态'];
+
+function PreviewList({
+  items,
+}: {
+  items: AdminFeaturedPreviewItem[];
+}) {
+  return (
+    <ul>
+      {items.map((item) => (
+        <li key={item.slug}>
+          <span>{item.name}</span>
+          <span>{item.slug}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export default function DashboardShell({
   title,
@@ -56,6 +76,9 @@ export default function DashboardShell({
   nextFeaturedSchoolPreview,
   nextFeaturedMajorPreview,
   featuredSchedule,
+  selectedPreviewDateValue,
+  selectedDatePreview,
+  selectedDateError,
   queueError,
   featuredContentError,
   approveAction,
@@ -65,9 +88,13 @@ export default function DashboardShell({
   updateSchoolRotationAction,
   updateMajorRotationAction,
 }: DashboardShellProps) {
+  const showSelectedDateHelper =
+    !selectedPreviewDateValue && !selectedDatePreview && !selectedDateError;
+
   return (
     <main>
       <h1>{title}</h1>
+
       <section>
         {cards.map((card) => (
           <article key={card}>
@@ -225,14 +252,7 @@ export default function DashboardShell({
         {featuredContentError ? null : featuredSchoolPreview.length === 0 ? (
           <p>当前没有可展示学校</p>
         ) : (
-          <ul>
-            {featuredSchoolPreview.map((school) => (
-              <li key={school.slug}>
-                <span>{school.name}</span>
-                <span>{school.slug}</span>
-              </li>
-            ))}
-          </ul>
+          <PreviewList items={featuredSchoolPreview} />
         )}
       </section>
 
@@ -242,14 +262,7 @@ export default function DashboardShell({
         {featuredContentError ? null : featuredMajorPreview.length === 0 ? (
           <p>当前没有可展示专业</p>
         ) : (
-          <ul>
-            {featuredMajorPreview.map((major) => (
-              <li key={major.slug}>
-                <span>{major.name}</span>
-                <span>{major.slug}</span>
-              </li>
-            ))}
-          </ul>
+          <PreviewList items={featuredMajorPreview} />
         )}
       </section>
 
@@ -259,14 +272,7 @@ export default function DashboardShell({
         {featuredContentError ? null : nextFeaturedSchoolPreview.length === 0 ? (
           <p>当前没有下一轮展示学校</p>
         ) : (
-          <ul>
-            {nextFeaturedSchoolPreview.map((school) => (
-              <li key={school.slug}>
-                <span>{school.name}</span>
-                <span>{school.slug}</span>
-              </li>
-            ))}
-          </ul>
+          <PreviewList items={nextFeaturedSchoolPreview} />
         )}
       </section>
 
@@ -276,15 +282,48 @@ export default function DashboardShell({
         {featuredContentError ? null : nextFeaturedMajorPreview.length === 0 ? (
           <p>当前没有下一轮展示专业</p>
         ) : (
-          <ul>
-            {nextFeaturedMajorPreview.map((major) => (
-              <li key={major.slug}>
-                <span>{major.name}</span>
-                <span>{major.slug}</span>
-              </li>
-            ))}
-          </ul>
+          <PreviewList items={nextFeaturedMajorPreview} />
         )}
+      </section>
+
+      <section aria-labelledby="selected-date-preview-heading">
+        <h2 id="selected-date-preview-heading">指定日期预览</h2>
+
+        <form action="/admin" method="GET">
+          <label>
+            预览日期
+            <input type="date" name="preview_date" defaultValue={selectedPreviewDateValue} />
+          </label>
+          <button type="submit">查看该日轮换</button>
+        </form>
+
+        {showSelectedDateHelper ? <p>选择一个日期查看当天轮换结果</p> : null}
+        {selectedDateError ? <p>{selectedDateError}</p> : null}
+
+        {selectedDatePreview ? (
+          <div>
+            <p>{selectedDatePreview.date}</p>
+            <p>{selectedDatePreview.weekday}</p>
+
+            <section aria-labelledby="selected-date-school-preview-heading">
+              <h3 id="selected-date-school-preview-heading">该日展示学校</h3>
+              {selectedDatePreview.schools.length === 0 ? (
+                <p>该日没有展示学校</p>
+              ) : (
+                <PreviewList items={selectedDatePreview.schools} />
+              )}
+            </section>
+
+            <section aria-labelledby="selected-date-major-preview-heading">
+              <h3 id="selected-date-major-preview-heading">该日展示专业</h3>
+              {selectedDatePreview.majors.length === 0 ? (
+                <p>该日没有展示专业</p>
+              ) : (
+                <PreviewList items={selectedDatePreview.majors} />
+              )}
+            </section>
+          </div>
+        ) : null}
       </section>
 
       <section aria-labelledby="featured-schedule-heading">
