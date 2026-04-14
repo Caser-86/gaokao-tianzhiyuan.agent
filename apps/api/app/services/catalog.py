@@ -104,3 +104,50 @@ def get_school_detail(slug: str) -> dict[str, Any] | None:
 def get_major_detail(slug: str) -> dict[str, Any] | None:
     majors = load_catalog()["majors"]
     return next((major for major in majors if major["slug"] == slug), None)
+
+
+def list_admin_ranking_references() -> dict[str, Any]:
+    catalog = load_catalog()
+    return {
+        "schools": [
+            {
+                "slug": school["slug"],
+                "name": school["name"],
+                "ranking_references": school.get("ranking_references", []),
+            }
+            for school in catalog["schools"]
+        ],
+        "majors": [
+            {
+                "slug": major["slug"],
+                "name": major["name"],
+                "ranking_references": major.get("ranking_references", []),
+            }
+            for major in catalog["majors"]
+        ],
+    }
+
+
+def update_ranking_references(
+    entity_key: str,
+    slug: str,
+    ranking_references: list[dict[str, Any]],
+) -> dict[str, Any]:
+    catalog = load_catalog()
+    entries = catalog[entity_key]
+    entity = next((item for item in entries if item["slug"] == slug), None)
+    if entity is None:
+        raise KeyError(slug)
+
+    entity["ranking_references"] = ranking_references
+    CATALOG_PATH.write_text(
+        json.dumps(catalog, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    load_catalog.cache_clear()
+
+    return {
+        "slug": entity["slug"],
+        "name": entity["name"],
+        "ranking_references": entity.get("ranking_references", []),
+    }

@@ -13,6 +13,10 @@ from ..services.featured_content import (
     update_rotation_rule,
     update_featured_school,
 )
+from ..services.catalog import (
+    list_admin_ranking_references,
+    update_ranking_references,
+)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -113,6 +117,39 @@ class FeaturedContentResponse(SQLModel):
     preview: FeaturedContentPreviewResponse
 
 
+class RankingReferenceResponse(SQLModel):
+    source: str
+    year: int
+    label: str
+    scope: str = ""
+    note: str = ""
+    url: str = ""
+
+
+class RankingReferenceEntityResponse(SQLModel):
+    slug: str
+    name: str
+    ranking_references: list[RankingReferenceResponse]
+
+
+class RankingReferenceListResponse(SQLModel):
+    schools: list[RankingReferenceEntityResponse]
+    majors: list[RankingReferenceEntityResponse]
+
+
+class RankingReferenceRequest(SQLModel):
+    source: str
+    year: int
+    label: str
+    scope: str = ""
+    note: str = ""
+    url: str = ""
+
+
+class RankingReferenceUpdateRequest(SQLModel):
+    ranking_references: list[RankingReferenceRequest]
+
+
 def serialize_review_queue_item(item: ReviewQueue) -> ReviewQueueItemResponse:
     created_at = item.created_at
     if created_at.tzinfo is None:
@@ -169,6 +206,39 @@ def require_admin(x_admin_token: str | None = Header(default=None)) -> None:
         )
 
 
+def normalize_ranking_references(
+    ranking_references: list[RankingReferenceRequest],
+) -> list[dict[str, str | int]]:
+    normalized: list[dict[str, str | int]] = []
+
+    for item in ranking_references:
+        source = item.source.strip()
+        label = item.label.strip()
+        if not source or not label:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="ranking reference source and label are required",
+            )
+        if item.year < 1:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="ranking reference year must be positive",
+            )
+
+        normalized.append(
+            {
+                "source": source,
+                "year": item.year,
+                "label": label,
+                "scope": item.scope.strip(),
+                "note": item.note.strip(),
+                "url": item.url.strip(),
+            }
+        )
+
+    return normalized
+
+
 @router.get("/review-queue", response_model=ReviewQueueListResponse)
 def list_review_queue(
     _authorized: None = Depends(require_admin),
@@ -183,6 +253,65 @@ def list_review_queue(
     return ReviewQueueListResponse(
         items=[serialize_review_queue_item(item) for item in items]
     )
+
+
+@router.get("/ranking-references", response_model=RankingReferenceListResponse)
+def get_ranking_references(
+    _authorized: None = Depends(require_admin),
+) -> RankingReferenceListResponse:
+    payload = list_admin_ranking_references()
+    return RankingReferenceListResponse(
+        schools=[RankingReferenceEntityResponse(**item) for item in payload["schools"]],
+        majors=[RankingReferenceEntityResponse(**item) for item in payload["majors"]],
+    )
+
+
+@router.post(
+    "/ranking-references/schools/{slug}",
+    response_model=RankingReferenceEntityResponse,
+)
+def update_school_ranking_references(
+    slug: str,
+    payload: RankingReferenceUpdateRequest,
+    _authorized: None = Depends(require_admin),
+) -> RankingReferenceEntityResponse:
+    try:
+        updated = update_ranking_references(
+            "schools",
+            slug,
+            normalize_ranking_references(payload.ranking_references),
+        )
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="ranking reference entity not found",
+        ) from exc
+
+    return RankingReferenceEntityResponse(**updated)
+
+
+@router.post(
+    "/ranking-references/majors/{slug}",
+    response_model=RankingReferenceEntityResponse,
+)
+def update_major_ranking_references(
+    slug: str,
+    payload: RankingReferenceUpdateRequest,
+    _authorized: None = Depends(require_admin),
+) -> RankingReferenceEntityResponse:
+    try:
+        updated = update_ranking_references(
+            "majors",
+            slug,
+            normalize_ranking_references(payload.ranking_references),
+        )
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="ranking reference entity not found",
+        ) from exc
+
+    return RankingReferenceEntityResponse(**updated)
 
 
 @router.get("/featured-content", response_model=FeaturedContentResponse)
