@@ -706,3 +706,71 @@ test('renders content gap totals for each scheduled preview day', () => {
   expect(within(firstDayArticle as HTMLElement).getByText('该日待补 2 项')).toBeInTheDocument();
   expect(within(secondDayArticle as HTMLElement).getByText('该日待补 2 项')).toBeInTheDocument();
 });
+
+test('filters scheduled preview days to only dates with content gaps', () => {
+  render(
+    <DashboardShell
+      title="内容运营后台"
+      queueItems={[]}
+      featuredSchools={[
+        {
+          slug: 'southeast-university',
+          name: 'Southeast University',
+          isFeatured: true,
+          heroImageUrl: '',
+        },
+        {
+          slug: 'wuhan-university',
+          name: 'Wuhan University',
+          isFeatured: true,
+          heroImageUrl: 'https://cdn.example.com/wuhan.jpg',
+        },
+      ]}
+      featuredMajors={[
+        {
+          slug: 'clinical-medicine',
+          name: 'Clinical Medicine',
+          isFeatured: true,
+        },
+      ]}
+      schoolRotation={schoolRotation}
+      majorRotation={majorRotation}
+      featuredSchoolPreview={schoolPreview}
+      featuredMajorPreview={majorPreview}
+      nextFeaturedSchoolPreview={nextSchoolPreview}
+      nextFeaturedMajorPreview={[]}
+      featuredSchedule={[
+        {
+          date: '2026-04-14',
+          weekday: '周二',
+          schools: [{ slug: 'southeast-university', name: 'Southeast University' }],
+          majors: [],
+        },
+        {
+          date: '2026-04-15',
+          weekday: '周三',
+          schools: [{ slug: 'wuhan-university', name: 'Wuhan University' }],
+          majors: [],
+        },
+      ]}
+      showScheduledGapDaysOnly
+      showScheduledGapDaysOnlyHref="/admin?scheduled_gap_days=1"
+      showAllScheduledGapDaysHref="/admin"
+      selectedPreviewDateValue=""
+      selectedDatePreview={null}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
+    />,
+  );
+
+  const scheduleRegion = screen.getByRole('region', { name: '未来 7 天轮换预览' });
+
+  expect(screen.getByRole('link', { name: '查看全部日期' })).toHaveAttribute('href', '/admin');
+  expect(within(scheduleRegion).getByRole('link', { name: '2026-04-14' })).toBeInTheDocument();
+  expect(within(scheduleRegion).queryByRole('link', { name: '2026-04-15' })).not.toBeInTheDocument();
+  expect(within(scheduleRegion).queryByText('内容已齐备')).not.toBeInTheDocument();
+});

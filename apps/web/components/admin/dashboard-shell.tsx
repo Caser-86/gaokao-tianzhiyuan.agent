@@ -60,6 +60,9 @@ type DashboardShellProps = {
   showScheduledMissingMajorSectionsOnly?: boolean;
   showScheduledMissingMajorSectionsOnlyHref?: string;
   showAllScheduledMajorSectionsHref?: string;
+  showScheduledGapDaysOnly?: boolean;
+  showScheduledGapDaysOnlyHref?: string;
+  showAllScheduledGapDaysHref?: string;
   relatedSchools?: AdminRelatedSchoolEntity[];
   relatedMajors?: AdminRelatedMajorEntity[];
   rankingReferenceSchools?: AdminRankingReferenceEntity[];
@@ -342,6 +345,9 @@ export default function DashboardShell({
   showScheduledMissingMajorSectionsOnly = false,
   showScheduledMissingMajorSectionsOnlyHref,
   showAllScheduledMajorSectionsHref,
+  showScheduledGapDaysOnly = false,
+  showScheduledGapDaysOnlyHref,
+  showAllScheduledGapDaysHref,
   relatedSchools = [],
   relatedMajors = [],
   rankingReferenceSchools = [],
@@ -1143,8 +1149,26 @@ export default function DashboardShell({
       searchParams.set('scheduled_missing_major_sections', '1');
     }
 
+    if (showScheduledGapDaysOnly) {
+      searchParams.set('scheduled_gap_days', '1');
+    }
+
     return `/admin?${searchParams.toString()}`;
   };
+  const scheduledPreviewDays = featuredSchedule.map((day) => {
+    const scheduleDaySchoolSlugs = new Set(day.schools.map((school) => school.slug));
+    const scheduleDayMajorSlugs = new Set(day.majors.map((major) => major.slug));
+    const gapCount = countPreviewContentGaps(scheduleDaySchoolSlugs, scheduleDayMajorSlugs);
+
+    return {
+      ...day,
+      gapCount,
+    };
+  });
+  const displayedScheduledPreviewDays = showScheduledGapDaysOnly
+    ? scheduledPreviewDays.filter((day) => day.gapCount > 0)
+    : scheduledPreviewDays;
+  const scheduledGapDayCount = scheduledPreviewDays.filter((day) => day.gapCount > 0).length;
 
   return (
     <main>
@@ -2142,6 +2166,9 @@ export default function DashboardShell({
           {showScheduledMissingMajorSectionsOnly ? (
             <input type="hidden" name="scheduled_missing_major_sections" value="1" />
           ) : null}
+          {showScheduledGapDaysOnly ? (
+            <input type="hidden" name="scheduled_gap_days" value="1" />
+          ) : null}
           <button type="submit">查看该日轮换</button>
         </form>
 
@@ -2190,22 +2217,22 @@ export default function DashboardShell({
       <section aria-labelledby="featured-schedule-heading">
         <h2 id="featured-schedule-heading">未来 7 天轮换预览</h2>
 
-        {featuredContentError ? null : featuredSchedule.length === 0 ? (
+        {featuredContentError ? null : displayedScheduledPreviewDays.length === 0 ? (
           <p>当前没有未来轮换预览</p>
         ) : (
           <div>
-            {featuredSchedule.map((day) => (
+            {showScheduledGapDaysOnlyHref || showAllScheduledGapDaysHref ? (
+              <p>
+                {!showScheduledGapDaysOnly && showScheduledGapDaysOnlyHref ? (
+                  <a href={showScheduledGapDaysOnlyHref}>{`仅看待补日期（${scheduledGapDayCount}）`}</a>
+                ) : null}
+                {showScheduledGapDaysOnly && showAllScheduledGapDaysHref ? (
+                  <a href={showAllScheduledGapDaysHref}>查看全部日期</a>
+                ) : null}
+              </p>
+            ) : null}
+            {displayedScheduledPreviewDays.map((day) => (
               <article key={day.date}>
-                {(() => {
-                  const scheduleDaySchoolSlugs = new Set(day.schools.map((school) => school.slug));
-                  const scheduleDayMajorSlugs = new Set(day.majors.map((major) => major.slug));
-                  const scheduleDayGapCount = countPreviewContentGaps(
-                    scheduleDaySchoolSlugs,
-                    scheduleDayMajorSlugs,
-                  );
-
-                  return (
-                    <>
                 <h3>
                   {day.date === highlightedScheduleDate ? (
                     day.date
@@ -2217,7 +2244,8 @@ export default function DashboardShell({
                 </h3>
                 <p>{day.weekday}</p>
                 {day.date === highlightedScheduleDate ? <p>当前查看</p> : null}
-                <p>{`该日待补 ${scheduleDayGapCount} 项`}</p>
+                <p>{`该日待补 ${day.gapCount} 项`}</p>
+                {day.gapCount === 0 ? <p>内容已齐备</p> : null}
                 <p>学校</p>
                 {day.schools.length === 0 ? (
                   <p>当天没有展示学校</p>
@@ -2233,9 +2261,6 @@ export default function DashboardShell({
                 ) : (
                   <PreviewList items={day.majors} />
                 )}
-                    </>
-                  );
-                })()}
               </article>
             ))}
           </div>

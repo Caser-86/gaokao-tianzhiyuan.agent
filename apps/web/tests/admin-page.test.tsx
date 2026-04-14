@@ -505,3 +505,86 @@ test('renders empty preview states when today, next, and selected-date preview a
     '/admin?preview_date=2026-04-21',
   );
 });
+
+test('preserves scheduled-gap-day filter in admin preview navigation', async () => {
+  listReviewQueueMock.mockResolvedValue([]);
+  listFeaturedContentMock.mockResolvedValue({
+    schools: [],
+    majors: [],
+    rotation: {
+      schools: {
+        enabled: true,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: ['southeast-university'],
+      },
+      majors: {
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      },
+    },
+    preview: {
+      today: {
+        schools: [],
+        majors: [],
+      },
+      next: {
+        schools: [],
+        majors: [],
+      },
+      schedule: [
+        {
+          date: '2026-04-14',
+          weekday: '周二',
+          schools: [],
+          majors: [],
+        },
+        {
+          date: '2026-04-15',
+          weekday: '周三',
+          schools: [
+            {
+              slug: 'southeast-university',
+              name: '东南大学',
+            },
+          ],
+          majors: [],
+        },
+      ],
+      selectedDate: null,
+      selectedDateError: null,
+    },
+  });
+  listContentSummariesMock.mockResolvedValue({
+    schools: [{ slug: 'southeast-university', name: '东南大学', summary: '' }],
+    majors: [],
+  });
+
+  render(
+    await AdminPage({
+      searchParams: Promise.resolve({
+        preview_date: '2026-04-15',
+        scheduled_gap_days: '1',
+      }),
+    }),
+  );
+
+  const scheduleRegion = screen.getByRole('region', { name: '未来 7 天轮换预览' });
+
+  expect(screen.getByRole('link', { name: '查看全部日期' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-15',
+  );
+  expect(screen.getByRole('link', { name: '查看前一天' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-14&scheduled_gap_days=1',
+  );
+  expect(screen.getByRole('link', { name: '查看后一天' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-16&scheduled_gap_days=1',
+  );
+  expect(within(scheduleRegion).queryByRole('link', { name: '2026-04-14' })).not.toBeInTheDocument();
+  expect(within(scheduleRegion).queryByText('内容已齐备')).not.toBeInTheDocument();
+});

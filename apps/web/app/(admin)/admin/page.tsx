@@ -72,6 +72,7 @@ type AdminPageProps = {
     missing_major_sections?: string;
     scheduled_missing_school_sections?: string;
     scheduled_missing_major_sections?: string;
+    scheduled_gap_days?: string;
   }>;
 };
 
@@ -107,6 +108,7 @@ const buildAdminHref = ({
   showMissingMajorSectionsOnly,
   showScheduledMissingSchoolSectionsOnly,
   showScheduledMissingMajorSectionsOnly,
+  showScheduledGapDaysOnly,
 }: {
   previewDate?: string;
   showMissingImageSchoolsOnly?: boolean;
@@ -127,6 +129,7 @@ const buildAdminHref = ({
   showMissingMajorSectionsOnly?: boolean;
   showScheduledMissingSchoolSectionsOnly?: boolean;
   showScheduledMissingMajorSectionsOnly?: boolean;
+  showScheduledGapDaysOnly?: boolean;
 }): string => {
   const searchParams = new URLSearchParams();
 
@@ -230,6 +233,10 @@ const buildAdminHref = ({
     );
   }
 
+  if (showScheduledGapDaysOnly) {
+    searchParams.set('scheduled_gap_days', '1');
+  }
+
   const queryString = searchParams.toString();
   return queryString ? `/admin?${queryString}` : '/admin';
 };
@@ -273,6 +280,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     resolvedSearchParams?.scheduled_missing_school_sections?.trim() === '1';
   const showScheduledMissingMajorSectionsOnly =
     resolvedSearchParams?.scheduled_missing_major_sections?.trim() === '1';
+  const showScheduledGapDaysOnly =
+    resolvedSearchParams?.scheduled_gap_days?.trim() === '1';
   const rankingSchoolFilterState =
     resolvedSearchParams?.missing_school_rankings !== undefined
       ? showMissingSchoolRankingsOnly
@@ -365,6 +374,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           showMissingMajorSectionsOnly: sectionMajorFilterState,
           showScheduledMissingSchoolSectionsOnly: scheduledSectionSchoolFilterState,
           showScheduledMissingMajorSectionsOnly: scheduledSectionMajorFilterState,
+          showScheduledGapDaysOnly,
         })
       : undefined;
   const previousPreviewDateHref = previousPreviewDate
@@ -388,6 +398,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         showMissingMajorSectionsOnly: sectionMajorFilterState,
         showScheduledMissingSchoolSectionsOnly: scheduledSectionSchoolFilterState,
         showScheduledMissingMajorSectionsOnly: scheduledSectionMajorFilterState,
+        showScheduledGapDaysOnly,
       })
     : undefined;
   const nextPreviewDateHref = nextPreviewDate
@@ -411,6 +422,55 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         showMissingMajorSectionsOnly: sectionMajorFilterState,
         showScheduledMissingSchoolSectionsOnly: scheduledSectionSchoolFilterState,
         showScheduledMissingMajorSectionsOnly: scheduledSectionMajorFilterState,
+        showScheduledGapDaysOnly,
+      })
+    : undefined;
+  const showScheduledGapDaysOnlyHref = !showScheduledGapDaysOnly
+    ? buildAdminHref({
+        previewDate,
+        showMissingImageSchoolsOnly,
+        showScheduledMissingImageSchoolsOnly,
+        showMissingSchoolRankingsOnly: rankingSchoolFilterState,
+        showMissingMajorRankingsOnly: rankingMajorFilterState,
+        showScheduledMissingSchoolRankingsOnly: scheduledRankingSchoolFilterState,
+        showScheduledMissingMajorRankingsOnly: scheduledRankingMajorFilterState,
+        showMissingSchoolRelatedOnly: relatedSchoolFilterState,
+        showMissingMajorRelatedOnly: relatedMajorFilterState,
+        showScheduledMissingSchoolRelatedOnly: scheduledRelatedSchoolFilterState,
+        showScheduledMissingMajorRelatedOnly: scheduledRelatedMajorFilterState,
+        showMissingSchoolSummariesOnly: summarySchoolFilterState,
+        showMissingMajorSummariesOnly: summaryMajorFilterState,
+        showScheduledMissingSchoolSummariesOnly: scheduledSummarySchoolFilterState,
+        showScheduledMissingMajorSummariesOnly: scheduledSummaryMajorFilterState,
+        showMissingSchoolSectionsOnly: sectionSchoolFilterState,
+        showMissingMajorSectionsOnly: sectionMajorFilterState,
+        showScheduledMissingSchoolSectionsOnly: scheduledSectionSchoolFilterState,
+        showScheduledMissingMajorSectionsOnly: scheduledSectionMajorFilterState,
+        showScheduledGapDaysOnly: true,
+      })
+    : undefined;
+  const showAllScheduledGapDaysHref = showScheduledGapDaysOnly
+    ? buildAdminHref({
+        previewDate,
+        showMissingImageSchoolsOnly,
+        showScheduledMissingImageSchoolsOnly,
+        showMissingSchoolRankingsOnly: rankingSchoolFilterState,
+        showMissingMajorRankingsOnly: rankingMajorFilterState,
+        showScheduledMissingSchoolRankingsOnly: scheduledRankingSchoolFilterState,
+        showScheduledMissingMajorRankingsOnly: scheduledRankingMajorFilterState,
+        showMissingSchoolRelatedOnly: relatedSchoolFilterState,
+        showMissingMajorRelatedOnly: relatedMajorFilterState,
+        showScheduledMissingSchoolRelatedOnly: scheduledRelatedSchoolFilterState,
+        showScheduledMissingMajorRelatedOnly: scheduledRelatedMajorFilterState,
+        showMissingSchoolSummariesOnly: summarySchoolFilterState,
+        showMissingMajorSummariesOnly: summaryMajorFilterState,
+        showScheduledMissingSchoolSummariesOnly: scheduledSummarySchoolFilterState,
+        showScheduledMissingMajorSummariesOnly: scheduledSummaryMajorFilterState,
+        showMissingSchoolSectionsOnly: sectionSchoolFilterState,
+        showMissingMajorSectionsOnly: sectionMajorFilterState,
+        showScheduledMissingSchoolSectionsOnly: scheduledSectionSchoolFilterState,
+        showScheduledMissingMajorSectionsOnly: scheduledSectionMajorFilterState,
+        showScheduledGapDaysOnly: false,
       })
     : undefined;
   const showMissingImageSchoolsOnlyHref =
@@ -861,6 +921,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       showScheduledMissingMajorSectionsOnly={showScheduledMissingMajorSectionsOnly}
       showScheduledMissingMajorSectionsOnlyHref={showScheduledMissingMajorSectionsOnlyHref}
       showAllScheduledMajorSectionsHref={showAllScheduledMajorSectionsHref}
+      showScheduledGapDaysOnly={showScheduledGapDaysOnly}
+      showScheduledGapDaysOnlyHref={showScheduledGapDaysOnlyHref}
+      showAllScheduledGapDaysHref={showAllScheduledGapDaysHref}
       relatedSchools={relatedSchools}
       relatedMajors={relatedMajors}
       highlightedScheduleDate={highlightedScheduleDate}
