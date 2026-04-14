@@ -1,6 +1,7 @@
 import type {
   AdminFeaturedMajor,
   AdminFeaturedSchool,
+  AdminRotationRule,
 } from '../../lib/admin-featured-content-api';
 
 export type AdminReviewItem = {
@@ -22,12 +23,16 @@ type DashboardShellProps = {
   queueItems: AdminReviewItem[];
   featuredSchools: AdminFeaturedSchool[];
   featuredMajors: AdminFeaturedMajor[];
+  schoolRotation: AdminRotationRule;
+  majorRotation: AdminRotationRule;
   queueError?: string;
   featuredContentError?: string;
   approveAction: (formData: FormData) => Promise<void>;
   rejectAction: (formData: FormData) => Promise<void>;
   updateFeaturedSchoolAction: (formData: FormData) => Promise<void>;
   updateFeaturedMajorAction: (formData: FormData) => Promise<void>;
+  updateSchoolRotationAction: (formData: FormData) => Promise<void>;
+  updateMajorRotationAction: (formData: FormData) => Promise<void>;
 };
 
 const cards = ['待审核内容', '最近发布', '抓取状态'];
@@ -37,12 +42,16 @@ export default function DashboardShell({
   queueItems,
   featuredSchools,
   featuredMajors,
+  schoolRotation,
+  majorRotation,
   queueError,
   featuredContentError,
   approveAction,
   rejectAction,
   updateFeaturedSchoolAction,
   updateFeaturedMajorAction,
+  updateSchoolRotationAction,
+  updateMajorRotationAction,
 }: DashboardShellProps) {
   return (
     <main>
@@ -135,6 +144,66 @@ export default function DashboardShell({
               </form>
             ))}
           </div>
+        )}
+      </section>
+
+      <section aria-labelledby="school-rotation-heading">
+        <h2 id="school-rotation-heading">学校轮换规则</h2>
+
+        {featuredContentError ? null : (
+          <form action={updateSchoolRotationAction}>
+            <label>
+              <input type="checkbox" name="enabled" defaultChecked={schoolRotation.enabled} />
+              启用自动轮换
+            </label>
+            <label>
+              轮换频率（天）
+              <input type="number" name="frequencyDays" min={1} defaultValue={schoolRotation.frequencyDays} />
+            </label>
+            <label>
+              当前展示数量
+              <input type="number" name="windowSize" min={1} defaultValue={schoolRotation.windowSize} />
+            </label>
+            <label>
+              学校轮换顺序
+              <textarea
+                name="orderedSlugs"
+                aria-label="学校轮换顺序"
+                defaultValue={schoolRotation.orderedSlugs.join('\n')}
+              />
+            </label>
+            <button type="submit">保存轮换规则</button>
+          </form>
+        )}
+      </section>
+
+      <section aria-labelledby="major-rotation-heading">
+        <h2 id="major-rotation-heading">专业轮换规则</h2>
+
+        {featuredContentError ? null : (
+          <form action={updateMajorRotationAction}>
+            <label>
+              <input type="checkbox" name="enabled" defaultChecked={majorRotation.enabled} />
+              启用自动轮换
+            </label>
+            <label>
+              轮换频率（天）
+              <input type="number" name="frequencyDays" min={1} defaultValue={majorRotation.frequencyDays} />
+            </label>
+            <label>
+              当前展示数量
+              <input type="number" name="windowSize" min={1} defaultValue={majorRotation.windowSize} />
+            </label>
+            <label>
+              专业轮换顺序
+              <textarea
+                name="orderedSlugs"
+                aria-label="专业轮换顺序"
+                defaultValue={majorRotation.orderedSlugs.join('\n')}
+              />
+            </label>
+            <button type="submit">保存轮换规则</button>
+          </form>
         )}
       </section>
     </main>

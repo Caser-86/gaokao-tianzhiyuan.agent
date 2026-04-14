@@ -15,12 +15,16 @@ import {
   listFeaturedContent,
   updateFeaturedMajor,
   updateFeaturedSchool,
+  updateMajorRotationRule,
+  updateSchoolRotationRule,
 } from '../lib/admin-featured-content-api';
 import {
   approveReviewQueueAction,
   rejectReviewQueueAction,
   updateFeaturedMajorAction,
   updateFeaturedSchoolAction,
+  updateMajorRotationAction,
+  updateSchoolRotationAction,
 } from '../app/(admin)/admin/actions';
 
 const fetchMock = vi.fn();
@@ -186,6 +190,20 @@ test('listFeaturedContent sends authenticated request and maps admin config', as
           is_featured: true,
         },
       ],
+      rotation: {
+        schools: {
+          enabled: true,
+          frequency_days: 1,
+          window_size: 2,
+          ordered_slugs: ['southeast-university', 'west-china-medical-center'],
+        },
+        majors: {
+          enabled: false,
+          frequency_days: 3,
+          window_size: 4,
+          ordered_slugs: ['clinical-medicine'],
+        },
+      },
     }),
   });
 
@@ -210,6 +228,18 @@ test('listFeaturedContent sends authenticated request and maps admin config', as
     slug: 'clinical-medicine',
     name: '临床医学',
     isFeatured: true,
+  });
+  expect(payload.rotation.schools).toEqual({
+    enabled: true,
+    frequencyDays: 1,
+    windowSize: 2,
+    orderedSlugs: ['southeast-university', 'west-china-medical-center'],
+  });
+  expect(payload.rotation.majors).toEqual({
+    enabled: false,
+    frequencyDays: 3,
+    windowSize: 4,
+    orderedSlugs: ['clinical-medicine'],
   });
 });
 
@@ -269,6 +299,74 @@ test('updateFeaturedMajor posts feature state', async () => {
   );
 });
 
+test('updateSchoolRotationRule posts rotation state', async () => {
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      enabled: true,
+      frequency_days: 2,
+      window_size: 3,
+      ordered_slugs: ['west-china-medical-center', 'southeast-university'],
+    }),
+  });
+
+  await updateSchoolRotationRule({
+    enabled: true,
+    frequencyDays: 2,
+    windowSize: 3,
+    orderedSlugs: ['west-china-medical-center', 'southeast-university'],
+  });
+
+  expect(fetchMock).toHaveBeenCalledWith(
+    'http://api.example.com/api/admin/featured-content/rotation/schools',
+    expect.objectContaining({
+      method: 'POST',
+      headers: expect.objectContaining({
+        'Content-Type': 'application/json',
+        'x-admin-token': 'secret-token',
+      }),
+      body: JSON.stringify({
+        enabled: true,
+        frequency_days: 2,
+        window_size: 3,
+        ordered_slugs: ['west-china-medical-center', 'southeast-university'],
+      }),
+    }),
+  );
+});
+
+test('updateMajorRotationRule posts rotation state', async () => {
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      enabled: false,
+      frequency_days: 4,
+      window_size: 2,
+      ordered_slugs: ['clinical-medicine'],
+    }),
+  });
+
+  await updateMajorRotationRule({
+    enabled: false,
+    frequencyDays: 4,
+    windowSize: 2,
+    orderedSlugs: ['clinical-medicine'],
+  });
+
+  expect(fetchMock).toHaveBeenCalledWith(
+    'http://api.example.com/api/admin/featured-content/rotation/majors',
+    expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({
+        enabled: false,
+        frequency_days: 4,
+        window_size: 2,
+        ordered_slugs: ['clinical-medicine'],
+      }),
+    }),
+  );
+});
+
 test('updateFeaturedSchoolAction revalidates admin and home pages after success', async () => {
   fetchMock.mockResolvedValueOnce({
     ok: true,
@@ -322,6 +420,75 @@ test('updateFeaturedMajorAction revalidates admin and home pages after success',
       method: 'POST',
       body: JSON.stringify({
         is_featured: false,
+      }),
+    }),
+  );
+  expect(revalidatePath).toHaveBeenCalledWith('/admin');
+  expect(revalidatePath).toHaveBeenCalledWith('/');
+});
+
+test('updateSchoolRotationAction revalidates admin and home pages after success', async () => {
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      enabled: true,
+      frequency_days: 2,
+      window_size: 3,
+      ordered_slugs: ['west-china-medical-center', 'southeast-university'],
+    }),
+  });
+
+  const formData = new FormData();
+  formData.set('enabled', 'on');
+  formData.set('frequencyDays', '2');
+  formData.set('windowSize', '3');
+  formData.set('orderedSlugs', 'west-china-medical-center\nsoutheast-university');
+
+  await updateSchoolRotationAction(formData);
+
+  expect(fetchMock).toHaveBeenCalledWith(
+    'http://api.example.com/api/admin/featured-content/rotation/schools',
+    expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({
+        enabled: true,
+        frequency_days: 2,
+        window_size: 3,
+        ordered_slugs: ['west-china-medical-center', 'southeast-university'],
+      }),
+    }),
+  );
+  expect(revalidatePath).toHaveBeenCalledWith('/admin');
+  expect(revalidatePath).toHaveBeenCalledWith('/');
+});
+
+test('updateMajorRotationAction revalidates admin and home pages after success', async () => {
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      enabled: false,
+      frequency_days: 4,
+      window_size: 2,
+      ordered_slugs: ['clinical-medicine'],
+    }),
+  });
+
+  const formData = new FormData();
+  formData.set('frequencyDays', '4');
+  formData.set('windowSize', '2');
+  formData.set('orderedSlugs', 'clinical-medicine');
+
+  await updateMajorRotationAction(formData);
+
+  expect(fetchMock).toHaveBeenCalledWith(
+    'http://api.example.com/api/admin/featured-content/rotation/majors',
+    expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({
+        enabled: false,
+        frequency_days: 4,
+        window_size: 2,
+        ordered_slugs: ['clinical-medicine'],
       }),
     }),
   );

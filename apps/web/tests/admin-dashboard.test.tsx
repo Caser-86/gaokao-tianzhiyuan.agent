@@ -20,6 +20,20 @@ const queueItems: AdminReviewItem[] = [
   },
 ];
 
+const schoolRotation = {
+  enabled: true,
+  frequencyDays: 1,
+  windowSize: 2,
+  orderedSlugs: ['southeast-university', 'west-china-medical-center'],
+};
+
+const majorRotation = {
+  enabled: false,
+  frequencyDays: 3,
+  windowSize: 1,
+  orderedSlugs: ['clinical-medicine'],
+};
+
 test('renders admin dashboard heading and review queue items', () => {
   render(
     <DashboardShell
@@ -40,10 +54,14 @@ test('renders admin dashboard heading and review queue items', () => {
           isFeatured: true,
         },
       ]}
-      approveAction={async () => {}}
-      rejectAction={async () => {}}
-      updateFeaturedSchoolAction={async () => {}}
-      updateFeaturedMajorAction={async () => {}}
+      schoolRotation={schoolRotation}
+      majorRotation={majorRotation}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
     />,
   );
 
@@ -55,6 +73,12 @@ test('renders admin dashboard heading and review queue items', () => {
   expect(screen.getByText('东南大学')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '专业展示配置' })).toBeInTheDocument();
   expect(screen.getByText('临床医学')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: '学校轮换规则' })).toBeInTheDocument();
+  expect(screen.getByLabelText('学校轮换顺序')).toHaveValue(
+    'southeast-university\nwest-china-medical-center',
+  );
+  expect(screen.getByRole('heading', { name: '专业轮换规则' })).toBeInTheDocument();
+  expect(screen.getByLabelText('专业轮换顺序')).toHaveValue('clinical-medicine');
   expect(screen.getByRole('button', { name: '通过' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '驳回' })).toBeInTheDocument();
 });
@@ -66,10 +90,14 @@ test('renders empty state when there are no pending items', () => {
       queueItems={[]}
       featuredSchools={[]}
       featuredMajors={[]}
-      approveAction={async () => {}}
-      rejectAction={async () => {}}
-      updateFeaturedSchoolAction={async () => {}}
-      updateFeaturedMajorAction={async () => {}}
+      schoolRotation={schoolRotation}
+      majorRotation={majorRotation}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
     />,
   );
 
@@ -83,11 +111,15 @@ test('renders error state when queue loading fails', () => {
       queueItems={[]}
       featuredSchools={[]}
       featuredMajors={[]}
+      schoolRotation={schoolRotation}
+      majorRotation={majorRotation}
       queueError="审核队列加载失败，请稍后重试"
-      approveAction={async () => {}}
-      rejectAction={async () => {}}
-      updateFeaturedSchoolAction={async () => {}}
-      updateFeaturedMajorAction={async () => {}}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
     />,
   );
 

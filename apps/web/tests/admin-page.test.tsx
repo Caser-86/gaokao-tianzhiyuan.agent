@@ -19,6 +19,8 @@ vi.mock('../app/(admin)/admin/actions', () => ({
   rejectReviewQueueAction: async () => undefined,
   updateFeaturedSchoolAction: async () => undefined,
   updateFeaturedMajorAction: async () => undefined,
+  updateSchoolRotationAction: async () => undefined,
+  updateMajorRotationAction: async () => undefined,
 }));
 
 import AdminPage from '../app/(admin)/admin/page';
@@ -28,7 +30,7 @@ beforeEach(() => {
   listFeaturedContentMock.mockReset();
 });
 
-test('renders queue items returned by the admin api client', async () => {
+test('renders queue items and rotation forms returned by the admin api client', async () => {
   listReviewQueueMock.mockResolvedValue([
     {
       id: 31,
@@ -60,6 +62,20 @@ test('renders queue items returned by the admin api client', async () => {
         isFeatured: true,
       },
     ],
+    rotation: {
+      schools: {
+        enabled: true,
+        frequencyDays: 1,
+        windowSize: 2,
+        orderedSlugs: ['southeast-university', 'west-china-medical-center'],
+      },
+      majors: {
+        enabled: false,
+        frequencyDays: 3,
+        windowSize: 4,
+        orderedSlugs: ['clinical-medicine'],
+      },
+    },
   });
 
   render(await AdminPage());
@@ -71,6 +87,12 @@ test('renders queue items returned by the admin api client', async () => {
   expect(screen.getByDisplayValue('https://cdn.example.com/southeast.jpg')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '专业展示配置' })).toBeInTheDocument();
   expect(screen.getByText('临床医学')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: '学校轮换规则' })).toBeInTheDocument();
+  expect(screen.getByLabelText('学校轮换顺序')).toHaveValue(
+    'southeast-university\nwest-china-medical-center',
+  );
+  expect(screen.getByRole('heading', { name: '专业轮换规则' })).toBeInTheDocument();
+  expect(screen.getByLabelText('专业轮换顺序')).toHaveValue('clinical-medicine');
 });
 
 test('renders queue error when loading fails', async () => {
@@ -78,6 +100,20 @@ test('renders queue error when loading fails', async () => {
   listFeaturedContentMock.mockResolvedValue({
     schools: [],
     majors: [],
+    rotation: {
+      schools: {
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      },
+      majors: {
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      },
+    },
   });
 
   render(await AdminPage());

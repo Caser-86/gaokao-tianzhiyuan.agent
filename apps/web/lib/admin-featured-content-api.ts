@@ -11,6 +11,22 @@ export type AdminFeaturedMajor = {
   isFeatured: boolean;
 };
 
+export type AdminRotationRule = {
+  enabled: boolean;
+  frequencyDays: number;
+  windowSize: number;
+  orderedSlugs: string[];
+};
+
+export type AdminFeaturedContent = {
+  schools: AdminFeaturedSchool[];
+  majors: AdminFeaturedMajor[];
+  rotation: {
+    schools: AdminRotationRule;
+    majors: AdminRotationRule;
+  };
+};
+
 const getApiUrl = () => process.env.GAOKAO_AGENT_API_URL ?? 'http://127.0.0.1:8000';
 const getAdminToken = () => process.env.GAOKAO_AGENT_ADMIN_TOKEN ?? 'dev-admin-token';
 
@@ -35,10 +51,19 @@ const parseResponse = async <T>(response: Response): Promise<T> => {
   return (await response.json()) as T;
 };
 
-export async function listFeaturedContent(): Promise<{
-  schools: AdminFeaturedSchool[];
-  majors: AdminFeaturedMajor[];
-}> {
+const mapRotationRule = (item?: {
+  enabled: boolean;
+  frequency_days: number;
+  window_size: number;
+  ordered_slugs: string[];
+}): AdminRotationRule => ({
+  enabled: item?.enabled ?? false,
+  frequencyDays: item?.frequency_days ?? 1,
+  windowSize: item?.window_size ?? 1,
+  orderedSlugs: item?.ordered_slugs ?? [],
+});
+
+export async function listFeaturedContent(): Promise<AdminFeaturedContent> {
   const response = await fetch(`${getApiUrl()}/api/admin/featured-content`, {
     headers: buildHeaders(),
     cache: 'no-store',
@@ -55,6 +80,20 @@ export async function listFeaturedContent(): Promise<{
       name: string;
       is_featured: boolean;
     }>;
+    rotation?: {
+      schools?: {
+        enabled: boolean;
+        frequency_days: number;
+        window_size: number;
+        ordered_slugs: string[];
+      };
+      majors?: {
+        enabled: boolean;
+        frequency_days: number;
+        window_size: number;
+        ordered_slugs: string[];
+      };
+    };
   }>(response);
 
   return {
@@ -69,6 +108,10 @@ export async function listFeaturedContent(): Promise<{
       name: item.name,
       isFeatured: item.is_featured,
     })),
+    rotation: {
+      schools: mapRotationRule(payload.rotation?.schools),
+      majors: mapRotationRule(payload.rotation?.majors),
+    },
   };
 }
 
@@ -122,4 +165,52 @@ export async function updateFeaturedMajor(
     name: payload.name,
     isFeatured: payload.is_featured,
   };
+}
+
+export async function updateSchoolRotationRule(
+  rule: AdminRotationRule,
+): Promise<AdminRotationRule> {
+  const response = await fetch(`${getApiUrl()}/api/admin/featured-content/rotation/schools`, {
+    method: 'POST',
+    headers: buildHeaders('application/json'),
+    body: JSON.stringify({
+      enabled: rule.enabled,
+      frequency_days: rule.frequencyDays,
+      window_size: rule.windowSize,
+      ordered_slugs: rule.orderedSlugs,
+    }),
+  });
+
+  return mapRotationRule(
+    await parseResponse<{
+      enabled: boolean;
+      frequency_days: number;
+      window_size: number;
+      ordered_slugs: string[];
+    }>(response),
+  );
+}
+
+export async function updateMajorRotationRule(
+  rule: AdminRotationRule,
+): Promise<AdminRotationRule> {
+  const response = await fetch(`${getApiUrl()}/api/admin/featured-content/rotation/majors`, {
+    method: 'POST',
+    headers: buildHeaders('application/json'),
+    body: JSON.stringify({
+      enabled: rule.enabled,
+      frequency_days: rule.frequencyDays,
+      window_size: rule.windowSize,
+      ordered_slugs: rule.orderedSlugs,
+    }),
+  });
+
+  return mapRotationRule(
+    await parseResponse<{
+      enabled: boolean;
+      frequency_days: number;
+      window_size: number;
+      ordered_slugs: string[];
+    }>(response),
+  );
 }

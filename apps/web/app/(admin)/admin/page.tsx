@@ -1,8 +1,10 @@
-import DashboardShell from '../../../components/admin/dashboard-shell';
-import type { AdminReviewItem } from '../../../components/admin/dashboard-shell';
+import DashboardShell, {
+  type AdminReviewItem,
+} from '../../../components/admin/dashboard-shell';
 import {
   type AdminFeaturedMajor,
   type AdminFeaturedSchool,
+  type AdminRotationRule,
   listFeaturedContent,
 } from '../../../lib/admin-featured-content-api';
 import { listReviewQueue } from '../../../lib/admin-review-api';
@@ -12,7 +14,16 @@ import {
   rejectReviewQueueAction,
   updateFeaturedMajorAction,
   updateFeaturedSchoolAction,
+  updateMajorRotationAction,
+  updateSchoolRotationAction,
 } from './actions';
+
+const defaultRotationRule = (): AdminRotationRule => ({
+  enabled: false,
+  frequencyDays: 1,
+  windowSize: 1,
+  orderedSlugs: [],
+});
 
 export default async function AdminPage() {
   let queueItems: AdminReviewItem[] = [];
@@ -20,6 +31,8 @@ export default async function AdminPage() {
   let featuredSchools: AdminFeaturedSchool[] = [];
   let featuredMajors: AdminFeaturedMajor[] = [];
   let featuredContentError: string | undefined;
+  let schoolRotation = defaultRotationRule();
+  let majorRotation = defaultRotationRule();
 
   try {
     queueItems = await listReviewQueue();
@@ -31,6 +44,8 @@ export default async function AdminPage() {
     const featuredContent = await listFeaturedContent();
     featuredSchools = featuredContent.schools;
     featuredMajors = featuredContent.majors;
+    schoolRotation = featuredContent.rotation.schools;
+    majorRotation = featuredContent.rotation.majors;
   } catch {
     featuredContentError = '展示配置加载失败，请稍后重试';
   }
@@ -41,12 +56,16 @@ export default async function AdminPage() {
       queueItems={queueItems}
       featuredSchools={featuredSchools}
       featuredMajors={featuredMajors}
+      schoolRotation={schoolRotation}
+      majorRotation={majorRotation}
       queueError={queueError}
       featuredContentError={featuredContentError}
       approveAction={approveReviewQueueAction}
       rejectAction={rejectReviewQueueAction}
       updateFeaturedSchoolAction={updateFeaturedSchoolAction}
       updateFeaturedMajorAction={updateFeaturedMajorAction}
+      updateSchoolRotationAction={updateSchoolRotationAction}
+      updateMajorRotationAction={updateMajorRotationAction}
     />
   );
 }
