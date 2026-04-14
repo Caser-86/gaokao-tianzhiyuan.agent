@@ -35,10 +35,17 @@ export default async function HomePage() {
 
         <section className="grid two" style={{ marginTop: 28 }}>
           <article id="school-catalog" className="panel">
-            <h2 className="panel-title">学校速查</h2>
+            <h2 className="panel-title">{'学校速查'}</h2>
             <div className="catalog-list">
               {schoolPayload.items.map((school) => (
                 <Link key={school.slug} href={`/schools/${school.slug}`} className="catalog-card">
+                  {school.heroImageUrl ? (
+                    <img
+                      src={school.heroImageUrl}
+                      alt={school.name}
+                      style={{ width: '100%', aspectRatio: '16 / 9', objectFit: 'cover' }}
+                    />
+                  ) : null}
                   <strong>{school.name}</strong>
                   <p>{school.summary}</p>
                   <div className="meta">
@@ -47,7 +54,7 @@ export default async function HomePage() {
                     {school.tags.map((tag) => (
                       <span key={tag}>{tag}</span>
                     ))}
-                    {school.hasRankingReferences ? <span>{'\u542b\u53c2\u8003\u699c\u5355'}</span> : null}
+                    {school.hasRankingReferences ? <span>{'含参考榜单'}</span> : null}
                   </div>
                 </Link>
               ))}
@@ -55,7 +62,7 @@ export default async function HomePage() {
           </article>
 
           <article className="panel">
-            <h2 className="panel-title">专业速查</h2>
+            <h2 className="panel-title">{'专业速查'}</h2>
             <div className="catalog-list">
               {majorPayload.items.map((major) => (
                 <Link key={major.slug} href={`/majors/${major.slug}`} className="catalog-card">
@@ -66,7 +73,7 @@ export default async function HomePage() {
                     {major.recommendedRegions.slice(0, 3).map((region) => (
                       <span key={region}>{region}</span>
                     ))}
-                    {major.hasRankingReferences ? <span>{'\u542b\u53c2\u8003\u699c\u5355'}</span> : null}
+                    {major.hasRankingReferences ? <span>{'含参考榜单'}</span> : null}
                   </div>
                 </Link>
               ))}
@@ -85,8 +92,8 @@ export default async function HomePage() {
     return (
       <main className="page-shell">
         <section className="panel">
-          <h1 className="panel-title">公开内容暂时不可用</h1>
-          <p>公开内容加载失败，请稍后重试。</p>
+          <h1 className="panel-title">{'公开内容暂时不可用'}</h1>
+          <p>{'公开内容加载失败，请稍后重试。'}</p>
         </section>
       </main>
     );

@@ -29,7 +29,7 @@ test('getSearchEntry fetches public search metadata without caching', async () =
     ok: true,
     json: async () => ({
       title: '高考志愿助手',
-      description: '帮助考生和家长快速看学校、专业、地域与就业。',
+      description: '帮助考生和家长快速看学校、专业、地区与就业。',
       quick_prompts: ['查学校', '查专业'],
     }),
   });
@@ -42,7 +42,7 @@ test('getSearchEntry fetches public search metadata without caching', async () =
   expect(entry.quickPrompts).toEqual(['查学校', '查专业']);
 });
 
-test('listSchools returns public school cards', async () => {
+test('listSchools returns public school cards with hero image data', async () => {
   fetchMock.mockResolvedValueOnce({
     ok: true,
     json: async () => ({
@@ -54,6 +54,7 @@ test('listSchools returns public school cards', async () => {
           city: '南京',
           tags: ['985'],
           summary: '工科见长。',
+          hero_image_url: 'https://cdn.example.com/southeast.jpg',
         },
       ],
       total: 1,
@@ -64,6 +65,7 @@ test('listSchools returns public school cards', async () => {
 
   expect(payload.total).toBe(1);
   expect(payload.items[0]?.slug).toBe('southeast-university');
+  expect(payload.items[0]?.heroImageUrl).toBe('https://cdn.example.com/southeast.jpg');
 });
 
 test('listMajors returns public major cards', async () => {

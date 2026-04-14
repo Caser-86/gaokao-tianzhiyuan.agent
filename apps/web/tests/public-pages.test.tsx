@@ -96,6 +96,7 @@ test('home page renders API-backed search, catalog, and product data', async () 
         city: '\u5357\u4eac',
         tags: ['985'],
         summary: '\u5de5\u79d1\u89c1\u957f\u3002',
+        heroImageUrl: 'https://cdn.example.com/southeast.jpg',
         hasRankingReferences: true,
       },
       {
@@ -148,6 +149,11 @@ test('home page renders API-backed search, catalog, and product data', async () 
   expect(screen.getByRole('heading', { name: HOME_TITLE })).toBeInTheDocument();
   expect(screen.getByText('\u4e1c\u5357\u5927\u5b66')).toBeInTheDocument();
   expect(screen.getByText('\u4e34\u5e8a\u533b\u5b66')).toBeInTheDocument();
+  expect(screen.getByRole('img', { name: '\u4e1c\u5357\u5927\u5b66' })).toHaveAttribute(
+    'src',
+    'https://cdn.example.com/southeast.jpg',
+  );
+  expect(screen.queryByRole('img', { name: '\u666e\u901a\u5b66\u6821' })).not.toBeInTheDocument();
   expect(screen.getAllByText(RANKING_BADGE_TEXT)).toHaveLength(2);
   expect(screen.getByRole('heading', { name: PLATFORM_SECTION_TITLE })).toBeInTheDocument();
   expect(

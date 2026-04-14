@@ -28,6 +28,7 @@ export type SchoolSummary = {
   city: string;
   tags: string[];
   summary: string;
+  heroImageUrl?: string;
   hasRankingReferences?: boolean;
 };
 
@@ -102,6 +103,7 @@ export async function listSchools(): Promise<{ items: SchoolSummary[]; total: nu
       city: string;
       tags: string[];
       summary: string;
+      hero_image_url?: string | null;
       has_ranking_references?: boolean;
     }>;
     total: number;
@@ -115,6 +117,7 @@ export async function listSchools(): Promise<{ items: SchoolSummary[]; total: nu
       city: item.city,
       tags: item.tags,
       summary: item.summary,
+      heroImageUrl: item.hero_image_url ?? '',
       hasRankingReferences: item.has_ranking_references ?? false,
     })),
     total: payload.total,
