@@ -235,6 +235,42 @@ export default function DashboardShell({
     : showMissingImageSchoolsOnly
       ? sortedFeaturedSchools.filter((school) => !school.heroImageUrl)
       : sortedFeaturedSchools;
+  const featuredSchoolSlugs = new Set(featuredSchools.map((school) => school.slug));
+  const featuredMajorSlugs = new Set(featuredMajors.map((major) => major.slug));
+  const sortRankingReferenceEntities = (entities: AdminRankingReferenceEntity[], featuredSlugs: Set<string>) =>
+    [...entities].sort((left, right) => {
+      const leftMissing = left.rankingReferences.length === 0 ? 0 : 1;
+      const rightMissing = right.rankingReferences.length === 0 ? 0 : 1;
+      if (leftMissing !== rightMissing) {
+        return leftMissing - rightMissing;
+      }
+
+      const leftFeatured = featuredSlugs.has(left.slug) ? 0 : 1;
+      const rightFeatured = featuredSlugs.has(right.slug) ? 0 : 1;
+      if (leftFeatured !== rightFeatured) {
+        return leftFeatured - rightFeatured;
+      }
+
+      return left.name.localeCompare(right.name, 'zh-CN');
+    });
+  const sortedRankingReferenceSchools = sortRankingReferenceEntities(
+    rankingReferenceSchools,
+    featuredSchoolSlugs,
+  );
+  const sortedRankingReferenceMajors = sortRankingReferenceEntities(
+    rankingReferenceMajors,
+    featuredMajorSlugs,
+  );
+  const missingSchoolRankingReferences = sortedRankingReferenceSchools.filter(
+    (school) => school.rankingReferences.length === 0,
+  );
+  const missingMajorRankingReferences = sortedRankingReferenceMajors.filter(
+    (major) => major.rankingReferences.length === 0,
+  );
+  const configuredSchoolRankingReferenceCount =
+    sortedRankingReferenceSchools.length - missingSchoolRankingReferences.length;
+  const configuredMajorRankingReferenceCount =
+    sortedRankingReferenceMajors.length - missingMajorRankingReferences.length;
 
   const schoolFilterLinks = (
     <p>
@@ -446,17 +482,37 @@ export default function DashboardShell({
 
         {!rankingReferenceError ? (
           <div>
-            {rankingReferenceSchools.map((school) => (
-              <RankingReferenceForm
-                key={school.slug}
-                entity={school}
-                entityLabel="学校"
-                action={updateSchoolRankingReferencesAction}
-                submitLabel="保存学校榜单"
-              />
+            <p>{`已配置学校榜单 ${configuredSchoolRankingReferenceCount} 所，待补学校榜单 ${missingSchoolRankingReferences.length} 所`}</p>
+            {sortedRankingReferenceSchools.map((school) => (
+              <div key={school.slug} id={`school-ranking-reference-${school.slug}`}>
+                <RankingReferenceForm
+                  entity={school}
+                  entityLabel="学校"
+                  action={updateSchoolRankingReferencesAction}
+                  submitLabel="保存学校榜单"
+                />
+              </div>
             ))}
           </div>
         ) : null}
+      </section>
+
+      <section aria-labelledby="missing-school-ranking-reference-heading">
+        <h2 id="missing-school-ranking-reference-heading">{`待补学校榜单（${missingSchoolRankingReferences.length}）`}</h2>
+
+        {rankingReferenceError ? null : missingSchoolRankingReferences.length === 0 ? (
+          <p>当前没有待补学校榜单</p>
+        ) : (
+          <ul>
+            {missingSchoolRankingReferences.map((school) => (
+              <li key={school.slug}>
+                <a href={`#school-ranking-reference-${school.slug}`}>{school.name}</a>
+                <span>{school.slug}</span>
+                {featuredSchoolSlugs.has(school.slug) ? <span>当前展示</span> : null}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section aria-labelledby="major-ranking-reference-heading">
@@ -466,17 +522,37 @@ export default function DashboardShell({
 
         {!rankingReferenceError ? (
           <div>
-            {rankingReferenceMajors.map((major) => (
-              <RankingReferenceForm
-                key={major.slug}
-                entity={major}
-                entityLabel="专业"
-                action={updateMajorRankingReferencesAction}
-                submitLabel="保存专业榜单"
-              />
+            <p>{`已配置专业榜单 ${configuredMajorRankingReferenceCount} 个，待补专业榜单 ${missingMajorRankingReferences.length} 个`}</p>
+            {sortedRankingReferenceMajors.map((major) => (
+              <div key={major.slug} id={`major-ranking-reference-${major.slug}`}>
+                <RankingReferenceForm
+                  entity={major}
+                  entityLabel="专业"
+                  action={updateMajorRankingReferencesAction}
+                  submitLabel="保存专业榜单"
+                />
+              </div>
             ))}
           </div>
         ) : null}
+      </section>
+
+      <section aria-labelledby="missing-major-ranking-reference-heading">
+        <h2 id="missing-major-ranking-reference-heading">{`待补专业榜单（${missingMajorRankingReferences.length}）`}</h2>
+
+        {rankingReferenceError ? null : missingMajorRankingReferences.length === 0 ? (
+          <p>当前没有待补专业榜单</p>
+        ) : (
+          <ul>
+            {missingMajorRankingReferences.map((major) => (
+              <li key={major.slug}>
+                <a href={`#major-ranking-reference-${major.slug}`}>{major.name}</a>
+                <span>{major.slug}</span>
+                {featuredMajorSlugs.has(major.slug) ? <span>当前展示</span> : null}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section aria-labelledby="school-rotation-heading">

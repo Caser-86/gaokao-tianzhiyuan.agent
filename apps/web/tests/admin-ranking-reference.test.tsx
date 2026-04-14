@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
 
 const {
@@ -35,6 +35,7 @@ vi.mock('../app/(admin)/admin/actions', () => ({
 }));
 
 import AdminPage from '../app/(admin)/admin/page';
+import DashboardShell from '../components/admin/dashboard-shell';
 
 beforeEach(() => {
   listReviewQueueMock.mockReset();
@@ -114,4 +115,127 @@ test('renders school and major ranking reference admin sections', async () => {
   expect(screen.getByDisplayValue('A-')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '保存学校榜单' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '保存专业榜单' })).toBeInTheDocument();
+});
+
+test('surfaces missing ranking-reference coverage and prioritizes missing featured entities', () => {
+  render(
+    <DashboardShell
+      title="内容运营后台"
+      queueItems={[]}
+      featuredSchools={[
+        {
+          slug: 'southeast-university',
+          name: '东南大学',
+          isFeatured: true,
+          heroImageUrl: '',
+        },
+      ]}
+      featuredMajors={[
+        {
+          slug: 'clinical-medicine',
+          name: '临床医学',
+          isFeatured: true,
+        },
+      ]}
+      schoolRotation={{
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      }}
+      majorRotation={{
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      }}
+      featuredSchoolPreview={[]}
+      featuredMajorPreview={[]}
+      nextFeaturedSchoolPreview={[]}
+      nextFeaturedMajorPreview={[]}
+      featuredSchedule={[]}
+      rankingReferenceSchools={[
+        {
+          slug: 'zhejiang-university',
+          name: '浙江大学',
+          rankingReferences: [
+            {
+              source: '软科中国大学排名',
+              year: 2025,
+              label: '全国第 3 名',
+              scope: '',
+              note: '',
+              url: '',
+            },
+          ],
+        },
+        {
+          slug: 'southeast-university',
+          name: '东南大学',
+          rankingReferences: [],
+        },
+      ]}
+      rankingReferenceMajors={[
+        {
+          slug: 'finance',
+          name: '金融学',
+          rankingReferences: [
+            {
+              source: '校友会中国专业排名',
+              year: 2025,
+              label: 'A',
+              scope: '',
+              note: '',
+              url: '',
+            },
+          ],
+        },
+        {
+          slug: 'clinical-medicine',
+          name: '临床医学',
+          rankingReferences: [],
+        },
+      ]}
+      selectedPreviewDateValue=""
+      selectedDatePreview={null}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRankingReferencesAction={async () => undefined}
+      updateMajorRankingReferencesAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
+    />,
+  );
+
+  expect(screen.getByText('已配置学校榜单 1 所，待补学校榜单 1 所')).toBeInTheDocument();
+  expect(screen.getByText('已配置专业榜单 1 个，待补专业榜单 1 个')).toBeInTheDocument();
+
+  const missingSchoolRegion = screen.getByRole('region', { name: '待补学校榜单（1）' });
+  const missingMajorRegion = screen.getByRole('region', { name: '待补专业榜单（1）' });
+  const schoolRankingRegion = screen.getByRole('region', { name: '学校榜单引用' });
+  const majorRankingRegion = screen.getByRole('region', { name: '专业榜单引用' });
+
+  expect(within(missingSchoolRegion).getByRole('link', { name: '东南大学' })).toHaveAttribute(
+    'href',
+    '#school-ranking-reference-southeast-university',
+  );
+  expect(within(missingSchoolRegion).getByText('当前展示')).toBeInTheDocument();
+  expect(within(missingMajorRegion).getByRole('link', { name: '临床医学' })).toHaveAttribute(
+    'href',
+    '#major-ranking-reference-clinical-medicine',
+  );
+  expect(within(missingMajorRegion).getByText('当前展示')).toBeInTheDocument();
+
+  expect(
+    within(schoolRankingRegion)
+      .getAllByRole('heading', { level: 3 })
+      .map((heading) => heading.textContent),
+  ).toEqual(['东南大学', '浙江大学']);
+  expect(
+    within(majorRankingRegion)
+      .getAllByRole('heading', { level: 3 })
+      .map((heading) => heading.textContent),
+  ).toEqual(['临床医学', '金融学']);
 });
