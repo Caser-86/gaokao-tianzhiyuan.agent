@@ -6,11 +6,13 @@ const {
   listFeaturedContentMock,
   listRankingReferencesMock,
   listContentSummariesMock,
+  listContentSectionsMock,
 } = vi.hoisted(() => ({
   listReviewQueueMock: vi.fn(),
   listFeaturedContentMock: vi.fn(),
   listRankingReferencesMock: vi.fn(),
   listContentSummariesMock: vi.fn(),
+  listContentSectionsMock: vi.fn(),
 }));
 
 vi.mock('../lib/admin-review-api', () => ({
@@ -29,6 +31,10 @@ vi.mock('../lib/admin-content-summary-api', () => ({
   listContentSummaries: listContentSummariesMock,
 }));
 
+vi.mock('../lib/admin-content-sections-api', () => ({
+  listContentSections: listContentSectionsMock,
+}));
+
 vi.mock('../app/(admin)/admin/actions', () => ({
   approveReviewQueueAction: async () => undefined,
   rejectReviewQueueAction: async () => undefined,
@@ -36,6 +42,8 @@ vi.mock('../app/(admin)/admin/actions', () => ({
   updateFeaturedMajorAction: async () => undefined,
   updateSchoolSummaryAction: async () => undefined,
   updateMajorSummaryAction: async () => undefined,
+  updateSchoolSectionsAction: async () => undefined,
+  updateMajorSectionsAction: async () => undefined,
   updateSchoolRotationAction: async () => undefined,
   updateMajorRotationAction: async () => undefined,
   updateSchoolRankingReferencesAction: async () => undefined,
@@ -50,7 +58,12 @@ beforeEach(() => {
   listFeaturedContentMock.mockReset();
   listRankingReferencesMock.mockReset();
   listContentSummariesMock.mockReset();
+  listContentSectionsMock.mockReset();
   listContentSummariesMock.mockResolvedValue({
+    schools: [],
+    majors: [],
+  });
+  listContentSectionsMock.mockResolvedValue({
     schools: [],
     majors: [],
   });

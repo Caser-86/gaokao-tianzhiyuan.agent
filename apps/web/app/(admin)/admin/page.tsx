@@ -6,6 +6,10 @@ import {
   listContentSummaries,
 } from '../../../lib/admin-content-summary-api';
 import {
+  type AdminContentSectionsEntity,
+  listContentSections,
+} from '../../../lib/admin-content-sections-api';
+import {
   type AdminFeaturedMajor,
   type AdminFeaturedPreviewDay,
   type AdminFeaturedPreviewItem,
@@ -23,9 +27,11 @@ import {
   rejectReviewQueueAction,
   updateFeaturedMajorAction,
   updateFeaturedSchoolAction,
+  updateMajorSectionsAction,
   updateMajorSummaryAction,
   updateMajorRankingReferencesAction,
   updateMajorRotationAction,
+  updateSchoolSectionsAction,
   updateSchoolSummaryAction,
   updateSchoolRankingReferencesAction,
   updateSchoolRotationAction,
@@ -239,6 +245,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   let summarySchools: AdminContentSummaryEntity[] = [];
   let summaryMajors: AdminContentSummaryEntity[] = [];
   let contentSummaryError: string | undefined;
+  let sectionSchools: AdminContentSectionsEntity[] = [];
+  let sectionMajors: AdminContentSectionsEntity[] = [];
+  let contentSectionError: string | undefined;
   let schoolRotation = defaultRotationRule();
   let majorRotation = defaultRotationRule();
 
@@ -281,6 +290,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     contentSummaryError = '摘要内容加载失败，请稍后重试';
   }
 
+  try {
+    const contentSections = await listContentSections();
+    sectionSchools = contentSections.schools;
+    sectionMajors = contentSections.majors;
+  } catch {
+    contentSectionError = '正文内容加载失败，请稍后重试';
+  }
+
   return (
     <DashboardShell
       title="内容运营后台"
@@ -298,6 +315,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       rankingReferenceMajors={rankingReferenceMajors}
       summarySchools={summarySchools}
       summaryMajors={summaryMajors}
+      sectionSchools={sectionSchools}
+      sectionMajors={sectionMajors}
       highlightedScheduleDate={highlightedScheduleDate}
       selectedPreviewDateValue={previewDate ?? ''}
       selectedDatePreview={selectedDatePreview}
@@ -318,6 +337,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       showAllMajorRankingReferencesHref={showAllMajorRankingReferencesHref}
       rankingReferenceError={rankingReferenceError}
       contentSummaryError={contentSummaryError}
+      contentSectionError={contentSectionError}
       queueError={queueError}
       featuredContentError={featuredContentError}
       approveAction={approveReviewQueueAction}
@@ -326,6 +346,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       updateFeaturedMajorAction={updateFeaturedMajorAction}
       updateSchoolSummaryAction={updateSchoolSummaryAction}
       updateMajorSummaryAction={updateMajorSummaryAction}
+      updateSchoolSectionsAction={updateSchoolSectionsAction}
+      updateMajorSectionsAction={updateMajorSectionsAction}
       updateSchoolRankingReferencesAction={updateSchoolRankingReferencesAction}
       updateMajorRankingReferencesAction={updateMajorRankingReferencesAction}
       updateSchoolRotationAction={updateSchoolRotationAction}

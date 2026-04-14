@@ -2,6 +2,10 @@ import type {
   AdminContentSummaryEntity,
 } from '../../lib/admin-content-summary-api';
 import type {
+  AdminContentSection,
+  AdminContentSectionsEntity,
+} from '../../lib/admin-content-sections-api';
+import type {
   AdminFeaturedMajor,
   AdminFeaturedPreviewDay,
   AdminFeaturedPreviewItem,
@@ -38,6 +42,8 @@ type DashboardShellProps = {
   featuredSchedule: AdminFeaturedPreviewDay[];
   summarySchools?: AdminContentSummaryEntity[];
   summaryMajors?: AdminContentSummaryEntity[];
+  sectionSchools?: AdminContentSectionsEntity[];
+  sectionMajors?: AdminContentSectionsEntity[];
   rankingReferenceSchools?: AdminRankingReferenceEntity[];
   rankingReferenceMajors?: AdminRankingReferenceEntity[];
   highlightedScheduleDate?: string;
@@ -60,6 +66,7 @@ type DashboardShellProps = {
   showAllMajorRankingReferencesHref?: string;
   rankingReferenceError?: string;
   contentSummaryError?: string;
+  contentSectionError?: string;
   queueError?: string;
   featuredContentError?: string;
   approveAction: (formData: FormData) => Promise<void>;
@@ -68,6 +75,8 @@ type DashboardShellProps = {
   updateFeaturedMajorAction: (formData: FormData) => Promise<void>;
   updateSchoolSummaryAction?: (formData: FormData) => Promise<void>;
   updateMajorSummaryAction?: (formData: FormData) => Promise<void>;
+  updateSchoolSectionsAction?: (formData: FormData) => Promise<void>;
+  updateMajorSectionsAction?: (formData: FormData) => Promise<void>;
   updateSchoolRankingReferencesAction?: (formData: FormData) => Promise<void>;
   updateMajorRankingReferencesAction?: (formData: FormData) => Promise<void>;
   updateSchoolRotationAction: (formData: FormData) => Promise<void>;
@@ -194,6 +203,53 @@ function ContentSummaryForm({
   );
 }
 
+function ContentSectionsForm({
+  entity,
+  action,
+}: {
+  entity: AdminContentSectionsEntity;
+  action: (formData: FormData) => Promise<void>;
+}) {
+  const rows: AdminContentSection[] = [
+    ...entity.sections,
+    {
+      type: '',
+      title: '',
+      items: [],
+    },
+  ];
+
+  return (
+    <form action={action}>
+      <input type="hidden" name="slug" value={entity.slug} />
+      <input type="hidden" name="rowCount" value={rows.length} />
+      <h3>{entity.name}</h3>
+      <p>{entity.slug}</p>
+      {rows.map((row, index) => (
+        <fieldset key={`${entity.slug}-section-${index}`}>
+          <legend>{`正文模块 ${index + 1}`}</legend>
+          <label>
+            类型
+            <input name={`section_type_${index}`} defaultValue={row.type} />
+          </label>
+          <label>
+            标题
+            <input name={`section_title_${index}`} defaultValue={row.title} />
+          </label>
+          <label>
+            条目
+            <textarea
+              name={`section_items_${index}`}
+              defaultValue={row.items.join('\n')}
+            />
+          </label>
+        </fieldset>
+      ))}
+      <button type="submit">保存正文</button>
+    </form>
+  );
+}
+
 export default function DashboardShell({
   title,
   queueItems,
@@ -208,6 +264,8 @@ export default function DashboardShell({
   featuredSchedule,
   summarySchools = [],
   summaryMajors = [],
+  sectionSchools = [],
+  sectionMajors = [],
   rankingReferenceSchools = [],
   rankingReferenceMajors = [],
   highlightedScheduleDate,
@@ -230,6 +288,7 @@ export default function DashboardShell({
   showAllMajorRankingReferencesHref,
   rankingReferenceError,
   contentSummaryError,
+  contentSectionError,
   queueError,
   featuredContentError,
   approveAction,
@@ -238,6 +297,8 @@ export default function DashboardShell({
   updateFeaturedMajorAction,
   updateSchoolSummaryAction = noopAction,
   updateMajorSummaryAction = noopAction,
+  updateSchoolSectionsAction = noopAction,
+  updateMajorSectionsAction = noopAction,
   updateSchoolRankingReferencesAction = noopAction,
   updateMajorRankingReferencesAction = noopAction,
   updateSchoolRotationAction,
@@ -569,6 +630,40 @@ export default function DashboardShell({
             {summaryMajors.map((major) => (
               <div key={major.slug}>
                 <ContentSummaryForm entity={major} action={updateMajorSummaryAction} />
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      <section aria-labelledby="school-content-sections-heading">
+        <h2 id="school-content-sections-heading">学校正文编辑</h2>
+
+        {contentSectionError ? <p>{contentSectionError}</p> : null}
+
+        {!contentSectionError ? (
+          <div>
+            {sectionSchools.length === 0 ? <p>当前没有可编辑的学校正文</p> : null}
+            {sectionSchools.map((school) => (
+              <div key={school.slug}>
+                <ContentSectionsForm entity={school} action={updateSchoolSectionsAction} />
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      <section aria-labelledby="major-content-sections-heading">
+        <h2 id="major-content-sections-heading">专业正文编辑</h2>
+
+        {contentSectionError ? <p>{contentSectionError}</p> : null}
+
+        {!contentSectionError ? (
+          <div>
+            {sectionMajors.length === 0 ? <p>当前没有可编辑的专业正文</p> : null}
+            {sectionMajors.map((major) => (
+              <div key={major.slug}>
+                <ContentSectionsForm entity={major} action={updateMajorSectionsAction} />
               </div>
             ))}
           </div>

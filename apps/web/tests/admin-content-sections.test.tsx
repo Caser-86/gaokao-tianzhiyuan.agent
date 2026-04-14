@@ -40,14 +40,14 @@ vi.mock('../app/(admin)/admin/actions', () => ({
   rejectReviewQueueAction: async () => undefined,
   updateFeaturedSchoolAction: async () => undefined,
   updateFeaturedMajorAction: async () => undefined,
-  updateSchoolRankingReferencesAction: async () => undefined,
-  updateMajorRankingReferencesAction: async () => undefined,
-  updateSchoolRotationAction: async () => undefined,
-  updateMajorRotationAction: async () => undefined,
   updateSchoolSummaryAction: async () => undefined,
   updateMajorSummaryAction: async () => undefined,
   updateSchoolSectionsAction: async () => undefined,
   updateMajorSectionsAction: async () => undefined,
+  updateSchoolRankingReferencesAction: async () => undefined,
+  updateMajorRankingReferencesAction: async () => undefined,
+  updateSchoolRotationAction: async () => undefined,
+  updateMajorRotationAction: async () => undefined,
 }));
 
 import AdminPage from '../app/(admin)/admin/page';
@@ -58,13 +58,9 @@ beforeEach(() => {
   listRankingReferencesMock.mockReset();
   listContentSummariesMock.mockReset();
   listContentSectionsMock.mockReset();
-  listContentSectionsMock.mockResolvedValue({
-    schools: [],
-    majors: [],
-  });
 });
 
-test('renders school and major summary editors in admin', async () => {
+test('renders school and major content section editors in admin', async () => {
   listReviewQueueMock.mockResolvedValue([]);
   listFeaturedContentMock.mockResolvedValue({
     schools: [],
@@ -96,27 +92,47 @@ test('renders school and major summary editors in admin', async () => {
     majors: [],
   });
   listContentSummariesMock.mockResolvedValue({
+    schools: [],
+    majors: [],
+  });
+  listContentSectionsMock.mockResolvedValue({
     schools: [
       {
         slug: 'southeast-university',
         name: '东南大学',
-        summary: '学校摘要',
+        sections: [
+          {
+            type: 'highlights',
+            title: '学校亮点',
+            items: ['资源密集'],
+          },
+        ],
       },
     ],
     majors: [
       {
         slug: 'clinical-medicine',
         name: '临床医学',
-        summary: '专业摘要',
+        sections: [
+          {
+            type: 'fit_for',
+            title: '适合人群',
+            items: ['接受长周期培养'],
+          },
+        ],
       },
     ],
   });
 
   render(await AdminPage({}));
 
-  expect(screen.getByRole('heading', { name: '学校摘要编辑' })).toBeInTheDocument();
-  expect(screen.getByRole('heading', { name: '专业摘要编辑' })).toBeInTheDocument();
-  expect(screen.getByDisplayValue('学校摘要')).toBeInTheDocument();
-  expect(screen.getByDisplayValue('专业摘要')).toBeInTheDocument();
-  expect(screen.getAllByRole('button', { name: '保存摘要' })).toHaveLength(2);
+  expect(screen.getByRole('heading', { name: '学校正文编辑' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: '专业正文编辑' })).toBeInTheDocument();
+  expect(screen.getByDisplayValue('学校亮点')).toBeInTheDocument();
+  expect(screen.getByDisplayValue('highlights')).toBeInTheDocument();
+  expect(screen.getByDisplayValue('资源密集')).toBeInTheDocument();
+  expect(screen.getByDisplayValue('适合人群')).toBeInTheDocument();
+  expect(screen.getByDisplayValue('fit_for')).toBeInTheDocument();
+  expect(screen.getByDisplayValue('接受长周期培养')).toBeInTheDocument();
+  expect(screen.getAllByRole('button', { name: '保存正文' })).toHaveLength(2);
 });
