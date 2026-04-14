@@ -603,6 +603,9 @@ test('renders selected-date gap overview when a preview date is selected', () =>
     within(selectedGapRegion).getByRole('link', { name: '该日优先 · 学校图片：该日 1，下一轮 0，待补 1' }),
   ).toHaveAttribute('href', '/admin?preview_date=2026-04-15#missing-school-images-heading');
   expect(
+    selectedGapRegion.querySelector('a[href="#featured-schedule-day-2026-04-15"]'),
+  ).not.toBeNull();
+  expect(
     within(selectedGapRegion).getByRole('link', { name: '该日优先 · 学校榜单：该日 1，下一轮 0，待补 1' }),
   ).toHaveAttribute('href', '/admin?preview_date=2026-04-15#missing-school-ranking-reference-heading');
   expect(

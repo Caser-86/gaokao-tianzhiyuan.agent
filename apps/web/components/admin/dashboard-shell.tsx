@@ -1252,6 +1252,11 @@ export default function DashboardShell({
           ) : (
             <>
               <p>{`该日待补 ${selectedDateGapOverviewSelectedCount} 项，下一轮待补 ${selectedDateGapOverviewNextCount} 项，总待补 ${selectedDateGapOverviewTotalCount} 项`}</p>
+              <p>
+                <a href={`#featured-schedule-day-${selectedDatePreview.date}`}>
+                  {`杩斿洖杞崲鏃ユ湡锛?${selectedDatePreview.date}锛?`}
+                </a>
+              </p>
               <ul>
                 {selectedDateGapOverviewLinks.map((item) => (
                   <li key={item.key}>
@@ -2282,7 +2287,7 @@ export default function DashboardShell({
               </p>
             ) : null}
             {displayedScheduledPreviewDays.map((day) => (
-              <article key={day.date}>
+              <article key={day.date} id={`featured-schedule-day-${day.date}`}>
                 <h3>
                   {day.date === highlightedScheduleDate ? (
                     day.date
