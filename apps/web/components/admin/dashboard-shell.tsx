@@ -316,8 +316,12 @@ export default function DashboardShell({
               <li key={school.slug}>
                 <a href={`#featured-school-${school.slug}`}>{school.name}</a>
                 <span>{school.slug}</span>
-                {todayPreviewSchoolSlugs.has(school.slug) ? <span>今日展示</span> : null}
-                {nextPreviewSchoolSlugs.has(school.slug) ? <span>下一轮展示</span> : null}
+                {todayPreviewSchoolSlugs.has(school.slug) ? (
+                  <a href="#featured-school-preview-heading">今日展示</a>
+                ) : null}
+                {nextPreviewSchoolSlugs.has(school.slug) ? (
+                  <a href="#next-featured-school-preview-heading">下一轮展示</a>
+                ) : null}
               </li>
             ))}
           </ul>

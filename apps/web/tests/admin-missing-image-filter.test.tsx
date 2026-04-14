@@ -255,7 +255,7 @@ test('links previewed schools back to their configuration rows', () => {
   ).toHaveAttribute('href', '#featured-school-west-china-medical-center');
 });
 
-test('highlights missing-image schools that are scheduled for today or next', () => {
+test('links missing-image schedule badges back to today and next preview sections', () => {
   render(
     <DashboardShell
       title="内容运营后台"
@@ -299,6 +299,12 @@ test('highlights missing-image schools that are scheduled for today or next', ()
 
   const missingImageRegion = screen.getByRole('region', { name: '待补图片学校（1）' });
 
-  expect(within(missingImageRegion).getByText('今日展示')).toBeInTheDocument();
-  expect(within(missingImageRegion).getByText('下一轮展示')).toBeInTheDocument();
+  expect(within(missingImageRegion).getByRole('link', { name: '今日展示' })).toHaveAttribute(
+    'href',
+    '#featured-school-preview-heading',
+  );
+  expect(within(missingImageRegion).getByRole('link', { name: '下一轮展示' })).toHaveAttribute(
+    'href',
+    '#next-featured-school-preview-heading',
+  );
 });
