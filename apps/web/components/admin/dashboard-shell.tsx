@@ -1474,6 +1474,10 @@ export default function DashboardShell({
   const scheduledGapDayCount = scheduledPreviewDays.filter((day) => day.gapCount > 0).length;
   const scheduledHighPriorityDayCount = scheduledPreviewDays.filter((day) => day.gapCount >= 2).length;
   const nearestScheduledGapDay = scheduledPreviewDays.find((day) => day.gapCount > 0) ?? null;
+  const nearestScheduledTopPriorityGap = nearestScheduledGapDay?.topPriorityGap ?? {
+    href: '#featured-schedule-heading',
+    label: '',
+  };
 
   return (
     <main>
@@ -1496,8 +1500,23 @@ export default function DashboardShell({
             <p>{`今日待补 ${contentGapOverviewTodayCount} 项，下一轮待补 ${contentGapOverviewNextCount} 项，总待补 ${contentGapOverviewTotalCount} 项`}</p>
             {nearestScheduledGapDay ? (
               <p>
-                <a href={`${buildPreviewDateHref(nearestScheduledGapDay.date)}#featured-schedule-heading`}>
+                <a
+                  href={nearestScheduledTopPriorityGap?.href ?? `${buildPreviewDateHref(nearestScheduledGapDay.date)}#featured-schedule-heading`}
+                  aria-label={
+                    nearestScheduledTopPriorityGap
+                      ? `最近待补日期（${nearestScheduledGapDay.date}）· 优先处理${nearestScheduledTopPriorityGap.label}`
+                      : undefined
+                  }
+                >
                   {`鏌ョ湅鏈€杩戝緟琛ユ棩鏈燂紙${nearestScheduledGapDay.date}锛?`}
+                </a>
+              </p>
+            ) : null}
+            {false && nearestScheduledGapDay && nearestScheduledTopPriorityGap ? (
+              <p>
+                <a href={nearestScheduledTopPriorityGap?.href ?? '#'}>
+                  {/* @ts-expect-error unreachable fallback branch */}
+                  {`最近待补日期（${nearestScheduledGapDay.date}）· 优先处理${nearestScheduledTopPriorityGap.label}`}
                 </a>
               </p>
             ) : null}

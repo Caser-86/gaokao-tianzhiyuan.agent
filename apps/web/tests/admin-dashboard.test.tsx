@@ -977,8 +977,10 @@ test('links content gap overview to the nearest scheduled gap day by anchor targ
 
   expect(overviewRegion).not.toBeNull();
   expect(
-    within(overviewRegion as HTMLElement).getByRole('link', { name: /2026-04-15/ }),
-  ).toHaveAttribute('href', '/admin?preview_date=2026-04-15#featured-schedule-heading');
+    within(overviewRegion as HTMLElement).getByRole('link', {
+      name: /2026-04-15.*优先处理学校图片/,
+    }),
+  ).toHaveAttribute('href', '/admin?preview_date=2026-04-15#featured-school-southeast-university');
 });
 
 test('adds the nearest scheduled gap date to content gap item links', () => {
@@ -1034,7 +1036,7 @@ test('adds the nearest scheduled gap date to content gap item links', () => {
   expect(overviewRegion).not.toBeNull();
   expect(
     within(overviewRegion as HTMLElement).getByRole('link', {
-      name: /学校图片/,
+      name: /今日优先.*学校图片/,
     }),
   ).toHaveAttribute(
     'href',
