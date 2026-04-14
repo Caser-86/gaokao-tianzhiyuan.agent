@@ -797,6 +797,19 @@ export default function DashboardShell({
     entities: T[],
     slugs: Set<string>,
   ): number => entities.filter((entity) => slugs.has(entity.slug)).length;
+  const countPreviewContentGaps = (
+    schoolSlugs: Set<string>,
+    majorSlugs: Set<string>,
+  ): number =>
+    countMatchingSlugs(schoolsMissingImages, schoolSlugs) +
+    countMatchingSlugs(missingSchoolRankingReferences, schoolSlugs) +
+    countMatchingSlugs(missingMajorRankingReferences, majorSlugs) +
+    countMatchingSlugs(missingSchoolSummaries, schoolSlugs) +
+    countMatchingSlugs(missingMajorSummaries, majorSlugs) +
+    countMatchingSlugs(missingSchoolSections, schoolSlugs) +
+    countMatchingSlugs(missingMajorSections, majorSlugs) +
+    countMatchingSlugs(missingSchoolRelatedContent, schoolSlugs) +
+    countMatchingSlugs(missingMajorRelatedContent, majorSlugs);
   const contentGapOverviewItems = [
     {
       key: 'school-images',
@@ -2183,6 +2196,16 @@ export default function DashboardShell({
           <div>
             {featuredSchedule.map((day) => (
               <article key={day.date}>
+                {(() => {
+                  const scheduleDaySchoolSlugs = new Set(day.schools.map((school) => school.slug));
+                  const scheduleDayMajorSlugs = new Set(day.majors.map((major) => major.slug));
+                  const scheduleDayGapCount = countPreviewContentGaps(
+                    scheduleDaySchoolSlugs,
+                    scheduleDayMajorSlugs,
+                  );
+
+                  return (
+                    <>
                 <h3>
                   {day.date === highlightedScheduleDate ? (
                     day.date
@@ -2194,6 +2217,7 @@ export default function DashboardShell({
                 </h3>
                 <p>{day.weekday}</p>
                 {day.date === highlightedScheduleDate ? <p>当前查看</p> : null}
+                <p>{`该日待补 ${scheduleDayGapCount} 项`}</p>
                 <p>学校</p>
                 {day.schools.length === 0 ? (
                   <p>当天没有展示学校</p>
@@ -2209,6 +2233,9 @@ export default function DashboardShell({
                 ) : (
                   <PreviewList items={day.majors} />
                 )}
+                    </>
+                  );
+                })()}
               </article>
             ))}
           </div>

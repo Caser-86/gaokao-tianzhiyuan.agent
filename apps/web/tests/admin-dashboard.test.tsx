@@ -627,3 +627,82 @@ test('renders selected-date gap overview when a preview date is selected', () =>
     within(selectedGapRegion).getByRole('link', { name: '该日优先 · 专业相关推荐：该日 1，下一轮 0，待补 1' }),
   ).toHaveAttribute('href', '#missing-major-related-content-heading');
 });
+
+test('renders content gap totals for each scheduled preview day', () => {
+  render(
+    <DashboardShell
+      title="内容运营后台"
+      queueItems={[]}
+      featuredSchools={[
+        {
+          slug: 'southeast-university',
+          name: 'Southeast University',
+          isFeatured: true,
+          heroImageUrl: '',
+        },
+        {
+          slug: 'wuhan-university',
+          name: 'Wuhan University',
+          isFeatured: true,
+          heroImageUrl: 'https://cdn.example.com/wuhan.jpg',
+        },
+      ]}
+      featuredMajors={[
+        {
+          slug: 'clinical-medicine',
+          name: 'Clinical Medicine',
+          isFeatured: true,
+        },
+        {
+          slug: 'software-engineering',
+          name: 'Software Engineering',
+          isFeatured: true,
+        },
+      ]}
+      schoolRotation={schoolRotation}
+      majorRotation={majorRotation}
+      featuredSchoolPreview={schoolPreview}
+      featuredMajorPreview={majorPreview}
+      nextFeaturedSchoolPreview={nextSchoolPreview}
+      nextFeaturedMajorPreview={nextMajorPreview}
+      featuredSchedule={[
+        {
+          date: '2026-04-14',
+          weekday: '周二',
+          schools: [{ slug: 'southeast-university', name: 'Southeast University' }],
+          majors: [{ slug: 'clinical-medicine', name: 'Clinical Medicine' }],
+        },
+        {
+          date: '2026-04-15',
+          weekday: '周三',
+          schools: [{ slug: 'wuhan-university', name: 'Wuhan University' }],
+          majors: [{ slug: 'software-engineering', name: 'Software Engineering' }],
+        },
+      ]}
+      summaryMajors={[{ slug: 'clinical-medicine', name: 'Clinical Medicine', summary: '' }]}
+      sectionMajors={[{ slug: 'software-engineering', name: 'Software Engineering', sections: [] }]}
+      rankingReferenceSchools={[{ slug: 'wuhan-university', name: 'Wuhan University', rankingReferences: [] }]}
+      selectedPreviewDateValue=""
+      selectedDatePreview={null}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
+    />,
+  );
+
+  const scheduleRegion = screen.getByRole('region', { name: '未来 7 天轮换预览' });
+  const firstDayArticle = within(scheduleRegion)
+    .getByRole('heading', { name: '2026-04-14' })
+    .closest('article');
+  const secondDayArticle = within(scheduleRegion)
+    .getByRole('heading', { name: '2026-04-15' })
+    .closest('article');
+
+  expect(firstDayArticle).not.toBeNull();
+  expect(secondDayArticle).not.toBeNull();
+  expect(within(firstDayArticle as HTMLElement).getByText('该日待补 2 项')).toBeInTheDocument();
+  expect(within(secondDayArticle as HTMLElement).getByText('该日待补 2 项')).toBeInTheDocument();
+});
