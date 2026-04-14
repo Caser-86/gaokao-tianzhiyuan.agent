@@ -167,6 +167,15 @@ export default function DashboardShell({
                   defaultValue={school.heroImageUrl}
                   aria-label={`学校图片 ${school.slug}`}
                 />
+                {school.heroImageUrl ? (
+                  <img
+                    src={school.heroImageUrl}
+                    alt={`${school.name} 当前展示图`}
+                    aria-label={`featured-school-image-${school.slug}`}
+                    width={160}
+                    height={96}
+                  />
+                ) : null}
                 <button type="submit">保存</button>
               </form>
             ))}

@@ -144,6 +144,9 @@ test('renders admin dashboard heading, date preview shortcuts, and schedule high
   expect(screen.getByText('summary, strengths')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '学校展示配置' })).toBeInTheDocument();
   expect(screen.getByRole('checkbox', { name: '东南大学' })).toBeInTheDocument();
+  expect(
+    screen.getByRole('img', { name: 'featured-school-image-southeast-university' }),
+  ).toHaveAttribute('src', 'https://cdn.example.com/southeast.jpg');
   expect(screen.getByRole('heading', { name: '专业展示配置' })).toBeInTheDocument();
   expect(screen.getByRole('checkbox', { name: '临床医学' })).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '学校轮换规则' })).toBeInTheDocument();
