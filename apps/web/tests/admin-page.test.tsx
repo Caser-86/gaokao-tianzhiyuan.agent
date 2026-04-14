@@ -195,6 +195,10 @@ test('renders queue items, date preview shortcuts, and schedule highlight return
   const missingImageRegion = screen.getByRole('region', { name: '待补图片学校' });
   expect(within(missingImageRegion).getByText('内容候补学校')).toBeInTheDocument();
   expect(within(missingImageRegion).getByText('west-china-medical-center')).toBeInTheDocument();
+  expect(within(missingImageRegion).getByRole('link', { name: '内容候补学校' })).toHaveAttribute(
+    'href',
+    '#featured-school-west-china-medical-center',
+  );
 
   expect(screen.getByRole('heading', { name: '专业展示配置' })).toBeInTheDocument();
   expect(screen.getByText('内容专业')).toBeInTheDocument();

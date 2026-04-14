@@ -165,7 +165,7 @@ export default function DashboardShell({
         {!featuredContentError ? (
           <div>
             {featuredSchools.map((school) => (
-              <div key={school.slug}>
+              <div key={school.slug} id={`featured-school-${school.slug}`}>
                 <form action={updateFeaturedSchoolAction}>
                   <input type="hidden" name="slug" value={school.slug} />
                   <label>
@@ -221,7 +221,14 @@ export default function DashboardShell({
         {featuredContentError ? null : schoolsMissingImages.length === 0 ? (
           <p>当前没有待补图片学校</p>
         ) : (
-          <PreviewList items={schoolsMissingImages} />
+          <ul>
+            {schoolsMissingImages.map((school) => (
+              <li key={school.slug}>
+                <a href={`#featured-school-${school.slug}`}>{school.name}</a>
+                <span>{school.slug}</span>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 

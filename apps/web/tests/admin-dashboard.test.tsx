@@ -84,7 +84,7 @@ const sevenDaySchedule = [
   },
 ];
 
-test('renders admin dashboard heading, date preview shortcuts, and schedule highlight', () => {
+test('renders admin dashboard heading, missing-image shortcuts, and schedule highlight', () => {
   render(
     <DashboardShell
       title="内容运营后台"
@@ -139,6 +139,8 @@ test('renders admin dashboard heading, date preview shortcuts, and schedule high
   const nextMajorPreviewRegion = screen.getByRole('region', { name: '下一轮展示专业' });
   const selectedSchoolPreviewRegion = screen.getByRole('region', { name: '该日展示学校' });
   const selectedMajorPreviewRegion = screen.getByRole('region', { name: '该日展示专业' });
+  const featuredSchoolsRegion = screen.getByRole('region', { name: '学校展示配置' });
+  const missingImageRegion = screen.getByRole('region', { name: '待补图片学校' });
   const scheduleRegion = screen.getByRole('region', { name: '未来 7 天轮换预览' });
   const highlightedScheduleDay = within(scheduleRegion)
     .getByRole('heading', { name: '2026-04-15' })
@@ -159,9 +161,12 @@ test('renders admin dashboard heading, date preview shortcuts, and schedule high
     'https://cdn.example.com/southeast.jpg',
   );
   expect(screen.getByRole('button', { name: '清空图片' })).toBeInTheDocument();
-  const missingImageRegion = screen.getByRole('region', { name: '待补图片学校' });
-  expect(within(missingImageRegion).getByText('华西医学中心')).toBeInTheDocument();
+  expect(within(featuredSchoolsRegion).getByText('west-china-medical-center')).toBeInTheDocument();
   expect(within(missingImageRegion).getByText('west-china-medical-center')).toBeInTheDocument();
+  expect(within(missingImageRegion).getByRole('link', { name: '华西医学中心' })).toHaveAttribute(
+    'href',
+    '#featured-school-west-china-medical-center',
+  );
   expect(screen.getByRole('heading', { name: '专业展示配置' })).toBeInTheDocument();
   expect(screen.getByRole('checkbox', { name: '临床医学' })).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '学校轮换规则' })).toBeInTheDocument();
@@ -298,6 +303,7 @@ test('renders selected-date validation error and no schedule highlight when need
   expect(screen.getByText('当前没有可展示专业')).toBeInTheDocument();
   expect(screen.getByText('当前没有下一轮展示学校')).toBeInTheDocument();
   expect(screen.getByText('当前没有下一轮展示专业')).toBeInTheDocument();
+  expect(screen.getByText('当前没有待补图片学校')).toBeInTheDocument();
   expect(screen.getByText('预览日期格式无效')).toBeInTheDocument();
   expect(screen.queryByText('当前查看')).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '回到今天' })).not.toBeInTheDocument();
