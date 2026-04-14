@@ -785,11 +785,13 @@ export default function DashboardShell({
         (major) => major.sections.length === 0 && scheduledMissingMajorRelatedSlugs.has(major.slug),
       )
     : sortedSectionMajors;
+  const appendAnchor = (href: string | undefined, anchorId: string): string =>
+    href ? `${href}#${anchorId}` : `#${anchorId}`;
   const contentGapOverviewItems = [
     {
       key: 'school-images',
       label: '学校图片',
-      href: '#missing-school-images-heading',
+      href: appendAnchor(showScheduledMissingImageSchoolsOnlyHref, 'missing-school-images-heading'),
       todayCount: todayMissingImagesCount,
       nextCount: nextMissingImagesCount,
       totalCount: schoolsMissingImages.length,
@@ -797,7 +799,10 @@ export default function DashboardShell({
     {
       key: 'school-rankings',
       label: '学校榜单',
-      href: '#missing-school-ranking-reference-heading',
+      href: appendAnchor(
+        showScheduledMissingSchoolRankingsOnlyHref,
+        'missing-school-ranking-reference-heading',
+      ),
       todayCount: todayMissingSchoolRankingCount,
       nextCount: nextMissingSchoolRankingCount,
       totalCount: missingSchoolRankingReferences.length,
@@ -805,7 +810,10 @@ export default function DashboardShell({
     {
       key: 'major-rankings',
       label: '专业榜单',
-      href: '#missing-major-ranking-reference-heading',
+      href: appendAnchor(
+        showScheduledMissingMajorRankingsOnlyHref,
+        'missing-major-ranking-reference-heading',
+      ),
       todayCount: todayMissingMajorRankingCount,
       nextCount: nextMissingMajorRankingCount,
       totalCount: missingMajorRankingReferences.length,
@@ -813,7 +821,10 @@ export default function DashboardShell({
     {
       key: 'school-summaries',
       label: '学校摘要',
-      href: '#missing-school-summary-heading',
+      href: appendAnchor(
+        showScheduledMissingSchoolSummariesOnlyHref,
+        'missing-school-summary-heading',
+      ),
       todayCount: missingSchoolSummaries.filter((school) => todayPreviewSchoolSlugs.has(school.slug)).length,
       nextCount: missingSchoolSummaries.filter((school) => nextPreviewSchoolSlugs.has(school.slug)).length,
       totalCount: missingSchoolSummaries.length,
@@ -821,7 +832,10 @@ export default function DashboardShell({
     {
       key: 'major-summaries',
       label: '专业摘要',
-      href: '#missing-major-summary-heading',
+      href: appendAnchor(
+        showScheduledMissingMajorSummariesOnlyHref,
+        'missing-major-summary-heading',
+      ),
       todayCount: missingMajorSummaries.filter((major) => todayPreviewMajorSlugs.has(major.slug)).length,
       nextCount: missingMajorSummaries.filter((major) => nextPreviewMajorSlugs.has(major.slug)).length,
       totalCount: missingMajorSummaries.length,
@@ -829,7 +843,10 @@ export default function DashboardShell({
     {
       key: 'school-sections',
       label: '学校正文',
-      href: '#missing-school-sections-heading',
+      href: appendAnchor(
+        showScheduledMissingSchoolSectionsOnlyHref,
+        'missing-school-sections-heading',
+      ),
       todayCount: missingSchoolSections.filter((school) => todayPreviewSchoolSlugs.has(school.slug)).length,
       nextCount: missingSchoolSections.filter((school) => nextPreviewSchoolSlugs.has(school.slug)).length,
       totalCount: missingSchoolSections.length,
@@ -837,7 +854,10 @@ export default function DashboardShell({
     {
       key: 'major-sections',
       label: '专业正文',
-      href: '#missing-major-sections-heading',
+      href: appendAnchor(
+        showScheduledMissingMajorSectionsOnlyHref,
+        'missing-major-sections-heading',
+      ),
       todayCount: missingMajorSections.filter((major) => todayPreviewMajorSlugs.has(major.slug)).length,
       nextCount: missingMajorSections.filter((major) => nextPreviewMajorSlugs.has(major.slug)).length,
       totalCount: missingMajorSections.length,
@@ -845,7 +865,10 @@ export default function DashboardShell({
     {
       key: 'school-related',
       label: '学校相关推荐',
-      href: '#missing-school-related-content-heading',
+      href: appendAnchor(
+        showScheduledMissingSchoolRelatedOnlyHref,
+        'missing-school-related-content-heading',
+      ),
       todayCount: todayMissingSchoolRelatedCount,
       nextCount: nextMissingSchoolRelatedCount,
       totalCount: missingSchoolRelatedContent.length,
@@ -853,7 +876,10 @@ export default function DashboardShell({
     {
       key: 'major-related',
       label: '专业相关推荐',
-      href: '#missing-major-related-content-heading',
+      href: appendAnchor(
+        showScheduledMissingMajorRelatedOnlyHref,
+        'missing-major-related-content-heading',
+      ),
       todayCount: todayMissingMajorRelatedCount,
       nextCount: nextMissingMajorRelatedCount,
       totalCount: missingMajorRelatedContent.length,

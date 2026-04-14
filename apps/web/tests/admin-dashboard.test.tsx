@@ -416,6 +416,15 @@ test('renders content gap overview shortcuts for high-priority missing content',
         },
       ]}
       featuredSchedule={[]}
+      showScheduledMissingImageSchoolsOnlyHref="/admin?scheduled_missing_school_images=1"
+      showScheduledMissingSchoolRankingsOnlyHref="/admin?scheduled_missing_school_rankings=1"
+      showScheduledMissingMajorRankingsOnlyHref="/admin?scheduled_missing_major_rankings=1"
+      showScheduledMissingSchoolSummariesOnlyHref="/admin?scheduled_missing_school_summaries=1"
+      showScheduledMissingMajorSummariesOnlyHref="/admin?scheduled_missing_major_summaries=1"
+      showScheduledMissingSchoolSectionsOnlyHref="/admin?scheduled_missing_school_sections=1"
+      showScheduledMissingMajorSectionsOnlyHref="/admin?scheduled_missing_major_sections=1"
+      showScheduledMissingSchoolRelatedOnlyHref="/admin?scheduled_missing_school_related=1"
+      showScheduledMissingMajorRelatedOnlyHref="/admin?scheduled_missing_major_related=1"
       summarySchools={[
         { slug: 'southeast-university', name: 'Southeast University', summary: '' },
       ]}
@@ -469,13 +478,40 @@ test('renders content gap overview shortcuts for high-priority missing content',
     '下一轮关注 · 学校正文：今日 0，下一轮 1，待补 1',
     '下一轮关注 · 专业正文：今日 0，下一轮 1，待补 1',
   ]);
-  expect(overviewLinks[0]).toHaveAttribute('href', '#missing-school-images-heading');
-  expect(overviewLinks[1]).toHaveAttribute('href', '#missing-school-summary-heading');
-  expect(overviewLinks[2]).toHaveAttribute('href', '#missing-major-summary-heading');
-  expect(overviewLinks[3]).toHaveAttribute('href', '#missing-school-related-content-heading');
-  expect(overviewLinks[4]).toHaveAttribute('href', '#missing-major-related-content-heading');
-  expect(overviewLinks[5]).toHaveAttribute('href', '#missing-school-ranking-reference-heading');
-  expect(overviewLinks[6]).toHaveAttribute('href', '#missing-major-ranking-reference-heading');
-  expect(overviewLinks[7]).toHaveAttribute('href', '#missing-school-sections-heading');
-  expect(overviewLinks[8]).toHaveAttribute('href', '#missing-major-sections-heading');
+  expect(overviewLinks[0]).toHaveAttribute(
+    'href',
+    '/admin?scheduled_missing_school_images=1#missing-school-images-heading',
+  );
+  expect(overviewLinks[1]).toHaveAttribute(
+    'href',
+    '/admin?scheduled_missing_school_summaries=1#missing-school-summary-heading',
+  );
+  expect(overviewLinks[2]).toHaveAttribute(
+    'href',
+    '/admin?scheduled_missing_major_summaries=1#missing-major-summary-heading',
+  );
+  expect(overviewLinks[3]).toHaveAttribute(
+    'href',
+    '/admin?scheduled_missing_school_related=1#missing-school-related-content-heading',
+  );
+  expect(overviewLinks[4]).toHaveAttribute(
+    'href',
+    '/admin?scheduled_missing_major_related=1#missing-major-related-content-heading',
+  );
+  expect(overviewLinks[5]).toHaveAttribute(
+    'href',
+    '/admin?scheduled_missing_school_rankings=1#missing-school-ranking-reference-heading',
+  );
+  expect(overviewLinks[6]).toHaveAttribute(
+    'href',
+    '/admin?scheduled_missing_major_rankings=1#missing-major-ranking-reference-heading',
+  );
+  expect(overviewLinks[7]).toHaveAttribute(
+    'href',
+    '/admin?scheduled_missing_school_sections=1#missing-school-sections-heading',
+  );
+  expect(overviewLinks[8]).toHaveAttribute(
+    'href',
+    '/admin?scheduled_missing_major_sections=1#missing-major-sections-heading',
+  );
 });
