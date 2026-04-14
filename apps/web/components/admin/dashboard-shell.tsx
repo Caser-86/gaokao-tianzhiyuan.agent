@@ -2219,7 +2219,14 @@ export default function DashboardShell({
         <h2 id="featured-schedule-heading">未来 7 天轮换预览</h2>
 
         {featuredContentError ? null : displayedScheduledPreviewDays.length === 0 ? (
-          <p>当前没有未来轮换预览</p>
+          <>
+            {showScheduledGapDaysOnly && showAllScheduledGapDaysHref ? (
+              <p>
+                <a href={showAllScheduledGapDaysHref}>查看全部日期</a>
+              </p>
+            ) : null}
+            <p>{showScheduledGapDaysOnly ? '未来 7 天没有待补日期' : '当前没有未来轮换预览'}</p>
+          </>
         ) : (
           <div>
             <p>{`未来 7 天中有 ${scheduledGapDayCount} 天待补内容，其中 ${scheduledHighPriorityDayCount} 天待补 2 项及以上`}</p>

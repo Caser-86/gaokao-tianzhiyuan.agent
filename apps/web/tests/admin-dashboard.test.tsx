@@ -861,3 +861,53 @@ test('renders scheduled gap summary and urgency labels', () => {
   expect(within(secondDayArticle as HTMLElement).getByText('少量待补')).toBeInTheDocument();
   expect(within(thirdDayArticle as HTMLElement).getByText('内容已齐备')).toBeInTheDocument();
 });
+
+test('renders a scheduled-gap empty state when no future days need content updates', () => {
+  render(
+    <DashboardShell
+      title="内容运营后台"
+      queueItems={[]}
+      featuredSchools={[
+        {
+          slug: 'wuhan-university',
+          name: 'Wuhan University',
+          isFeatured: true,
+          heroImageUrl: 'https://cdn.example.com/wuhan.jpg',
+        },
+      ]}
+      featuredMajors={[]}
+      schoolRotation={schoolRotation}
+      majorRotation={majorRotation}
+      featuredSchoolPreview={[]}
+      featuredMajorPreview={[]}
+      nextFeaturedSchoolPreview={[]}
+      nextFeaturedMajorPreview={[]}
+      featuredSchedule={[
+        {
+          date: '2026-04-14',
+          weekday: '周二',
+          schools: [{ slug: 'wuhan-university', name: 'Wuhan University' }],
+          majors: [],
+        },
+      ]}
+      showScheduledGapDaysOnly
+      showAllScheduledGapDaysHref="/admin"
+      selectedPreviewDateValue=""
+      selectedDatePreview={null}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
+    />,
+  );
+
+  const scheduleRegion = screen.getByRole('region', { name: '未来 7 天轮换预览' });
+
+  expect(within(scheduleRegion).getByText('未来 7 天没有待补日期')).toBeInTheDocument();
+  expect(within(scheduleRegion).getByRole('link', { name: '查看全部日期' })).toHaveAttribute(
+    'href',
+    '/admin',
+  );
+});
