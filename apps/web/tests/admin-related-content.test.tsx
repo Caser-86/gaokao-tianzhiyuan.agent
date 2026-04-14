@@ -432,3 +432,172 @@ test('filters related-content editors down to missing entries only and preserves
     ),
   ).toBe(true);
 });
+
+test('filters related-content editors down to scheduled gaps only and preserves date shortcuts', async () => {
+  listReviewQueueMock.mockResolvedValue([]);
+  listFeaturedContentMock.mockResolvedValue({
+    schools: [
+      {
+        slug: 'southeast-university',
+        name: '涓滃崡澶у',
+        isFeatured: true,
+        heroImageUrl: '',
+      },
+      {
+        slug: 'wuhan-university',
+        name: '姝︽眽澶у',
+        isFeatured: true,
+        heroImageUrl: '',
+      },
+    ],
+    majors: [
+      {
+        slug: 'clinical-medicine',
+        name: '涓村簥鍖诲',
+        isFeatured: true,
+      },
+      {
+        slug: 'software-engineering',
+        name: '杞欢宸ョ▼',
+        isFeatured: true,
+      },
+    ],
+    rotation: {
+      schools: {
+        enabled: true,
+        frequencyDays: 1,
+        windowSize: 2,
+        orderedSlugs: ['southeast-university', 'wuhan-university'],
+      },
+      majors: {
+        enabled: true,
+        frequencyDays: 1,
+        windowSize: 2,
+        orderedSlugs: ['clinical-medicine', 'software-engineering'],
+      },
+    },
+    preview: {
+      today: {
+        schools: [{ slug: 'southeast-university', name: '涓滃崡澶у' }],
+        majors: [{ slug: 'clinical-medicine', name: '涓村簥鍖诲' }],
+      },
+      next: {
+        schools: [{ slug: 'wuhan-university', name: '姝︽眽澶у' }],
+        majors: [{ slug: 'software-engineering', name: '杞欢宸ョ▼' }],
+      },
+      schedule: [],
+      selectedDate: null,
+      selectedDateError: null,
+    },
+  });
+  listRankingReferencesMock.mockResolvedValue({
+    schools: [],
+    majors: [],
+  });
+  listContentSummariesMock.mockResolvedValue({
+    schools: [],
+    majors: [],
+  });
+  listContentSectionsMock.mockResolvedValue({
+    schools: [],
+    majors: [],
+  });
+  listRelatedContentMock.mockResolvedValue({
+    schools: [
+      {
+        slug: 'zhejiang-university',
+        name: '娴欐睙澶у',
+        relatedMajors: [],
+      },
+      {
+        slug: 'wuhan-university',
+        name: '姝︽眽澶у',
+        relatedMajors: [],
+      },
+      {
+        slug: 'southeast-university',
+        name: '涓滃崡澶у',
+        relatedMajors: [],
+      },
+    ],
+    majors: [
+      {
+        slug: 'finance',
+        name: '閲戣瀺瀛?',
+        relatedSchools: [],
+      },
+      {
+        slug: 'software-engineering',
+        name: '杞欢宸ョ▼',
+        relatedSchools: [],
+      },
+      {
+        slug: 'clinical-medicine',
+        name: '涓村簥鍖诲',
+        relatedSchools: [],
+      },
+    ],
+  });
+
+  const { container } = render(
+    await AdminPage({
+      searchParams: Promise.resolve({
+        preview_date: '2026-04-18',
+        scheduled_missing_school_related: '1',
+        scheduled_missing_major_related: '1',
+      } as never),
+    }),
+  );
+
+  const schoolSection = container.querySelector('[data-testid="school-related-content-section"]');
+  const majorSection = container.querySelector('[data-testid="major-related-content-section"]');
+  const allHrefs = Array.from(container.querySelectorAll('a'), (link) => link.getAttribute('href') ?? '');
+
+  expect(
+    Array.from(schoolSection?.querySelectorAll('h3') ?? [], (heading) => heading.textContent),
+  ).toEqual(['涓滃崡澶у', '姝︽眽澶у']);
+  expect(
+    Array.from(majorSection?.querySelectorAll('h3') ?? [], (heading) => heading.textContent),
+  ).toEqual(['涓村簥鍖诲', '杞欢宸ョ▼']);
+
+  expect(
+    allHrefs.some(
+      (href) =>
+        href.includes('preview_date=2026-04-18') &&
+        href.includes('scheduled_missing_school_related=0') &&
+        href.includes('scheduled_missing_major_related=1'),
+    ),
+  ).toBe(true);
+  expect(
+    allHrefs.some(
+      (href) =>
+        href.includes('preview_date=2026-04-18') &&
+        href.includes('scheduled_missing_school_related=1') &&
+        href.includes('scheduled_missing_major_related=0'),
+    ),
+  ).toBe(true);
+  expect(
+    allHrefs.some(
+      (href) =>
+        href.includes('preview_date=2026-04-17') &&
+        href.includes('scheduled_missing_school_related=1') &&
+        href.includes('scheduled_missing_major_related=1'),
+    ),
+  ).toBe(true);
+  expect(
+    allHrefs.some(
+      (href) =>
+        href.includes('preview_date=2026-04-14') &&
+        href.includes('scheduled_missing_school_related=1') &&
+        href.includes('scheduled_missing_major_related=1'),
+    ),
+  ).toBe(true);
+  expect(
+    allHrefs.some(
+      (href) =>
+        href.includes('preview_date=2026-04-19') &&
+        href.includes('scheduled_missing_school_related=1') &&
+        href.includes('scheduled_missing_major_related=1'),
+    ),
+  ).toBe(true);
+});
