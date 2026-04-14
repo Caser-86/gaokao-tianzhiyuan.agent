@@ -515,3 +515,115 @@ test('renders content gap overview shortcuts for high-priority missing content',
     '/admin?scheduled_missing_major_sections=1#missing-major-sections-heading',
   );
 });
+
+test('renders selected-date gap overview when a preview date is selected', () => {
+  render(
+    <DashboardShell
+      title="内容运营后台"
+      queueItems={[]}
+      featuredSchools={[
+        {
+          slug: 'southeast-university',
+          name: 'Southeast University',
+          isFeatured: true,
+          heroImageUrl: '',
+        },
+        {
+          slug: 'wuhan-university',
+          name: 'Wuhan University',
+          isFeatured: true,
+          heroImageUrl: 'https://cdn.example.com/wuhan.jpg',
+        },
+      ]}
+      featuredMajors={[
+        {
+          slug: 'clinical-medicine',
+          name: 'Clinical Medicine',
+          isFeatured: true,
+        },
+        {
+          slug: 'software-engineering',
+          name: 'Software Engineering',
+          isFeatured: true,
+        },
+      ]}
+      schoolRotation={schoolRotation}
+      majorRotation={majorRotation}
+      featuredSchoolPreview={schoolPreview}
+      featuredMajorPreview={majorPreview}
+      nextFeaturedSchoolPreview={nextSchoolPreview}
+      nextFeaturedMajorPreview={nextMajorPreview}
+      featuredSchedule={[]}
+      selectedPreviewDateValue="2026-04-15"
+      selectedDatePreview={{
+        date: '2026-04-15',
+        weekday: '周三',
+        schools: [{ slug: 'southeast-university', name: 'Southeast University' }],
+        majors: [{ slug: 'software-engineering', name: 'Software Engineering' }],
+      }}
+      summarySchools={[
+        { slug: 'southeast-university', name: 'Southeast University', summary: '' },
+      ]}
+      summaryMajors={[
+        { slug: 'software-engineering', name: 'Software Engineering', summary: '' },
+      ]}
+      sectionSchools={[
+        { slug: 'southeast-university', name: 'Southeast University', sections: [] },
+      ]}
+      sectionMajors={[
+        { slug: 'software-engineering', name: 'Software Engineering', sections: [] },
+      ]}
+      relatedSchools={[
+        { slug: 'southeast-university', name: 'Southeast University', relatedMajors: [] },
+      ]}
+      relatedMajors={[
+        { slug: 'software-engineering', name: 'Software Engineering', relatedSchools: [] },
+      ]}
+      rankingReferenceSchools={[
+        { slug: 'southeast-university', name: 'Southeast University', rankingReferences: [] },
+      ]}
+      rankingReferenceMajors={[
+        { slug: 'software-engineering', name: 'Software Engineering', rankingReferences: [] },
+      ]}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
+    />,
+  );
+
+  const selectedGapRegion = screen.getByRole('region', { name: '该日缺口优先' });
+
+  expect(
+    within(selectedGapRegion).getByText('该日待补 9 项，下一轮待补 0 项，总待补 9 项'),
+  ).toBeInTheDocument();
+  expect(
+    within(selectedGapRegion).getByRole('link', { name: '该日优先 · 学校图片：该日 1，下一轮 0，待补 1' }),
+  ).toHaveAttribute('href', '#missing-school-images-heading');
+  expect(
+    within(selectedGapRegion).getByRole('link', { name: '该日优先 · 学校榜单：该日 1，下一轮 0，待补 1' }),
+  ).toHaveAttribute('href', '#missing-school-ranking-reference-heading');
+  expect(
+    within(selectedGapRegion).getByRole('link', { name: '该日优先 · 专业榜单：该日 1，下一轮 0，待补 1' }),
+  ).toHaveAttribute('href', '#missing-major-ranking-reference-heading');
+  expect(
+    within(selectedGapRegion).getByRole('link', { name: '该日优先 · 学校摘要：该日 1，下一轮 0，待补 1' }),
+  ).toHaveAttribute('href', '#missing-school-summary-heading');
+  expect(
+    within(selectedGapRegion).getByRole('link', { name: '该日优先 · 专业摘要：该日 1，下一轮 0，待补 1' }),
+  ).toHaveAttribute('href', '#missing-major-summary-heading');
+  expect(
+    within(selectedGapRegion).getByRole('link', { name: '该日优先 · 学校正文：该日 1，下一轮 0，待补 1' }),
+  ).toHaveAttribute('href', '#missing-school-sections-heading');
+  expect(
+    within(selectedGapRegion).getByRole('link', { name: '该日优先 · 专业正文：该日 1，下一轮 0，待补 1' }),
+  ).toHaveAttribute('href', '#missing-major-sections-heading');
+  expect(
+    within(selectedGapRegion).getByRole('link', { name: '该日优先 · 学校相关推荐：该日 1，下一轮 0，待补 1' }),
+  ).toHaveAttribute('href', '#missing-school-related-content-heading');
+  expect(
+    within(selectedGapRegion).getByRole('link', { name: '该日优先 · 专业相关推荐：该日 1，下一轮 0，待补 1' }),
+  ).toHaveAttribute('href', '#missing-major-related-content-heading');
+});

@@ -417,6 +417,9 @@ export default function DashboardShell({
   );
   const todayPreviewSchoolSlugs = new Set(featuredSchoolPreview.map((school) => school.slug));
   const nextPreviewSchoolSlugs = new Set(nextFeaturedSchoolPreview.map((school) => school.slug));
+  const selectedDateSchoolSlugs = new Set(
+    (selectedDatePreview?.schools ?? []).map((school) => school.slug),
+  );
   const scheduledMissingSchoolSlugs = new Set([
     ...featuredSchoolPreview.map((school) => school.slug),
     ...nextFeaturedSchoolPreview.map((school) => school.slug),
@@ -485,6 +488,9 @@ export default function DashboardShell({
   ).length;
   const todayPreviewMajorSlugs = new Set(featuredMajorPreview.map((major) => major.slug));
   const nextPreviewMajorSlugs = new Set(nextFeaturedMajorPreview.map((major) => major.slug));
+  const selectedDateMajorSlugs = new Set(
+    (selectedDatePreview?.majors ?? []).map((major) => major.slug),
+  );
   const todayMissingMajorRankingCount = missingMajorRankingReferences.filter((major) =>
     todayPreviewMajorSlugs.has(major.slug),
   ).length;
@@ -787,6 +793,10 @@ export default function DashboardShell({
     : sortedSectionMajors;
   const appendAnchor = (href: string | undefined, anchorId: string): string =>
     href ? `${href}#${anchorId}` : `#${anchorId}`;
+  const countMatchingSlugs = <T extends { slug: string }>(
+    entities: T[],
+    slugs: Set<string>,
+  ): number => entities.filter((entity) => slugs.has(entity.slug)).length;
   const contentGapOverviewItems = [
     {
       key: 'school-images',
@@ -910,6 +920,113 @@ export default function DashboardShell({
     0,
   );
   const contentGapOverviewTotalCount = contentGapOverviewItems.reduce(
+    (sum, item) => sum + item.totalCount,
+    0,
+  );
+  const selectedDateGapOverviewItems = selectedDatePreview
+    ? [
+        {
+          key: 'school-images',
+          label: '学校图片',
+          href: '#missing-school-images-heading',
+          selectedDateCount: countMatchingSlugs(schoolsMissingImages, selectedDateSchoolSlugs),
+          nextCount: countMatchingSlugs(schoolsMissingImages, nextPreviewSchoolSlugs),
+          totalCount: schoolsMissingImages.length,
+        },
+        {
+          key: 'school-rankings',
+          label: '学校榜单',
+          href: '#missing-school-ranking-reference-heading',
+          selectedDateCount: countMatchingSlugs(
+            missingSchoolRankingReferences,
+            selectedDateSchoolSlugs,
+          ),
+          nextCount: countMatchingSlugs(missingSchoolRankingReferences, nextPreviewSchoolSlugs),
+          totalCount: missingSchoolRankingReferences.length,
+        },
+        {
+          key: 'major-rankings',
+          label: '专业榜单',
+          href: '#missing-major-ranking-reference-heading',
+          selectedDateCount: countMatchingSlugs(missingMajorRankingReferences, selectedDateMajorSlugs),
+          nextCount: countMatchingSlugs(missingMajorRankingReferences, nextPreviewMajorSlugs),
+          totalCount: missingMajorRankingReferences.length,
+        },
+        {
+          key: 'school-summaries',
+          label: '学校摘要',
+          href: '#missing-school-summary-heading',
+          selectedDateCount: countMatchingSlugs(missingSchoolSummaries, selectedDateSchoolSlugs),
+          nextCount: countMatchingSlugs(missingSchoolSummaries, nextPreviewSchoolSlugs),
+          totalCount: missingSchoolSummaries.length,
+        },
+        {
+          key: 'major-summaries',
+          label: '专业摘要',
+          href: '#missing-major-summary-heading',
+          selectedDateCount: countMatchingSlugs(missingMajorSummaries, selectedDateMajorSlugs),
+          nextCount: countMatchingSlugs(missingMajorSummaries, nextPreviewMajorSlugs),
+          totalCount: missingMajorSummaries.length,
+        },
+        {
+          key: 'school-sections',
+          label: '学校正文',
+          href: '#missing-school-sections-heading',
+          selectedDateCount: countMatchingSlugs(missingSchoolSections, selectedDateSchoolSlugs),
+          nextCount: countMatchingSlugs(missingSchoolSections, nextPreviewSchoolSlugs),
+          totalCount: missingSchoolSections.length,
+        },
+        {
+          key: 'major-sections',
+          label: '专业正文',
+          href: '#missing-major-sections-heading',
+          selectedDateCount: countMatchingSlugs(missingMajorSections, selectedDateMajorSlugs),
+          nextCount: countMatchingSlugs(missingMajorSections, nextPreviewMajorSlugs),
+          totalCount: missingMajorSections.length,
+        },
+        {
+          key: 'school-related',
+          label: '学校相关推荐',
+          href: '#missing-school-related-content-heading',
+          selectedDateCount: countMatchingSlugs(missingSchoolRelatedContent, selectedDateSchoolSlugs),
+          nextCount: countMatchingSlugs(missingSchoolRelatedContent, nextPreviewSchoolSlugs),
+          totalCount: missingSchoolRelatedContent.length,
+        },
+        {
+          key: 'major-related',
+          label: '专业相关推荐',
+          href: '#missing-major-related-content-heading',
+          selectedDateCount: countMatchingSlugs(missingMajorRelatedContent, selectedDateMajorSlugs),
+          nextCount: countMatchingSlugs(missingMajorRelatedContent, nextPreviewMajorSlugs),
+          totalCount: missingMajorRelatedContent.length,
+        },
+      ]
+        .filter((item) => item.selectedDateCount > 0 || item.nextCount > 0)
+        .sort((left, right) => {
+          if (left.selectedDateCount !== right.selectedDateCount) {
+            return right.selectedDateCount - left.selectedDateCount;
+          }
+
+          if (left.nextCount !== right.nextCount) {
+            return right.nextCount - left.nextCount;
+          }
+
+          if (left.totalCount !== right.totalCount) {
+            return right.totalCount - left.totalCount;
+          }
+
+          return 0;
+        })
+    : [];
+  const selectedDateGapOverviewSelectedCount = selectedDateGapOverviewItems.reduce(
+    (sum, item) => sum + item.selectedDateCount,
+    0,
+  );
+  const selectedDateGapOverviewNextCount = selectedDateGapOverviewItems.reduce(
+    (sum, item) => sum + item.nextCount,
+    0,
+  );
+  const selectedDateGapOverviewTotalCount = selectedDateGapOverviewItems.reduce(
     (sum, item) => sum + item.totalCount,
     0,
   );
@@ -1047,6 +1164,28 @@ export default function DashboardShell({
           </>
         )}
       </section>
+
+      {selectedDatePreview ? (
+        <section aria-labelledby="selected-date-gap-overview-heading">
+          <h2 id="selected-date-gap-overview-heading">该日缺口优先</h2>
+          {selectedDateGapOverviewItems.length === 0 ? (
+            <p>该日没有需要优先处理的内容缺口</p>
+          ) : (
+            <>
+              <p>{`该日待补 ${selectedDateGapOverviewSelectedCount} 项，下一轮待补 ${selectedDateGapOverviewNextCount} 项，总待补 ${selectedDateGapOverviewTotalCount} 项`}</p>
+              <ul>
+                {selectedDateGapOverviewItems.map((item) => (
+                  <li key={item.key}>
+                    <a href={item.href}>
+                      {`${item.selectedDateCount > 0 ? '该日优先' : item.nextCount > 0 ? '下一轮关注' : '待补关注'} · ${item.label}：该日 ${item.selectedDateCount}，下一轮 ${item.nextCount}，待补 ${item.totalCount}`}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
+      ) : null}
 
       <section aria-labelledby="review-queue-heading">
         <h2 id="review-queue-heading">待审核队列</h2>
