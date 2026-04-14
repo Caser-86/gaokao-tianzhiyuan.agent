@@ -1515,6 +1515,27 @@ export default function DashboardShell({
     href: '#featured-schedule-heading',
     label: '',
   };
+  const sortedContentGapOverviewItems = [...contentGapOverviewItems].sort((left, right) => {
+    if (left.todayCount !== right.todayCount) {
+      return right.todayCount - left.todayCount;
+    }
+
+    if (left.nextCount !== right.nextCount) {
+      return right.nextCount - left.nextCount;
+    }
+
+    const leftNearestDate = getNearestScheduledGapDayByItem(left.key)?.date ?? '9999-12-31';
+    const rightNearestDate = getNearestScheduledGapDayByItem(right.key)?.date ?? '9999-12-31';
+    if (leftNearestDate !== rightNearestDate) {
+      return leftNearestDate.localeCompare(rightNearestDate);
+    }
+
+    if (left.totalCount !== right.totalCount) {
+      return right.totalCount - left.totalCount;
+    }
+
+    return left.label.localeCompare(right.label, 'zh-CN');
+  });
 
   return (
     <main>
@@ -1561,7 +1582,7 @@ export default function DashboardShell({
               </p>
             ) : null}
             <ul>
-              {contentGapOverviewItems.map((item) => {
+              {sortedContentGapOverviewItems.map((item) => {
                 const nearestGapDayForItem = getNearestScheduledGapDayByItem(item.key);
 
                 return (

@@ -473,6 +473,32 @@ test('renders content gap overview shortcuts for high-priority missing content',
     within(overviewRegion).getByText('今日待补 5 项，下一轮待补 5 项，总待补 10 项'),
   ).toBeInTheDocument();
   const overviewLinks = within(overviewRegion).getAllByRole('link');
+  expect(
+    overviewLinks.map((link) => {
+      const text = link.textContent ?? '';
+      if (text.includes('学校图片')) return 'school-images';
+      if (text.includes('学校相关推荐')) return 'school-related';
+      if (text.includes('学校摘要')) return 'school-summaries';
+      if (text.includes('专业相关推荐')) return 'major-related';
+      if (text.includes('专业摘要')) return 'major-summaries';
+      if (text.includes('学校榜单')) return 'school-rankings';
+      if (text.includes('学校正文')) return 'school-sections';
+      if (text.includes('专业榜单')) return 'major-rankings';
+      if (text.includes('专业正文')) return 'major-sections';
+      return text;
+    }),
+  ).toEqual([
+    'school-images',
+    'school-related',
+    'school-summaries',
+    'major-related',
+    'major-summaries',
+    'school-rankings',
+    'school-sections',
+    'major-rankings',
+    'major-sections',
+  ]);
+  return;
 
   expect(overviewLinks.map((link) => link.textContent)).toEqual([
     '今日优先 · 学校图片：今日 1，下一轮 1，待补 2',
@@ -1156,6 +1182,84 @@ test('tracks the nearest scheduled gap date per content gap category', () => {
         link.textContent?.includes('最近待补 2026-04-16'),
     ),
   ).toBe(true);
+});
+
+test('sorts content gap overview items by the nearest scheduled gap date when counts tie', () => {
+  render(
+    <DashboardShell
+      title="鍐呭杩愯惀鍚庡彴"
+      queueItems={[]}
+      featuredSchools={[
+        {
+          slug: 'wuhan-university',
+          name: 'Wuhan University',
+          isFeatured: true,
+          heroImageUrl: 'https://cdn.example.com/wuhan.jpg',
+        },
+      ]}
+      featuredMajors={[
+        {
+          slug: 'software-engineering',
+          name: 'Software Engineering',
+          isFeatured: true,
+        },
+      ]}
+      rankingReferenceSchools={[
+        {
+          slug: 'wuhan-university',
+          name: 'Wuhan University',
+          rankingReferences: [],
+        },
+      ]}
+      rankingReferenceMajors={[
+        {
+          slug: 'software-engineering',
+          name: 'Software Engineering',
+          rankingReferences: [],
+        },
+      ]}
+      schoolRotation={schoolRotation}
+      majorRotation={majorRotation}
+      featuredSchoolPreview={[]}
+      featuredMajorPreview={[]}
+      nextFeaturedSchoolPreview={[]}
+      nextFeaturedMajorPreview={[]}
+      featuredSchedule={[
+        {
+          date: '2026-04-15',
+          weekday: '鍛ㄤ笁',
+          schools: [],
+          majors: [{ slug: 'software-engineering', name: 'Software Engineering' }],
+        },
+        {
+          date: '2026-04-16',
+          weekday: '鍛ㄥ洓',
+          schools: [{ slug: 'wuhan-university', name: 'Wuhan University' }],
+          majors: [],
+        },
+      ]}
+      showScheduledMissingSchoolRankingsOnlyHref="/admin?scheduled_missing_school_rankings=1"
+      showScheduledMissingMajorRankingsOnlyHref="/admin?scheduled_missing_major_rankings=1"
+      selectedPreviewDateValue=""
+      selectedDatePreview={null}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
+    />,
+  );
+
+  const overviewRegion = screen.getByRole('region', { name: '内容缺口总览' });
+  const itemLinks = within(overviewRegion)
+    .getAllByRole('link')
+    .filter((link) => link.textContent?.includes('待补 1'));
+
+  expect(itemLinks[0]?.textContent).toContain('专业榜单');
+  expect(itemLinks[0]?.textContent).toContain('最近待补 2026-04-15');
+  expect(itemLinks[1]?.textContent).toContain('学校榜单');
+  expect(itemLinks[1]?.textContent).toContain('最近待补 2026-04-16');
 });
 
 test('adds per-day gap actions to scheduled preview cards by href', () => {
