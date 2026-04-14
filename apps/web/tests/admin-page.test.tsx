@@ -176,6 +176,10 @@ test('renders queue items, date preview shortcuts, and schedule highlight return
   expect(
     screen.getByRole('img', { name: 'featured-school-image-southeast-university' }),
   ).toHaveAttribute('src', 'https://cdn.example.com/southeast.jpg');
+  expect(screen.getByRole('link', { name: '查看原图' })).toHaveAttribute(
+    'href',
+    'https://cdn.example.com/southeast.jpg',
+  );
   expect(screen.getByRole('button', { name: '清空图片' })).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '专业展示配置' })).toBeInTheDocument();
   expect(screen.getByText('内容专业')).toBeInTheDocument();

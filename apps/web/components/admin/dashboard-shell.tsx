@@ -185,6 +185,11 @@ export default function DashboardShell({
                       height={96}
                     />
                   ) : null}
+                  {school.heroImageUrl ? (
+                    <a href={school.heroImageUrl} target="_blank" rel="noreferrer">
+                      查看原图
+                    </a>
+                  ) : null}
                   <button type="submit">保存</button>
                 </form>
 
