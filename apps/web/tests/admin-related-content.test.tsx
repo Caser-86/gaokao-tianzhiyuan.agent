@@ -59,6 +59,7 @@ vi.mock('../app/(admin)/admin/actions', () => ({
 }));
 
 import AdminPage from '../app/(admin)/admin/page';
+import DashboardShell from '../components/admin/dashboard-shell';
 
 beforeEach(() => {
   listReviewQueueMock.mockReset();
@@ -112,14 +113,14 @@ test('renders school and major related content editors in admin', async () => {
     schools: [
       {
         slug: 'southeast-university',
-        name: '东南大学',
+        name: '涓滃崡澶у',
         relatedMajors: ['clinical-medicine', 'architecture'],
       },
     ],
     majors: [
       {
         slug: 'clinical-medicine',
-        name: '临床医学',
+        name: '涓村簥鍖诲',
         relatedSchools: ['southeast-university'],
       },
     ],
@@ -133,4 +134,165 @@ test('renders school and major related content editors in admin', async () => {
   expect(relatedSlugInputs[0]).toHaveValue('clinical-medicine\narchitecture');
   expect(relatedSlugInputs[1]).toHaveValue('southeast-university');
   expect(screen.getAllByRole('button', { name: '保存相关推荐' })).toHaveLength(2);
+});
+
+test('surfaces missing related-content coverage and prioritizes scheduled gaps', () => {
+  const { container } = render(
+    <DashboardShell
+      title="鍐呭杩愯惀鍚庡彴"
+      queueItems={[]}
+      featuredSchools={[
+        {
+          slug: 'southeast-university',
+          name: '涓滃崡澶у',
+          isFeatured: true,
+          heroImageUrl: '',
+        },
+      ]}
+      featuredMajors={[
+        {
+          slug: 'clinical-medicine',
+          name: '涓村簥鍖诲',
+          isFeatured: true,
+        },
+      ]}
+      schoolRotation={{
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      }}
+      majorRotation={{
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      }}
+      featuredSchoolPreview={[
+        {
+          slug: 'southeast-university',
+          name: '涓滃崡澶у',
+        },
+      ]}
+      featuredMajorPreview={[
+        {
+          slug: 'clinical-medicine',
+          name: '涓村簥鍖诲',
+        },
+      ]}
+      nextFeaturedSchoolPreview={[
+        {
+          slug: 'wuhan-university',
+          name: '姝︽眽澶у',
+        },
+      ]}
+      nextFeaturedMajorPreview={[
+        {
+          slug: 'software-engineering',
+          name: '杞欢宸ョ▼',
+        },
+      ]}
+      featuredSchedule={[]}
+      relatedSchools={[
+        {
+          slug: 'zhejiang-university',
+          name: '娴欐睙澶у',
+          relatedMajors: ['finance'],
+        },
+        {
+          slug: 'wuhan-university',
+          name: '姝︽眽澶у',
+          relatedMajors: [],
+        },
+        {
+          slug: 'southeast-university',
+          name: '涓滃崡澶у',
+          relatedMajors: [],
+        },
+      ]}
+      relatedMajors={[
+        {
+          slug: 'finance',
+          name: '閲戣瀺瀛?',
+          relatedSchools: ['zhejiang-university'],
+        },
+        {
+          slug: 'software-engineering',
+          name: '杞欢宸ョ▼',
+          relatedSchools: [],
+        },
+        {
+          slug: 'clinical-medicine',
+          name: '涓村簥鍖诲',
+          relatedSchools: [],
+        },
+      ]}
+      selectedPreviewDateValue=""
+      selectedDatePreview={null}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRelatedContentAction={async () => undefined}
+      updateMajorRelatedContentAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
+    />,
+  );
+
+  const schoolSection = container.querySelector('[data-testid="school-related-content-section"]');
+  const majorSection = container.querySelector('[data-testid="major-related-content-section"]');
+  const missingSchoolSection = container.querySelector('[data-testid="missing-school-related-content-section"]');
+  const missingMajorSection = container.querySelector('[data-testid="missing-major-related-content-section"]');
+
+  expect(schoolSection).not.toBeNull();
+  expect(majorSection).not.toBeNull();
+  expect(missingSchoolSection).not.toBeNull();
+  expect(missingMajorSection).not.toBeNull();
+
+  const schoolHeadings = Array.from(
+    schoolSection?.querySelectorAll('h3') ?? [],
+    (heading) => heading.textContent,
+  );
+  const majorHeadings = Array.from(
+    majorSection?.querySelectorAll('h3') ?? [],
+    (heading) => heading.textContent,
+  );
+
+  expect(schoolHeadings).toEqual(['涓滃崡澶у', '姝︽眽澶у', '娴欐睙澶у']);
+  expect(majorHeadings).toEqual(['涓村簥鍖诲', '杞欢宸ョ▼', '閲戣瀺瀛?']);
+
+  const missingSchoolLinks = Array.from(
+    missingSchoolSection?.querySelectorAll('a[href^="#school-related-content-"]') ?? [],
+    (link) => link.getAttribute('href'),
+  );
+  const missingMajorLinks = Array.from(
+    missingMajorSection?.querySelectorAll('a[href^="#major-related-content-"]') ?? [],
+    (link) => link.getAttribute('href'),
+  );
+  const previewLinks = Array.from(
+    missingSchoolSection?.querySelectorAll('a[href="#featured-school-preview-heading"], a[href="#next-featured-school-preview-heading"]') ?? [],
+    (link) => link.getAttribute('href'),
+  );
+  const majorPreviewLinks = Array.from(
+    missingMajorSection?.querySelectorAll('a[href="#featured-major-preview-heading"], a[href="#next-featured-major-preview-heading"]') ?? [],
+    (link) => link.getAttribute('href'),
+  );
+
+  expect(missingSchoolLinks).toEqual([
+    '#school-related-content-southeast-university',
+    '#school-related-content-wuhan-university',
+  ]);
+  expect(missingMajorLinks).toEqual([
+    '#major-related-content-clinical-medicine',
+    '#major-related-content-software-engineering',
+  ]);
+  expect(previewLinks).toEqual([
+    '#featured-school-preview-heading',
+    '#next-featured-school-preview-heading',
+  ]);
+  expect(majorPreviewLinks).toEqual([
+    '#featured-major-preview-heading',
+    '#next-featured-major-preview-heading',
+  ]);
 });

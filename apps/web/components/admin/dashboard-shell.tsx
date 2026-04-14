@@ -437,6 +437,100 @@ export default function DashboardShell({
   const nextMissingMajorRankingCount = missingMajorRankingReferences.filter((major) =>
     nextPreviewMajorSlugs.has(major.slug),
   ).length;
+  const relatedCoveragePriority = (
+    slug: string,
+    featuredSlugs: Set<string>,
+    todaySlugs: Set<string>,
+    nextSlugs: Set<string>,
+  ): number => {
+    if (todaySlugs.has(slug)) {
+      return 0;
+    }
+
+    if (nextSlugs.has(slug)) {
+      return 1;
+    }
+
+    if (featuredSlugs.has(slug)) {
+      return 2;
+    }
+
+    return 3;
+  };
+  const sortedRelatedSchools = [...relatedSchools].sort((left, right) => {
+    const leftMissing = left.relatedMajors.length === 0 ? 0 : 1;
+    const rightMissing = right.relatedMajors.length === 0 ? 0 : 1;
+    if (leftMissing !== rightMissing) {
+      return leftMissing - rightMissing;
+    }
+
+    const priorityDifference =
+      relatedCoveragePriority(
+        left.slug,
+        featuredSchoolSlugs,
+        todayPreviewSchoolSlugs,
+        nextPreviewSchoolSlugs,
+      ) -
+      relatedCoveragePriority(
+        right.slug,
+        featuredSchoolSlugs,
+        todayPreviewSchoolSlugs,
+        nextPreviewSchoolSlugs,
+      );
+    if (priorityDifference !== 0) {
+      return priorityDifference;
+    }
+
+    return left.name.localeCompare(right.name, 'zh-CN');
+  });
+  const sortedRelatedMajors = [...relatedMajors].sort((left, right) => {
+    const leftMissing = left.relatedSchools.length === 0 ? 0 : 1;
+    const rightMissing = right.relatedSchools.length === 0 ? 0 : 1;
+    if (leftMissing !== rightMissing) {
+      return leftMissing - rightMissing;
+    }
+
+    const priorityDifference =
+      relatedCoveragePriority(
+        left.slug,
+        featuredMajorSlugs,
+        todayPreviewMajorSlugs,
+        nextPreviewMajorSlugs,
+      ) -
+      relatedCoveragePriority(
+        right.slug,
+        featuredMajorSlugs,
+        todayPreviewMajorSlugs,
+        nextPreviewMajorSlugs,
+      );
+    if (priorityDifference !== 0) {
+      return priorityDifference;
+    }
+
+    return left.name.localeCompare(right.name, 'zh-CN');
+  });
+  const missingSchoolRelatedContent = sortedRelatedSchools.filter(
+    (school) => school.relatedMajors.length === 0,
+  );
+  const missingMajorRelatedContent = sortedRelatedMajors.filter(
+    (major) => major.relatedSchools.length === 0,
+  );
+  const configuredSchoolRelatedContentCount =
+    sortedRelatedSchools.length - missingSchoolRelatedContent.length;
+  const configuredMajorRelatedContentCount =
+    sortedRelatedMajors.length - missingMajorRelatedContent.length;
+  const todayMissingSchoolRelatedCount = missingSchoolRelatedContent.filter((school) =>
+    todayPreviewSchoolSlugs.has(school.slug),
+  ).length;
+  const nextMissingSchoolRelatedCount = missingSchoolRelatedContent.filter((school) =>
+    nextPreviewSchoolSlugs.has(school.slug),
+  ).length;
+  const todayMissingMajorRelatedCount = missingMajorRelatedContent.filter((major) =>
+    todayPreviewMajorSlugs.has(major.slug),
+  ).length;
+  const nextMissingMajorRelatedCount = missingMajorRelatedContent.filter((major) =>
+    nextPreviewMajorSlugs.has(major.slug),
+  ).length;
 
   const schoolFilterLinks = (
     <p>
@@ -709,16 +803,20 @@ export default function DashboardShell({
         ) : null}
       </section>
 
-      <section aria-labelledby="school-related-content-heading">
+      <section
+        aria-labelledby="school-related-content-heading"
+        data-testid="school-related-content-section"
+      >
         <h2 id="school-related-content-heading">学校相关推荐</h2>
 
         {relatedContentError ? <p>{relatedContentError}</p> : null}
 
         {!relatedContentError ? (
           <div>
+            <p>{`已配置学校相关推荐 ${configuredSchoolRelatedContentCount} 所，待补学校相关推荐 ${missingSchoolRelatedContent.length} 所`}</p>
             {relatedSchools.length === 0 ? <p>当前没有可编辑的学校相关推荐</p> : null}
-            {relatedSchools.map((school) => (
-              <div key={school.slug}>
+            {sortedRelatedSchools.map((school) => (
+              <div key={school.slug} id={`school-related-content-${school.slug}`}>
                 <RelatedContentForm
                   entity={school}
                   fieldName="relatedMajors"
@@ -731,16 +829,50 @@ export default function DashboardShell({
         ) : null}
       </section>
 
-      <section aria-labelledby="major-related-content-heading">
+      <section
+        aria-labelledby="missing-school-related-content-heading"
+        data-testid="missing-school-related-content-section"
+      >
+        <h2 id="missing-school-related-content-heading">{`待补学校相关推荐（${missingSchoolRelatedContent.length}）`}</h2>
+
+        {relatedContentError ? null : missingSchoolRelatedContent.length === 0 ? (
+          <p>当前没有待补学校相关推荐</p>
+        ) : (
+          <>
+            <p>{`今日待补 ${todayMissingSchoolRelatedCount} 所，下一轮待补 ${nextMissingSchoolRelatedCount} 所`}</p>
+            <ul>
+              {missingSchoolRelatedContent.map((school) => (
+                <li key={school.slug}>
+                  <a href={`#school-related-content-${school.slug}`}>{school.name}</a>
+                  <span>{school.slug}</span>
+                  {featuredSchoolSlugs.has(school.slug) ? <span>当前展示</span> : null}
+                  {todayPreviewSchoolSlugs.has(school.slug) ? (
+                    <a href="#featured-school-preview-heading">今日展示</a>
+                  ) : null}
+                  {nextPreviewSchoolSlugs.has(school.slug) ? (
+                    <a href="#next-featured-school-preview-heading">下一轮展示</a>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
+
+      <section
+        aria-labelledby="major-related-content-heading"
+        data-testid="major-related-content-section"
+      >
         <h2 id="major-related-content-heading">专业相关推荐</h2>
 
         {relatedContentError ? <p>{relatedContentError}</p> : null}
 
         {!relatedContentError ? (
           <div>
+            <p>{`已配置专业相关推荐 ${configuredMajorRelatedContentCount} 个，待补专业相关推荐 ${missingMajorRelatedContent.length} 个`}</p>
             {relatedMajors.length === 0 ? <p>当前没有可编辑的专业相关推荐</p> : null}
-            {relatedMajors.map((major) => (
-              <div key={major.slug}>
+            {sortedRelatedMajors.map((major) => (
+              <div key={major.slug} id={`major-related-content-${major.slug}`}>
                 <RelatedContentForm
                   entity={major}
                   fieldName="relatedSchools"
@@ -751,6 +883,36 @@ export default function DashboardShell({
             ))}
           </div>
         ) : null}
+      </section>
+
+      <section
+        aria-labelledby="missing-major-related-content-heading"
+        data-testid="missing-major-related-content-section"
+      >
+        <h2 id="missing-major-related-content-heading">{`待补专业相关推荐（${missingMajorRelatedContent.length}）`}</h2>
+
+        {relatedContentError ? null : missingMajorRelatedContent.length === 0 ? (
+          <p>当前没有待补专业相关推荐</p>
+        ) : (
+          <>
+            <p>{`今日待补 ${todayMissingMajorRelatedCount} 个，下一轮待补 ${nextMissingMajorRelatedCount} 个`}</p>
+            <ul>
+              {missingMajorRelatedContent.map((major) => (
+                <li key={major.slug}>
+                  <a href={`#major-related-content-${major.slug}`}>{major.name}</a>
+                  <span>{major.slug}</span>
+                  {featuredMajorSlugs.has(major.slug) ? <span>当前展示</span> : null}
+                  {todayPreviewMajorSlugs.has(major.slug) ? (
+                    <a href="#featured-major-preview-heading">今日展示</a>
+                  ) : null}
+                  {nextPreviewMajorSlugs.has(major.slug) ? (
+                    <a href="#next-featured-major-preview-heading">下一轮展示</a>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </section>
 
       <section aria-labelledby="school-ranking-reference-heading">
