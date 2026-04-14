@@ -1,5 +1,6 @@
 import type {
   AdminFeaturedMajor,
+  AdminFeaturedPreviewDay,
   AdminFeaturedPreviewItem,
   AdminFeaturedSchool,
   AdminRotationRule,
@@ -28,6 +29,7 @@ type DashboardShellProps = {
   majorRotation: AdminRotationRule;
   featuredSchoolPreview: AdminFeaturedPreviewItem[];
   featuredMajorPreview: AdminFeaturedPreviewItem[];
+  featuredSchedule: AdminFeaturedPreviewDay[];
   queueError?: string;
   featuredContentError?: string;
   approveAction: (formData: FormData) => Promise<void>;
@@ -49,6 +51,7 @@ export default function DashboardShell({
   majorRotation,
   featuredSchoolPreview,
   featuredMajorPreview,
+  featuredSchedule,
   queueError,
   featuredContentError,
   approveAction,
@@ -243,6 +246,43 @@ export default function DashboardShell({
               </li>
             ))}
           </ul>
+        )}
+      </section>
+
+      <section aria-labelledby="featured-schedule-heading">
+        <h2 id="featured-schedule-heading">未来 7 天轮换预览</h2>
+
+        {featuredContentError ? null : featuredSchedule.length === 0 ? (
+          <p>当前没有未来轮换预览</p>
+        ) : (
+          <div>
+            {featuredSchedule.map((day) => (
+              <article key={day.date}>
+                <h3>{day.date}</h3>
+                <p>{day.weekday}</p>
+                <p>学校</p>
+                {day.schools.length === 0 ? (
+                  <p>当天没有展示学校</p>
+                ) : (
+                  <ul>
+                    {day.schools.map((school) => (
+                      <li key={`${day.date}-${school.slug}`}>{school.slug}</li>
+                    ))}
+                  </ul>
+                )}
+                <p>专业</p>
+                {day.majors.length === 0 ? (
+                  <p>当天没有展示专业</p>
+                ) : (
+                  <ul>
+                    {day.majors.map((major) => (
+                      <li key={`${day.date}-${major.slug}`}>{major.slug}</li>
+                    ))}
+                  </ul>
+                )}
+              </article>
+            ))}
+          </div>
         )}
       </section>
     </main>

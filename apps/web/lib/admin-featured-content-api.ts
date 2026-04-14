@@ -16,6 +16,13 @@ export type AdminFeaturedPreviewItem = {
   name: string;
 };
 
+export type AdminFeaturedPreviewDay = {
+  date: string;
+  weekday: string;
+  schools: AdminFeaturedPreviewItem[];
+  majors: AdminFeaturedPreviewItem[];
+};
+
 export type AdminRotationRule = {
   enabled: boolean;
   frequencyDays: number;
@@ -31,8 +38,11 @@ export type AdminFeaturedContent = {
     majors: AdminRotationRule;
   };
   preview: {
-    schools: AdminFeaturedPreviewItem[];
-    majors: AdminFeaturedPreviewItem[];
+    today: {
+      schools: AdminFeaturedPreviewItem[];
+      majors: AdminFeaturedPreviewItem[];
+    };
+    schedule: AdminFeaturedPreviewDay[];
   };
 };
 
@@ -72,6 +82,13 @@ const mapRotationRule = (item?: {
   orderedSlugs: item?.ordered_slugs ?? [],
 });
 
+const mapPreviewItems = (
+  items?: Array<{
+    slug: string;
+    name: string;
+  }>,
+): AdminFeaturedPreviewItem[] => items ?? [];
+
 export async function listFeaturedContent(): Promise<AdminFeaturedContent> {
   const response = await fetch(`${getApiUrl()}/api/admin/featured-content`, {
     headers: buildHeaders(),
@@ -104,13 +121,27 @@ export async function listFeaturedContent(): Promise<AdminFeaturedContent> {
       };
     };
     preview?: {
-      schools?: Array<{
-        slug: string;
-        name: string;
-      }>;
-      majors?: Array<{
-        slug: string;
-        name: string;
+      today?: {
+        schools?: Array<{
+          slug: string;
+          name: string;
+        }>;
+        majors?: Array<{
+          slug: string;
+          name: string;
+        }>;
+      };
+      schedule?: Array<{
+        date: string;
+        weekday: string;
+        schools?: Array<{
+          slug: string;
+          name: string;
+        }>;
+        majors?: Array<{
+          slug: string;
+          name: string;
+        }>;
       }>;
     };
   }>(response);
@@ -132,8 +163,17 @@ export async function listFeaturedContent(): Promise<AdminFeaturedContent> {
       majors: mapRotationRule(payload.rotation?.majors),
     },
     preview: {
-      schools: payload.preview?.schools ?? [],
-      majors: payload.preview?.majors ?? [],
+      today: {
+        schools: mapPreviewItems(payload.preview?.today?.schools),
+        majors: mapPreviewItems(payload.preview?.today?.majors),
+      },
+      schedule:
+        payload.preview?.schedule?.map((day) => ({
+          date: day.date,
+          weekday: day.weekday,
+          schools: mapPreviewItems(day.schools),
+          majors: mapPreviewItems(day.majors),
+        })) ?? [],
     },
   };
 }

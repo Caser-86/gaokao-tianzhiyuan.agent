@@ -3,6 +3,7 @@ import DashboardShell, {
 } from '../../../components/admin/dashboard-shell';
 import {
   type AdminFeaturedMajor,
+  type AdminFeaturedPreviewDay,
   type AdminFeaturedPreviewItem,
   type AdminFeaturedSchool,
   type AdminRotationRule,
@@ -33,6 +34,7 @@ export default async function AdminPage() {
   let featuredMajors: AdminFeaturedMajor[] = [];
   let featuredSchoolPreview: AdminFeaturedPreviewItem[] = [];
   let featuredMajorPreview: AdminFeaturedPreviewItem[] = [];
+  let featuredSchedule: AdminFeaturedPreviewDay[] = [];
   let featuredContentError: string | undefined;
   let schoolRotation = defaultRotationRule();
   let majorRotation = defaultRotationRule();
@@ -49,8 +51,9 @@ export default async function AdminPage() {
     featuredMajors = featuredContent.majors;
     schoolRotation = featuredContent.rotation.schools;
     majorRotation = featuredContent.rotation.majors;
-    featuredSchoolPreview = featuredContent.preview.schools;
-    featuredMajorPreview = featuredContent.preview.majors;
+    featuredSchoolPreview = featuredContent.preview.today.schools;
+    featuredMajorPreview = featuredContent.preview.today.majors;
+    featuredSchedule = featuredContent.preview.schedule;
   } catch {
     featuredContentError = '展示配置加载失败，请稍后重试';
   }
@@ -65,6 +68,7 @@ export default async function AdminPage() {
       majorRotation={majorRotation}
       featuredSchoolPreview={featuredSchoolPreview}
       featuredMajorPreview={featuredMajorPreview}
+      featuredSchedule={featuredSchedule}
       queueError={queueError}
       featuredContentError={featuredContentError}
       approveAction={approveReviewQueueAction}

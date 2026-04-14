@@ -48,6 +48,31 @@ const majorPreview = [
   },
 ];
 
+const sevenDaySchedule = [
+  {
+    date: '2026-04-14',
+    weekday: '周二',
+    schools: schoolPreview,
+    majors: majorPreview,
+  },
+  {
+    date: '2026-04-15',
+    weekday: '周三',
+    schools: [
+      {
+        slug: 'west-china-medical-center',
+        name: '华西医学中心',
+      },
+    ],
+    majors: [
+      {
+        slug: 'computer-science',
+        name: '计算机科学与技术',
+      },
+    ],
+  },
+];
+
 test('renders admin dashboard heading and review queue items', () => {
   render(
     <DashboardShell
@@ -72,6 +97,7 @@ test('renders admin dashboard heading and review queue items', () => {
       majorRotation={majorRotation}
       featuredSchoolPreview={schoolPreview}
       featuredMajorPreview={majorPreview}
+      featuredSchedule={sevenDaySchedule}
       approveAction={async () => undefined}
       rejectAction={async () => undefined}
       updateFeaturedSchoolAction={async () => undefined}
@@ -101,6 +127,13 @@ test('renders admin dashboard heading and review queue items', () => {
   expect(within(schoolPreviewRegion).getByText('southeast-university')).toBeInTheDocument();
   expect(within(majorPreviewRegion).getByText('临床医学')).toBeInTheDocument();
   expect(within(majorPreviewRegion).getByText('clinical-medicine')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: '未来 7 天轮换预览' })).toBeInTheDocument();
+  expect(screen.getByText('2026-04-14')).toBeInTheDocument();
+  expect(screen.getByText('周二')).toBeInTheDocument();
+  expect(screen.getByText('2026-04-15')).toBeInTheDocument();
+  expect(screen.getByText('周三')).toBeInTheDocument();
+  expect(screen.getByText('west-china-medical-center')).toBeInTheDocument();
+  expect(screen.getByText('computer-science')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '通过' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '驳回' })).toBeInTheDocument();
 });
@@ -116,6 +149,7 @@ test('renders empty state when there are no pending items', () => {
       majorRotation={majorRotation}
       featuredSchoolPreview={[]}
       featuredMajorPreview={[]}
+      featuredSchedule={[]}
       approveAction={async () => undefined}
       rejectAction={async () => undefined}
       updateFeaturedSchoolAction={async () => undefined}
@@ -128,6 +162,7 @@ test('renders empty state when there are no pending items', () => {
   expect(screen.getByText('当前没有待审核内容')).toBeInTheDocument();
   expect(screen.getByText('当前没有可展示学校')).toBeInTheDocument();
   expect(screen.getByText('当前没有可展示专业')).toBeInTheDocument();
+  expect(screen.getByText('当前没有未来轮换预览')).toBeInTheDocument();
 });
 
 test('renders error state when queue loading fails', () => {
@@ -141,6 +176,7 @@ test('renders error state when queue loading fails', () => {
       majorRotation={majorRotation}
       featuredSchoolPreview={[]}
       featuredMajorPreview={[]}
+      featuredSchedule={[]}
       queueError="审核队列加载失败，请稍后重试"
       approveAction={async () => undefined}
       rejectAction={async () => undefined}

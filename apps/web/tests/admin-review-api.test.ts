@@ -205,16 +205,52 @@ test('listFeaturedContent sends authenticated request and maps admin config', as
         },
       },
       preview: {
-        schools: [
+        today: {
+          schools: [
+            {
+              slug: 'southeast-university',
+              name: '东南大学',
+            },
+          ],
+          majors: [
+            {
+              slug: 'clinical-medicine',
+              name: '临床医学',
+            },
+          ],
+        },
+        schedule: [
           {
-            slug: 'southeast-university',
-            name: '东南大学',
+            date: '2026-04-14',
+            weekday: '周二',
+            schools: [
+              {
+                slug: 'southeast-university',
+                name: '东南大学',
+              },
+            ],
+            majors: [
+              {
+                slug: 'clinical-medicine',
+                name: '临床医学',
+              },
+            ],
           },
-        ],
-        majors: [
           {
-            slug: 'clinical-medicine',
-            name: '临床医学',
+            date: '2026-04-15',
+            weekday: '周三',
+            schools: [
+              {
+                slug: 'west-china-medical-center',
+                name: '华西医学中心',
+              },
+            ],
+            majors: [
+              {
+                slug: 'computer-science',
+                name: '计算机科学与技术',
+              },
+            ],
           },
         ],
       },
@@ -256,16 +292,52 @@ test('listFeaturedContent sends authenticated request and maps admin config', as
     orderedSlugs: ['clinical-medicine'],
   });
   expect(payload.preview).toEqual({
-    schools: [
+    today: {
+      schools: [
+        {
+          slug: 'southeast-university',
+          name: '东南大学',
+        },
+      ],
+      majors: [
+        {
+          slug: 'clinical-medicine',
+          name: '临床医学',
+        },
+      ],
+    },
+    schedule: [
       {
-        slug: 'southeast-university',
-        name: '东南大学',
+        date: '2026-04-14',
+        weekday: '周二',
+        schools: [
+          {
+            slug: 'southeast-university',
+            name: '东南大学',
+          },
+        ],
+        majors: [
+          {
+            slug: 'clinical-medicine',
+            name: '临床医学',
+          },
+        ],
       },
-    ],
-    majors: [
       {
-        slug: 'clinical-medicine',
-        name: '临床医学',
+        date: '2026-04-15',
+        weekday: '周三',
+        schools: [
+          {
+            slug: 'west-china-medical-center',
+            name: '华西医学中心',
+          },
+        ],
+        majors: [
+          {
+            slug: 'computer-science',
+            name: '计算机科学与技术',
+          },
+        ],
       },
     ],
   });
