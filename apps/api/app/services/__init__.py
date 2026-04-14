@@ -1,5 +1,5 @@
 """Application services namespace."""
 
-from . import featured_content
+from . import chat, featured_content, skills
 
-__all__ = ["featured_content"]
+__all__ = ["chat", "featured_content", "skills"]
