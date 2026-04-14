@@ -65,7 +65,11 @@ function PreviewList({
     <ul>
       {items.map((item) => (
         <li key={item.slug}>
-          <span>{item.name}</span>
+          {imageAvailabilityBySlug ? (
+            <a href={`#featured-school-${item.slug}`}>{item.name}</a>
+          ) : (
+            <span>{item.name}</span>
+          )}
           <span>{item.slug}</span>
           {imageAvailabilityBySlug ? (
             <span>{imageAvailabilityBySlug[item.slug] ? '已配置图片' : '未配置图片'}</span>

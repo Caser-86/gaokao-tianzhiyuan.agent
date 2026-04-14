@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
 
 import DashboardShell from '../components/admin/dashboard-shell';
@@ -209,4 +209,51 @@ test('keeps the missing-image filter active across date preview navigation', asy
   expect(previousDayUrl.searchParams.get('missing_school_images')).toBe('1');
   expect(todayUrl.searchParams.get('missing_school_images')).toBe('1');
   expect(scheduleDayUrl.searchParams.get('missing_school_images')).toBe('1');
+});
+
+test('links previewed schools back to their configuration rows', () => {
+  render(
+    <DashboardShell
+      title="内容运营后台"
+      queueItems={[]}
+      featuredSchools={[
+        {
+          slug: 'west-china-medical-center',
+          name: '华西医学中心',
+          isFeatured: true,
+          heroImageUrl: '',
+        },
+      ]}
+      featuredMajors={[]}
+      schoolRotation={schoolRotation}
+      majorRotation={majorRotation}
+      featuredSchoolPreview={[
+        {
+          slug: 'west-china-medical-center',
+          name: '华西医学中心',
+        },
+      ]}
+      featuredMajorPreview={[]}
+      nextFeaturedSchoolPreview={[]}
+      nextFeaturedMajorPreview={[]}
+      featuredSchedule={[]}
+      selectedPreviewDateValue=""
+      selectedDatePreview={null}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
+    />,
+  );
+
+  expect(
+    within(screen.getByRole('region', { name: '今日展示学校' })).getByRole('link', {
+      name: '华西医学中心',
+    }),
+  ).toHaveAttribute(
+    'href',
+    '#featured-school-west-china-medical-center',
+  );
 });
