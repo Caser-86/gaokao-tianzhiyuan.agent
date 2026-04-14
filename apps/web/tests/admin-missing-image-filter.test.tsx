@@ -257,3 +257,51 @@ test('links previewed schools back to their configuration rows', () => {
     '#featured-school-west-china-medical-center',
   );
 });
+
+test('highlights missing-image schools that are scheduled for today or next', () => {
+  render(
+    <DashboardShell
+      title="内容运营后台"
+      queueItems={[]}
+      featuredSchools={[
+        {
+          slug: 'west-china-medical-center',
+          name: '华西医学中心',
+          isFeatured: true,
+          heroImageUrl: '',
+        },
+      ]}
+      featuredMajors={[]}
+      schoolRotation={schoolRotation}
+      majorRotation={majorRotation}
+      featuredSchoolPreview={[
+        {
+          slug: 'west-china-medical-center',
+          name: '华西医学中心',
+        },
+      ]}
+      featuredMajorPreview={[]}
+      nextFeaturedSchoolPreview={[
+        {
+          slug: 'west-china-medical-center',
+          name: '华西医学中心',
+        },
+      ]}
+      nextFeaturedMajorPreview={[]}
+      featuredSchedule={[]}
+      selectedPreviewDateValue=""
+      selectedDatePreview={null}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
+    />,
+  );
+
+  const missingImageRegion = screen.getByRole('region', { name: '待补图片学校（1）' });
+
+  expect(within(missingImageRegion).getByText('今日展示')).toBeInTheDocument();
+  expect(within(missingImageRegion).getByText('下一轮展示')).toBeInTheDocument();
+});

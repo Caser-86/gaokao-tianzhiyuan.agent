@@ -130,6 +130,8 @@ export default function DashboardShell({
   const displayedFeaturedSchools = showMissingImageSchoolsOnly
     ? sortedFeaturedSchools.filter((school) => !school.heroImageUrl)
     : sortedFeaturedSchools;
+  const todayPreviewSchoolSlugs = new Set(featuredSchoolPreview.map((school) => school.slug));
+  const nextPreviewSchoolSlugs = new Set(nextFeaturedSchoolPreview.map((school) => school.slug));
 
   return (
     <main>
@@ -259,6 +261,8 @@ export default function DashboardShell({
               <li key={school.slug}>
                 <a href={`#featured-school-${school.slug}`}>{school.name}</a>
                 <span>{school.slug}</span>
+                {todayPreviewSchoolSlugs.has(school.slug) ? <span>今日展示</span> : null}
+                {nextPreviewSchoolSlugs.has(school.slug) ? <span>下一轮展示</span> : null}
               </li>
             ))}
           </ul>
