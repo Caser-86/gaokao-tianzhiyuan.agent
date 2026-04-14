@@ -1,0 +1,24 @@
+{
+  "schools": [
+    {
+      "slug": "southeast-university",
+      "is_featured": true,
+      "hero_image_url": ""
+    },
+    {
+      "slug": "west-china-medical-center",
+      "is_featured": true,
+      "hero_image_url": ""
+    }
+  ],
+  "majors": [
+    {
+      "slug": "clinical-medicine",
+      "is_featured": true
+    },
+    {
+      "slug": "computer-science",
+      "is_featured": true
+    }
+  ]
+}

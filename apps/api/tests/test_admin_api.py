@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -9,6 +10,7 @@ from app.config import settings
 from app.db import get_session
 from app.main import app
 from app.models.ingestion import ReviewQueue
+from app.services import featured_content as featured_content_service
 
 
 @pytest.fixture
@@ -30,6 +32,45 @@ def admin_client():
         yield client, engine
 
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def featured_content_file(tmp_path, monkeypatch):
+    path = tmp_path / "featured-content.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schools": [
+                    {
+                        "slug": "southeast-university",
+                        "is_featured": True,
+                        "hero_image_url": "",
+                    },
+                    {
+                        "slug": "west-china-medical-center",
+                        "is_featured": True,
+                        "hero_image_url": "",
+                    },
+                ],
+                "majors": [
+                    {
+                        "slug": "clinical-medicine",
+                        "is_featured": True,
+                    },
+                    {
+                        "slug": "computer-science",
+                        "is_featured": True,
+                    },
+                ],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(featured_content_service, "FEATURED_CONTENT_PATH", path)
+    return path
 
 
 def test_review_queue_endpoint_requires_admin_header() -> None:
@@ -133,6 +174,89 @@ def test_review_queue_endpoint_uses_configured_admin_token(admin_client) -> None
         assert response.json() == {"items": []}
     finally:
         settings.admin_token = previous_token
+
+
+def test_featured_content_endpoint_returns_school_and_major_configuration(
+    admin_client,
+    featured_content_file,
+) -> None:
+    client, _engine = admin_client
+
+    response = client.get(
+        "/api/admin/featured-content",
+        headers={"x-admin-token": settings.admin_token},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert {
+        "slug": "southeast-university",
+        "name": "东南大学",
+        "is_featured": True,
+        "hero_image_url": "",
+    } in payload["schools"]
+    assert {
+        "slug": "west-china-medical-center",
+        "name": "华西医学中心",
+        "is_featured": True,
+        "hero_image_url": "",
+    } in payload["schools"]
+    assert {
+        "slug": "clinical-medicine",
+        "name": "临床医学",
+        "is_featured": True,
+    } in payload["majors"]
+    assert {
+        "slug": "computer-science",
+        "name": "计算机科学与技术",
+        "is_featured": True,
+    } in payload["majors"]
+
+
+def test_update_featured_school_persists_is_featured_and_image_url(
+    admin_client,
+    featured_content_file,
+) -> None:
+    client, _engine = admin_client
+
+    response = client.post(
+        "/api/admin/featured-content/schools/southeast-university",
+        headers={"x-admin-token": settings.admin_token},
+        json={
+            "is_featured": False,
+            "hero_image_url": "https://cdn.example.com/southeast.jpg",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "slug": "southeast-university",
+        "name": "东南大学",
+        "is_featured": False,
+        "hero_image_url": "https://cdn.example.com/southeast.jpg",
+    }
+    saved = json.loads(featured_content_file.read_text(encoding="utf-8"))
+    assert saved["schools"][0] == {
+        "slug": "southeast-university",
+        "is_featured": False,
+        "hero_image_url": "https://cdn.example.com/southeast.jpg",
+    }
+
+
+def test_update_featured_major_rejects_unknown_slug(
+    admin_client,
+    featured_content_file,
+) -> None:
+    client, _engine = admin_client
+
+    response = client.post(
+        "/api/admin/featured-content/majors/missing-major",
+        headers={"x-admin-token": settings.admin_token},
+        json={"is_featured": True},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "featured content entity not found"}
 
 
 def test_approve_review_queue_item_updates_status_and_audit_fields(admin_client) -> None:

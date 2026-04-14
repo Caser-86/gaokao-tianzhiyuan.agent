@@ -6,6 +6,11 @@ from sqlmodel import SQLModel, Session, select
 from ..config import settings
 from ..db import get_session
 from ..models.ingestion import ReviewQueue
+from ..services.featured_content import (
+    list_featured_content,
+    update_featured_major,
+    update_featured_school,
+)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -31,6 +36,33 @@ class ReviewQueueListResponse(SQLModel):
 class ReviewDecisionRequest(SQLModel):
     reviewed_by: str
     review_note: str | None = None
+
+
+class FeaturedSchoolConfigResponse(SQLModel):
+    slug: str
+    name: str
+    is_featured: bool
+    hero_image_url: str = ""
+
+
+class FeaturedMajorConfigResponse(SQLModel):
+    slug: str
+    name: str
+    is_featured: bool
+
+
+class FeaturedContentResponse(SQLModel):
+    schools: list[FeaturedSchoolConfigResponse]
+    majors: list[FeaturedMajorConfigResponse]
+
+
+class FeaturedSchoolConfigRequest(SQLModel):
+    is_featured: bool
+    hero_image_url: str | None = None
+
+
+class FeaturedMajorConfigRequest(SQLModel):
+    is_featured: bool
 
 
 def serialize_review_queue_item(item: ReviewQueue) -> ReviewQueueItemResponse:
@@ -103,6 +135,70 @@ def list_review_queue(
     return ReviewQueueListResponse(
         items=[serialize_review_queue_item(item) for item in items]
     )
+
+
+@router.get("/featured-content", response_model=FeaturedContentResponse)
+def get_featured_content(
+    _authorized: None = Depends(require_admin),
+) -> FeaturedContentResponse:
+    payload = list_featured_content()
+    return FeaturedContentResponse(
+        schools=[
+            FeaturedSchoolConfigResponse(**school)
+            for school in payload["schools"]
+        ],
+        majors=[
+            FeaturedMajorConfigResponse(**major)
+            for major in payload["majors"]
+        ],
+    )
+
+
+@router.post(
+    "/featured-content/schools/{slug}",
+    response_model=FeaturedSchoolConfigResponse,
+)
+def update_featured_school_config(
+    slug: str,
+    payload: FeaturedSchoolConfigRequest,
+    _authorized: None = Depends(require_admin),
+) -> FeaturedSchoolConfigResponse:
+    try:
+        updated = update_featured_school(
+            slug,
+            is_featured=payload.is_featured,
+            hero_image_url=payload.hero_image_url,
+        )
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="featured content entity not found",
+        ) from exc
+
+    return FeaturedSchoolConfigResponse(**updated)
+
+
+@router.post(
+    "/featured-content/majors/{slug}",
+    response_model=FeaturedMajorConfigResponse,
+)
+def update_featured_major_config(
+    slug: str,
+    payload: FeaturedMajorConfigRequest,
+    _authorized: None = Depends(require_admin),
+) -> FeaturedMajorConfigResponse:
+    try:
+        updated = update_featured_major(
+            slug,
+            is_featured=payload.is_featured,
+        )
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="featured content entity not found",
+        ) from exc
+
+    return FeaturedMajorConfigResponse(**updated)
 
 
 @router.post("/review-queue/{queue_id}/approve", response_model=ReviewQueueItemResponse)
