@@ -141,3 +141,72 @@ test('preserves the selected preview date when linking into the missing-image sc
   expect(filterUrl.searchParams.get('missing_school_images')).toBe('1');
   expect(screen.queryByRole('link', { name: '查看全部学校' })).not.toBeInTheDocument();
 });
+
+test('keeps the missing-image filter active across date preview navigation', async () => {
+  listReviewQueueMock.mockResolvedValue([]);
+  listFeaturedContentMock.mockResolvedValue({
+    schools: [
+      {
+        slug: 'west-china-medical-center',
+        name: '内容候补学校',
+        isFeatured: true,
+        heroImageUrl: '',
+      },
+    ],
+    majors: [],
+    rotation: {
+      schools: schoolRotation,
+      majors: majorRotation,
+    },
+    preview: {
+      today: { schools: [], majors: [] },
+      next: { schools: [], majors: [] },
+      schedule: [
+        {
+          date: '2026-04-14',
+          weekday: '周二',
+          schools: [],
+          majors: [],
+        },
+        {
+          date: '2026-04-15',
+          weekday: '周三',
+          schools: [],
+          majors: [],
+        },
+      ],
+      selectedDate: null,
+      selectedDateError: null,
+    },
+  });
+
+  render(
+    await AdminPage({
+      searchParams: Promise.resolve({
+        preview_date: '2026-04-15',
+        missing_school_images: '1',
+      }),
+    }),
+  );
+
+  const previousDayUrl = new URL(
+    screen.getByRole('link', { name: '查看前一天' }).getAttribute('href') ?? '',
+    'https://example.com',
+  );
+  const todayUrl = new URL(
+    screen.getByRole('link', { name: '回到今天' }).getAttribute('href') ?? '',
+    'https://example.com',
+  );
+  const scheduleDayUrl = new URL(
+    screen.getByRole('link', { name: '2026-04-14' }).getAttribute('href') ?? '',
+    'https://example.com',
+  );
+
+  expect(screen.getByDisplayValue('2026-04-15')).toBeInTheDocument();
+  expect(
+    document.querySelector('input[type="hidden"][name="missing_school_images"][value="1"]'),
+  ).not.toBeNull();
+  expect(previousDayUrl.searchParams.get('missing_school_images')).toBe('1');
+  expect(todayUrl.searchParams.get('missing_school_images')).toBe('1');
+  expect(scheduleDayUrl.searchParams.get('missing_school_images')).toBe('1');
+});

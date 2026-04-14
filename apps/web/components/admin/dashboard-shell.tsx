@@ -405,6 +405,9 @@ export default function DashboardShell({
             预览日期
             <input type="date" name="preview_date" defaultValue={selectedPreviewDateValue} />
           </label>
+          {showMissingImageSchoolsOnly ? (
+            <input type="hidden" name="missing_school_images" value="1" />
+          ) : null}
           <button type="submit">查看该日轮换</button>
         </form>
 
@@ -463,7 +466,15 @@ export default function DashboardShell({
                   {day.date === highlightedScheduleDate ? (
                     day.date
                   ) : (
-                    <a href={`/admin?preview_date=${day.date}`}>{day.date}</a>
+                    <a
+                      href={
+                        showMissingImageSchoolsOnly
+                          ? `/admin?preview_date=${day.date}&missing_school_images=1`
+                          : `/admin?preview_date=${day.date}`
+                      }
+                    >
+                      {day.date}
+                    </a>
                   )}
                 </h3>
                 <p>{day.weekday}</p>
