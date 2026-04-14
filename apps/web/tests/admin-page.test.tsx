@@ -46,6 +46,7 @@ test('renders queue items, date preview shortcuts, and schedule highlight return
       created_at: '2026-04-13T09:10:00Z',
     },
   ]);
+
   listFeaturedContentMock.mockResolvedValue({
     schools: [
       {
@@ -53,6 +54,12 @@ test('renders queue items, date preview shortcuts, and schedule highlight return
         name: '内容学校',
         isFeatured: true,
         heroImageUrl: 'https://cdn.example.com/southeast.jpg',
+      },
+      {
+        slug: 'west-china-medical-center',
+        name: '内容候补学校',
+        isFeatured: true,
+        heroImageUrl: '',
       },
     ],
     majors: [
@@ -171,7 +178,10 @@ test('renders queue items, date preview shortcuts, and schedule highlight return
   expect(screen.getByRole('heading', { name: '内容运营后台' })).toBeInTheDocument();
   expect(screen.getByText('school #901')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '学校展示配置' })).toBeInTheDocument();
+
+  const featuredSchoolsRegion = screen.getByRole('region', { name: '学校展示配置' });
   expect(screen.getByText('内容学校')).toBeInTheDocument();
+  expect(within(featuredSchoolsRegion).getByText('内容候补学校')).toBeInTheDocument();
   expect(screen.getByDisplayValue('https://cdn.example.com/southeast.jpg')).toBeInTheDocument();
   expect(
     screen.getByRole('img', { name: 'featured-school-image-southeast-university' }),
@@ -181,6 +191,11 @@ test('renders queue items, date preview shortcuts, and schedule highlight return
     'https://cdn.example.com/southeast.jpg',
   );
   expect(screen.getByRole('button', { name: '清空图片' })).toBeInTheDocument();
+
+  const missingImageRegion = screen.getByRole('region', { name: '待补图片学校' });
+  expect(within(missingImageRegion).getByText('内容候补学校')).toBeInTheDocument();
+  expect(within(missingImageRegion).getByText('west-china-medical-center')).toBeInTheDocument();
+
   expect(screen.getByRole('heading', { name: '专业展示配置' })).toBeInTheDocument();
   expect(screen.getByText('内容专业')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '学校轮换规则' })).toBeInTheDocument();

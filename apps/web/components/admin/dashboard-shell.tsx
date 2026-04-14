@@ -106,6 +106,9 @@ export default function DashboardShell({
   const schoolImageAvailabilityBySlug = Object.fromEntries(
     featuredSchools.map((school) => [school.slug, Boolean(school.heroImageUrl)]),
   );
+  const schoolsMissingImages = featuredSchools
+    .filter((school) => !school.heroImageUrl)
+    .map(({ slug, name }) => ({ slug, name }));
 
   return (
     <main>
@@ -210,6 +213,16 @@ export default function DashboardShell({
             ))}
           </div>
         ) : null}
+      </section>
+
+      <section aria-labelledby="missing-school-images-heading">
+        <h2 id="missing-school-images-heading">待补图片学校</h2>
+
+        {featuredContentError ? null : schoolsMissingImages.length === 0 ? (
+          <p>当前没有待补图片学校</p>
+        ) : (
+          <PreviewList items={schoolsMissingImages} />
+        )}
       </section>
 
       <section aria-labelledby="featured-majors-heading">

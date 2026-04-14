@@ -96,6 +96,12 @@ test('renders admin dashboard heading, date preview shortcuts, and schedule high
           isFeatured: true,
           heroImageUrl: 'https://cdn.example.com/southeast.jpg',
         },
+        {
+          slug: 'west-china-medical-center',
+          name: '华西医学中心',
+          isFeatured: true,
+          heroImageUrl: '',
+        },
       ]}
       featuredMajors={[
         {
@@ -144,6 +150,7 @@ test('renders admin dashboard heading, date preview shortcuts, and schedule high
   expect(screen.getByText('summary, strengths')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '学校展示配置' })).toBeInTheDocument();
   expect(screen.getByRole('checkbox', { name: '东南大学' })).toBeInTheDocument();
+  expect(screen.getByRole('checkbox', { name: '华西医学中心' })).toBeInTheDocument();
   expect(
     screen.getByRole('img', { name: 'featured-school-image-southeast-university' }),
   ).toHaveAttribute('src', 'https://cdn.example.com/southeast.jpg');
@@ -152,6 +159,9 @@ test('renders admin dashboard heading, date preview shortcuts, and schedule high
     'https://cdn.example.com/southeast.jpg',
   );
   expect(screen.getByRole('button', { name: '清空图片' })).toBeInTheDocument();
+  const missingImageRegion = screen.getByRole('region', { name: '待补图片学校' });
+  expect(within(missingImageRegion).getByText('华西医学中心')).toBeInTheDocument();
+  expect(within(missingImageRegion).getByText('west-china-medical-center')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '专业展示配置' })).toBeInTheDocument();
   expect(screen.getByRole('checkbox', { name: '临床医学' })).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '学校轮换规则' })).toBeInTheDocument();
