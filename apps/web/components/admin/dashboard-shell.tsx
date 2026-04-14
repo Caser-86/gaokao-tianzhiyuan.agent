@@ -1170,6 +1170,7 @@ export default function DashboardShell({
     : scheduledPreviewDays;
   const scheduledGapDayCount = scheduledPreviewDays.filter((day) => day.gapCount > 0).length;
   const scheduledHighPriorityDayCount = scheduledPreviewDays.filter((day) => day.gapCount >= 2).length;
+  const nearestScheduledGapDay = scheduledPreviewDays.find((day) => day.gapCount > 0) ?? null;
 
   return (
     <main>
@@ -1190,6 +1191,13 @@ export default function DashboardShell({
         ) : (
           <>
             <p>{`今日待补 ${contentGapOverviewTodayCount} 项，下一轮待补 ${contentGapOverviewNextCount} 项，总待补 ${contentGapOverviewTotalCount} 项`}</p>
+            {nearestScheduledGapDay ? (
+              <p>
+                <a href={`${buildPreviewDateHref(nearestScheduledGapDay.date)}#featured-schedule-heading`}>
+                  {`鏌ョ湅鏈€杩戝緟琛ユ棩鏈燂紙${nearestScheduledGapDay.date}锛?`}
+                </a>
+              </p>
+            ) : null}
             <ul>
               {contentGapOverviewItems.map((item) => (
                 <li key={item.key}>

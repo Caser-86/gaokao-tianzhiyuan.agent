@@ -911,3 +911,58 @@ test('renders a scheduled-gap empty state when no future days need content updat
     '/admin',
   );
 });
+
+test('links content gap overview to the nearest scheduled gap day by anchor target', () => {
+  render(
+    <DashboardShell
+      title="内容运营后台"
+      queueItems={[]}
+      featuredSchools={[
+        {
+          slug: 'southeast-university',
+          name: 'Southeast University',
+          isFeatured: true,
+          heroImageUrl: '',
+        },
+      ]}
+      featuredMajors={[]}
+      schoolRotation={schoolRotation}
+      majorRotation={majorRotation}
+      featuredSchoolPreview={schoolPreview}
+      featuredMajorPreview={[]}
+      nextFeaturedSchoolPreview={[]}
+      nextFeaturedMajorPreview={[]}
+      featuredSchedule={[
+        {
+          date: '2026-04-14',
+          weekday: '周二',
+          schools: [],
+          majors: [],
+        },
+        {
+          date: '2026-04-15',
+          weekday: '周三',
+          schools: [{ slug: 'southeast-university', name: 'Southeast University' }],
+          majors: [],
+        },
+      ]}
+      selectedPreviewDateValue=""
+      selectedDatePreview={null}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
+    />,
+  );
+
+  const overviewRegion = document.querySelector(
+    'section[aria-labelledby="content-gap-overview-heading"]',
+  );
+
+  expect(overviewRegion).not.toBeNull();
+  expect(
+    within(overviewRegion as HTMLElement).getByRole('link', { name: /2026-04-15/ }),
+  ).toHaveAttribute('href', '/admin?preview_date=2026-04-15#featured-schedule-heading');
+});
