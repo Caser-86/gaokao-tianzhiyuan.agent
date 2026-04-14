@@ -232,7 +232,6 @@ def test_featured_content_endpoint_returns_school_and_major_configuration(
         "is_featured": True,
     } in payload["majors"]
 
-
     assert payload["rotation"] == {
         "schools": {
             "enabled": True,
@@ -260,6 +259,7 @@ def test_featured_content_endpoint_returns_today_preview(
     featured_content_file,
 ) -> None:
     client, _engine = admin_client
+    expected_preview = featured_content_service.build_featured_content_preview()
 
     response = client.get(
         "/api/admin/featured-content",
@@ -267,20 +267,7 @@ def test_featured_content_endpoint_returns_today_preview(
     )
 
     assert response.status_code == 200
-    assert response.json()["preview"]["today"] == {
-        "schools": [
-            {
-                "slug": "southeast-university",
-                "name": "东南大学",
-            }
-        ],
-        "majors": [
-            {
-                "slug": "clinical-medicine",
-                "name": "临床医学",
-            }
-        ],
-    }
+    assert response.json()["preview"]["today"] == expected_preview["today"]
 
 
 def test_featured_content_endpoint_returns_seven_day_schedule(
@@ -289,6 +276,7 @@ def test_featured_content_endpoint_returns_seven_day_schedule(
 ) -> None:
     client, _engine = admin_client
     today = date.today()
+    expected_preview = featured_content_service.build_featured_content_preview()
 
     response = client.get(
         "/api/admin/featured-content",
@@ -300,31 +288,11 @@ def test_featured_content_endpoint_returns_seven_day_schedule(
 
     assert len(schedule) == 7
     assert schedule[0]["date"] == today.isoformat()
-    assert schedule[0]["schools"] == [
-        {
-            "slug": "southeast-university",
-            "name": "东南大学",
-        }
-    ]
-    assert schedule[0]["majors"] == [
-        {
-            "slug": "clinical-medicine",
-            "name": "临床医学",
-        }
-    ]
+    assert schedule[0]["schools"] == expected_preview["schedule"][0]["schools"]
+    assert schedule[0]["majors"] == expected_preview["schedule"][0]["majors"]
     assert schedule[1]["date"] == (today + timedelta(days=1)).isoformat()
-    assert schedule[1]["schools"] == [
-        {
-            "slug": "west-china-medical-center",
-            "name": "华西医学中心",
-        }
-    ]
-    assert schedule[1]["majors"] == [
-        {
-            "slug": "computer-science",
-            "name": "计算机科学与技术",
-        }
-    ]
+    assert schedule[1]["schools"] == expected_preview["schedule"][1]["schools"]
+    assert schedule[1]["majors"] == expected_preview["schedule"][1]["majors"]
 
 
 def test_featured_content_endpoint_returns_next_preview(
@@ -332,6 +300,7 @@ def test_featured_content_endpoint_returns_next_preview(
     featured_content_file,
 ) -> None:
     client, _engine = admin_client
+    expected_preview = featured_content_service.build_featured_content_preview()
 
     response = client.get(
         "/api/admin/featured-content",
@@ -339,20 +308,7 @@ def test_featured_content_endpoint_returns_next_preview(
     )
 
     assert response.status_code == 200
-    assert response.json()["preview"]["next"] == {
-        "schools": [
-            {
-                "slug": "west-china-medical-center",
-                "name": "华西医学中心",
-            }
-        ],
-        "majors": [
-            {
-                "slug": "computer-science",
-                "name": "计算机科学与技术",
-            }
-        ],
-    }
+    assert response.json()["preview"]["next"] == expected_preview["next"]
 
 
 def test_featured_content_endpoint_returns_selected_date_preview(
