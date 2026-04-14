@@ -162,30 +162,41 @@ export default function DashboardShell({
         {!featuredContentError ? (
           <div>
             {featuredSchools.map((school) => (
-              <form key={school.slug} action={updateFeaturedSchoolAction}>
-                <input type="hidden" name="slug" value={school.slug} />
-                <label>
-                  <input type="checkbox" name="isFeatured" defaultChecked={school.isFeatured} />
-                  {school.name}
-                </label>
-                <p>{school.slug}</p>
-                <input
-                  type="text"
-                  name="heroImageUrl"
-                  defaultValue={school.heroImageUrl}
-                  aria-label={`学校图片 ${school.slug}`}
-                />
-                {school.heroImageUrl ? (
-                  <img
-                    src={school.heroImageUrl}
-                    alt={`${school.name} 当前展示图`}
-                    aria-label={`featured-school-image-${school.slug}`}
-                    width={160}
-                    height={96}
+              <div key={school.slug}>
+                <form action={updateFeaturedSchoolAction}>
+                  <input type="hidden" name="slug" value={school.slug} />
+                  <label>
+                    <input type="checkbox" name="isFeatured" defaultChecked={school.isFeatured} />
+                    {school.name}
+                  </label>
+                  <p>{school.slug}</p>
+                  <input
+                    type="text"
+                    name="heroImageUrl"
+                    defaultValue={school.heroImageUrl}
+                    aria-label={`学校图片 ${school.slug}`}
                   />
+                  {school.heroImageUrl ? (
+                    <img
+                      src={school.heroImageUrl}
+                      alt={`${school.name} 当前展示图`}
+                      aria-label={`featured-school-image-${school.slug}`}
+                      width={160}
+                      height={96}
+                    />
+                  ) : null}
+                  <button type="submit">保存</button>
+                </form>
+
+                {school.heroImageUrl ? (
+                  <form action={updateFeaturedSchoolAction}>
+                    <input type="hidden" name="slug" value={school.slug} />
+                    <input type="hidden" name="isFeatured" value={school.isFeatured ? 'on' : ''} />
+                    <input type="hidden" name="heroImageUrl" value="" />
+                    <button type="submit">清空图片</button>
+                  </form>
                 ) : null}
-                <button type="submit">保存</button>
-              </form>
+              </div>
             ))}
           </div>
         ) : null}
@@ -222,7 +233,12 @@ export default function DashboardShell({
             </label>
             <label>
               轮换频率（天）
-              <input type="number" name="frequencyDays" min={1} defaultValue={schoolRotation.frequencyDays} />
+              <input
+                type="number"
+                name="frequencyDays"
+                min={1}
+                defaultValue={schoolRotation.frequencyDays}
+              />
             </label>
             <label>
               当前展示数量
@@ -252,7 +268,12 @@ export default function DashboardShell({
             </label>
             <label>
               轮换频率（天）
-              <input type="number" name="frequencyDays" min={1} defaultValue={majorRotation.frequencyDays} />
+              <input
+                type="number"
+                name="frequencyDays"
+                min={1}
+                defaultValue={majorRotation.frequencyDays}
+              />
             </label>
             <label>
               当前展示数量
