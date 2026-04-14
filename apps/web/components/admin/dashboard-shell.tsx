@@ -1247,9 +1247,10 @@ export default function DashboardShell({
     previewDate: string,
     schoolSlugs: Set<string>,
     majorSlugs: Set<string>,
-  ): string | null => {
+  ): { href: string; label: string } | null => {
     const gapItems = [
       {
+        label: '学校图片',
         href:
           schoolsMissingImages.find((school) => schoolSlugs.has(school.slug))?.slug
             ? `#featured-school-${schoolsMissingImages.find((school) => schoolSlugs.has(school.slug))?.slug}`
@@ -1259,6 +1260,7 @@ export default function DashboardShell({
         totalCount: schoolsMissingImages.length,
       },
       {
+        label: '学校榜单',
         href:
           missingSchoolRankingReferences.find((school) => schoolSlugs.has(school.slug))?.slug
             ? `#school-ranking-reference-${missingSchoolRankingReferences.find((school) =>
@@ -1270,6 +1272,7 @@ export default function DashboardShell({
         totalCount: missingSchoolRankingReferences.length,
       },
       {
+        label: '专业榜单',
         href:
           missingMajorRankingReferences.find((major) => majorSlugs.has(major.slug))?.slug
             ? `#major-ranking-reference-${missingMajorRankingReferences.find((major) =>
@@ -1281,6 +1284,7 @@ export default function DashboardShell({
         totalCount: missingMajorRankingReferences.length,
       },
       {
+        label: '学校摘要',
         href:
           missingSchoolSummaries.find((school) => schoolSlugs.has(school.slug))?.slug
             ? `#school-summary-${missingSchoolSummaries.find((school) => schoolSlugs.has(school.slug))?.slug}`
@@ -1290,6 +1294,7 @@ export default function DashboardShell({
         totalCount: missingSchoolSummaries.length,
       },
       {
+        label: '专业摘要',
         href:
           missingMajorSummaries.find((major) => majorSlugs.has(major.slug))?.slug
             ? `#major-summary-${missingMajorSummaries.find((major) => majorSlugs.has(major.slug))?.slug}`
@@ -1299,6 +1304,7 @@ export default function DashboardShell({
         totalCount: missingMajorSummaries.length,
       },
       {
+        label: '学校正文',
         href:
           missingSchoolSections.find((school) => schoolSlugs.has(school.slug))?.slug
             ? `#school-sections-${missingSchoolSections.find((school) => schoolSlugs.has(school.slug))?.slug}`
@@ -1308,6 +1314,7 @@ export default function DashboardShell({
         totalCount: missingSchoolSections.length,
       },
       {
+        label: '专业正文',
         href:
           missingMajorSections.find((major) => majorSlugs.has(major.slug))?.slug
             ? `#major-sections-${missingMajorSections.find((major) => majorSlugs.has(major.slug))?.slug}`
@@ -1317,6 +1324,7 @@ export default function DashboardShell({
         totalCount: missingMajorSections.length,
       },
       {
+        label: '学校相关推荐',
         href:
           missingSchoolRelatedContent.find((school) => schoolSlugs.has(school.slug))?.slug
             ? `#school-related-content-${missingSchoolRelatedContent.find((school) =>
@@ -1328,6 +1336,7 @@ export default function DashboardShell({
         totalCount: missingSchoolRelatedContent.length,
       },
       {
+        label: '专业相关推荐',
         href:
           missingMajorRelatedContent.find((major) => majorSlugs.has(major.slug))?.slug
             ? `#major-related-content-${missingMajorRelatedContent.find((major) =>
@@ -1356,7 +1365,12 @@ export default function DashboardShell({
         return 0;
       });
 
-    return gapItems[0] ? `${buildPreviewDateHref(previewDate)}${gapItems[0].href}` : null;
+    return gapItems[0]
+      ? {
+          href: `${buildPreviewDateHref(previewDate)}${gapItems[0].href}`,
+          label: gapItems[0].label,
+        }
+      : null;
   };
   const buildSelectedDateGapHref = (itemKey: string, fallbackHref: string): string => {
     if (!selectedDatePreview) {
@@ -1437,11 +1451,21 @@ export default function DashboardShell({
     return {
       ...day,
       gapCount,
-      topPriorityGapHref: buildTopPriorityGapHref(
+      topPriorityGap: buildTopPriorityGapHref(
         day.date,
         scheduleDaySchoolSlugs,
         scheduleDayMajorSlugs,
       ),
+      topPriorityGapHref: buildTopPriorityGapHref(
+        day.date,
+        scheduleDaySchoolSlugs,
+        scheduleDayMajorSlugs,
+      )?.href,
+      topPriorityGapLabel: buildTopPriorityGapHref(
+        day.date,
+        scheduleDaySchoolSlugs,
+        scheduleDayMajorSlugs,
+      )?.label,
     };
   });
   const displayedScheduledPreviewDays = showScheduledGapDaysOnly
@@ -2557,8 +2581,9 @@ export default function DashboardShell({
                     </a>
                   </p>
                 ) : null}
-                {day.topPriorityGapHref ? (
+                {day.topPriorityGap ? (
                   <p>
+                    <a href={day.topPriorityGap.href}>{`优先处理${day.topPriorityGapLabel}`}</a>{' '}
                     <a href={day.topPriorityGapHref}>鏌ョ湅鏈€浼樺厛缂哄彛</a>
                   </p>
                 ) : null}

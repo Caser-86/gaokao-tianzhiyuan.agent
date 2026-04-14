@@ -1209,15 +1209,11 @@ test('adds a top-priority gap shortcut to scheduled preview cards', () => {
     .closest('article');
 
   expect(
-    (firstDayArticle as HTMLElement).querySelector(
-      'a[href="/admin?preview_date=2026-04-14#featured-school-southeast-university"]',
-    ),
-  ).not.toBeNull();
+    within(firstDayArticle as HTMLElement).getByRole('link', { name: '优先处理学校图片' }),
+  ).toHaveAttribute('href', '/admin?preview_date=2026-04-14#featured-school-southeast-university');
   expect(
-    (secondDayArticle as HTMLElement).querySelector(
-      'a[href="/admin?preview_date=2026-04-15#school-ranking-reference-wuhan-university"]',
-    ),
-  ).not.toBeNull();
+    within(secondDayArticle as HTMLElement).getByRole('link', { name: '优先处理学校榜单' }),
+  ).toHaveAttribute('href', '/admin?preview_date=2026-04-15#school-ranking-reference-wuhan-university');
 });
 
 /* test.skip('renders scheduled gap summary, urgency labels, and per-day gap actions', () => {
