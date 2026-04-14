@@ -1443,6 +1443,7 @@ export default function DashboardShell({
     ...item,
     href: buildSelectedDateGapHref(item.key, item.href),
   }));
+  const selectedDateTopPriorityGap = selectedDateGapOverviewLinks[0] ?? null;
   const scheduledPreviewDays = featuredSchedule.map((day) => {
     const scheduleDaySchoolSlugs = new Set(day.schools.map((school) => school.slug));
     const scheduleDayMajorSlugs = new Set(day.majors.map((major) => major.slug));
@@ -1541,6 +1542,13 @@ export default function DashboardShell({
           ) : (
             <>
               <p>{`该日待补 ${selectedDateGapOverviewSelectedCount} 项，下一轮待补 ${selectedDateGapOverviewNextCount} 项，总待补 ${selectedDateGapOverviewTotalCount} 项`}</p>
+              {selectedDateTopPriorityGap ? (
+                <p>
+                  <a href={selectedDateTopPriorityGap.href}>
+                    {`该日最高优先 · ${selectedDateTopPriorityGap.label}`}
+                  </a>
+                </p>
+              ) : null}
               <p>
                 <a href={`#featured-schedule-day-${selectedDatePreview.date}`}>
                   {`杩斿洖杞崲鏃ユ湡锛?${selectedDatePreview.date}锛?`}
