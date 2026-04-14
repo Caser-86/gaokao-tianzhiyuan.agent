@@ -1038,7 +1038,7 @@ test('adds the nearest scheduled gap date to content gap item links', () => {
     }),
   ).toHaveAttribute(
     'href',
-    '/admin?scheduled_missing_school_images=1&preview_date=2026-04-15#missing-school-images-heading',
+    '/admin?scheduled_missing_school_images=1&preview_date=2026-04-15#featured-school-southeast-university',
   );
 });
 

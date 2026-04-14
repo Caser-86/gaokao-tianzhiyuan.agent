@@ -1166,23 +1166,82 @@ export default function DashboardShell({
 
     return href;
   };
-  const withNearestScheduledGapDate = (href: string): string => {
+  const withNearestScheduledGapDate = (itemKey: string, href: string): string => {
     if (!nearestScheduledGapDay) {
       return href;
     }
 
+    const nearestSchoolSlugs = new Set(nearestScheduledGapDay.schools.map((school) => school.slug));
+    const nearestMajorSlugs = new Set(nearestScheduledGapDay.majors.map((major) => major.slug));
+    const deepLinkByKey: Record<string, string | undefined> = {
+      'school-images': schoolsMissingImages.find((school) => nearestSchoolSlugs.has(school.slug))?.slug
+        ? `#featured-school-${schoolsMissingImages.find((school) => nearestSchoolSlugs.has(school.slug))?.slug}`
+        : undefined,
+      'school-rankings': missingSchoolRankingReferences.find((school) =>
+        nearestSchoolSlugs.has(school.slug),
+      )?.slug
+        ? `#school-ranking-reference-${missingSchoolRankingReferences.find((school) =>
+            nearestSchoolSlugs.has(school.slug),
+          )?.slug}`
+        : undefined,
+      'major-rankings': missingMajorRankingReferences.find((major) => nearestMajorSlugs.has(major.slug))
+        ?.slug
+        ? `#major-ranking-reference-${missingMajorRankingReferences.find((major) =>
+            nearestMajorSlugs.has(major.slug),
+          )?.slug}`
+        : undefined,
+      'school-summaries': missingSchoolSummaries.find((school) => nearestSchoolSlugs.has(school.slug))
+        ?.slug
+        ? `#school-summary-${missingSchoolSummaries.find((school) =>
+            nearestSchoolSlugs.has(school.slug),
+          )?.slug}`
+        : undefined,
+      'major-summaries': missingMajorSummaries.find((major) => nearestMajorSlugs.has(major.slug))
+        ?.slug
+        ? `#major-summary-${missingMajorSummaries.find((major) =>
+            nearestMajorSlugs.has(major.slug),
+          )?.slug}`
+        : undefined,
+      'school-sections': missingSchoolSections.find((school) => nearestSchoolSlugs.has(school.slug))
+        ?.slug
+        ? `#school-sections-${missingSchoolSections.find((school) =>
+            nearestSchoolSlugs.has(school.slug),
+          )?.slug}`
+        : undefined,
+      'major-sections': missingMajorSections.find((major) => nearestMajorSlugs.has(major.slug))
+        ?.slug
+        ? `#major-sections-${missingMajorSections.find((major) =>
+            nearestMajorSlugs.has(major.slug),
+          )?.slug}`
+        : undefined,
+      'school-related': missingSchoolRelatedContent.find((school) =>
+        nearestSchoolSlugs.has(school.slug),
+      )?.slug
+        ? `#school-related-content-${missingSchoolRelatedContent.find((school) =>
+            nearestSchoolSlugs.has(school.slug),
+          )?.slug}`
+        : undefined,
+      'major-related': missingMajorRelatedContent.find((major) => nearestMajorSlugs.has(major.slug))
+        ?.slug
+        ? `#major-related-content-${missingMajorRelatedContent.find((major) =>
+            nearestMajorSlugs.has(major.slug),
+          )?.slug}`
+        : undefined,
+    };
+    const targetHash = deepLinkByKey[itemKey] ?? '';
+
     if (href.startsWith('#')) {
-      return `${buildPreviewDateHref(nearestScheduledGapDay.date)}${href}`;
+      return `${buildPreviewDateHref(nearestScheduledGapDay.date)}${targetHash || href}`;
     }
 
-    const [pathAndSearch, hash = ''] = href.split('#');
+    const [pathAndSearch] = href.split('#');
     const [pathname, search = ''] = pathAndSearch.split('?');
     const searchParams = new URLSearchParams(search);
     searchParams.set('preview_date', nearestScheduledGapDay.date);
 
     const query = searchParams.toString();
 
-    return `${pathname}${query ? `?${query}` : ''}${hash ? `#${hash}` : ''}`;
+    return `${pathname}${query ? `?${query}` : ''}${targetHash}`;
   };
   const buildTopPriorityGapHref = (
     previewDate: string,
@@ -1421,7 +1480,7 @@ export default function DashboardShell({
             <ul>
               {contentGapOverviewItems.map((item) => (
                 <li key={item.key}>
-                  <a href={withNearestScheduledGapDate(item.href)}>
+                  <a href={withNearestScheduledGapDate(item.key, item.href)}>
                     {`${item.todayCount > 0 ? '今日优先' : item.nextCount > 0 ? '下一轮关注' : '待补关注'} · ${item.label}：今日 ${item.todayCount}，下一轮 ${item.nextCount}，待补 ${item.totalCount}`}
                   </a>
                 </li>
