@@ -140,7 +140,7 @@ test('renders admin dashboard heading, missing-image shortcuts, and schedule hig
   const selectedSchoolPreviewRegion = screen.getByRole('region', { name: '该日展示学校' });
   const selectedMajorPreviewRegion = screen.getByRole('region', { name: '该日展示专业' });
   const featuredSchoolsRegion = screen.getByRole('region', { name: '学校展示配置' });
-  const missingImageRegion = screen.getByRole('region', { name: '待补图片学校' });
+  const missingImageRegion = screen.getByRole('region', { name: '待补图片学校（1）' });
   const scheduleRegion = screen.getByRole('region', { name: '未来 7 天轮换预览' });
   const highlightedScheduleDay = within(scheduleRegion)
     .getByRole('heading', { name: '2026-04-15' })
@@ -166,6 +166,7 @@ test('renders admin dashboard heading, missing-image shortcuts, and schedule hig
     'https://cdn.example.com/southeast.jpg',
   );
   expect(screen.getByRole('button', { name: '清空图片' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: '待补图片学校（1）' })).toBeInTheDocument();
   expect(within(featuredSchoolsRegion).getByText('west-china-medical-center')).toBeInTheDocument();
   expect(within(missingImageRegion).getByText('west-china-medical-center')).toBeInTheDocument();
   expect(within(missingImageRegion).getByRole('link', { name: '华西医学中心' })).toHaveAttribute(
@@ -309,6 +310,7 @@ test('renders selected-date validation error and no schedule highlight when need
   expect(screen.getByText('当前没有下一轮展示学校')).toBeInTheDocument();
   expect(screen.getByText('当前没有下一轮展示专业')).toBeInTheDocument();
   expect(screen.getByText('当前没有待补图片学校')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: '待补图片学校（0）' })).toBeInTheDocument();
   expect(screen.getByText('预览日期格式无效')).toBeInTheDocument();
   expect(screen.queryByText('当前查看')).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '回到今天' })).not.toBeInTheDocument();

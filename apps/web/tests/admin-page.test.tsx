@@ -196,8 +196,9 @@ test('renders queue items, date preview shortcuts, and schedule highlight return
     'https://cdn.example.com/southeast.jpg',
   );
   expect(screen.getByRole('button', { name: '清空图片' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: '待补图片学校（1）' })).toBeInTheDocument();
 
-  const missingImageRegion = screen.getByRole('region', { name: '待补图片学校' });
+  const missingImageRegion = screen.getByRole('region', { name: '待补图片学校（1）' });
   expect(within(missingImageRegion).getByText('内容候补学校')).toBeInTheDocument();
   expect(within(missingImageRegion).getByText('west-china-medical-center')).toBeInTheDocument();
   expect(within(missingImageRegion).getByRole('link', { name: '内容候补学校' })).toHaveAttribute(
@@ -315,6 +316,8 @@ test('renders selected-date validation error when preview_date is invalid', asyn
 
   expect(listFeaturedContentMock).toHaveBeenCalledWith('2026-99-99');
   expect(screen.getByText('预览日期格式无效')).toBeInTheDocument();
+  expect(screen.getByText('当前没有待补图片学校')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: '待补图片学校（0）' })).toBeInTheDocument();
   expect(screen.queryByText('当前查看')).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '回到今天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看前一天' })).not.toBeInTheDocument();
@@ -427,6 +430,8 @@ test('renders empty preview states when today, next, and selected-date preview a
   expect(screen.getByText('当前没有下一轮展示学校')).toBeInTheDocument();
   expect(screen.getByText('当前没有下一轮展示专业')).toBeInTheDocument();
   expect(screen.getByText('当前没有未来轮换预览')).toBeInTheDocument();
+  expect(screen.getByText('当前没有待补图片学校')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: '待补图片学校（0）' })).toBeInTheDocument();
   expect(screen.getByText('该日没有展示学校')).toBeInTheDocument();
   expect(screen.getByText('该日没有展示专业')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '查看前一天' })).toHaveAttribute(

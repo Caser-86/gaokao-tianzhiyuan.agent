@@ -104,7 +104,7 @@ export default function DashboardShell({
   const showSelectedDateHelper =
     !selectedPreviewDateValue && !selectedDatePreview && !selectedDateError;
   const sortedFeaturedSchools = [...featuredSchools].sort((left, right) => {
-    if (left.heroImageUrl === right.heroImageUrl) {
+    if (Boolean(left.heroImageUrl) === Boolean(right.heroImageUrl)) {
       return 0;
     }
 
@@ -223,7 +223,7 @@ export default function DashboardShell({
       </section>
 
       <section aria-labelledby="missing-school-images-heading">
-        <h2 id="missing-school-images-heading">待补图片学校</h2>
+        <h2 id="missing-school-images-heading">{`待补图片学校（${schoolsMissingImages.length}）`}</h2>
 
         {featuredContentError ? null : schoolsMissingImages.length === 0 ? (
           <p>当前没有待补图片学校</p>
