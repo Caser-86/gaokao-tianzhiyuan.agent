@@ -15,10 +15,12 @@ from ..services.featured_content import (
 )
 from ..services.catalog import (
     list_admin_content_sections,
+    list_admin_related_content,
     list_admin_content_summaries,
     list_admin_ranking_references,
     update_content_sections,
     update_content_summary,
+    update_related_content,
     update_ranking_references,
 )
 
@@ -196,6 +198,31 @@ class ContentSectionUpdateRequest(SQLModel):
     sections: list[ContentSectionRequest]
 
 
+class RelatedSchoolEntityResponse(SQLModel):
+    slug: str
+    name: str
+    related_majors: list[str]
+
+
+class RelatedMajorEntityResponse(SQLModel):
+    slug: str
+    name: str
+    related_schools: list[str]
+
+
+class RelatedContentListResponse(SQLModel):
+    schools: list[RelatedSchoolEntityResponse]
+    majors: list[RelatedMajorEntityResponse]
+
+
+class RelatedSchoolUpdateRequest(SQLModel):
+    related_majors: list[str]
+
+
+class RelatedMajorUpdateRequest(SQLModel):
+    related_schools: list[str]
+
+
 def serialize_review_queue_item(item: ReviewQueue) -> ReviewQueueItemResponse:
     created_at = item.created_at
     if created_at.tzinfo is None:
@@ -325,6 +352,16 @@ def normalize_content_sections(
     return normalized
 
 
+def normalize_related_slugs(related_slugs: list[str]) -> list[str]:
+    normalized = [slug.strip() for slug in related_slugs if slug.strip()]
+    if any(not slug for slug in normalized):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="related content slug is invalid",
+        )
+    return normalized
+
+
 @router.get("/review-queue", response_model=ReviewQueueListResponse)
 def list_review_queue(
     _authorized: None = Depends(require_admin),
@@ -371,6 +408,17 @@ def get_content_sections(
     return ContentSectionListResponse(
         schools=[ContentSectionEntityResponse(**item) for item in payload["schools"]],
         majors=[ContentSectionEntityResponse(**item) for item in payload["majors"]],
+    )
+
+
+@router.get("/related-content", response_model=RelatedContentListResponse)
+def get_related_content(
+    _authorized: None = Depends(require_admin),
+) -> RelatedContentListResponse:
+    payload = list_admin_related_content()
+    return RelatedContentListResponse(
+        schools=[RelatedSchoolEntityResponse(**item) for item in payload["schools"]],
+        majors=[RelatedMajorEntityResponse(**item) for item in payload["majors"]],
     )
 
 
@@ -526,6 +574,66 @@ def update_major_content_sections(
         ) from exc
 
     return ContentSectionEntityResponse(**updated)
+
+
+@router.post(
+    "/related-content/schools/{slug}",
+    response_model=RelatedSchoolEntityResponse,
+)
+def update_school_related_content(
+    slug: str,
+    payload: RelatedSchoolUpdateRequest,
+    _authorized: None = Depends(require_admin),
+) -> RelatedSchoolEntityResponse:
+    try:
+        updated = update_related_content(
+            "schools",
+            slug,
+            "related_majors",
+            normalize_related_slugs(payload.related_majors),
+        )
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="related content entity not found",
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+
+    return RelatedSchoolEntityResponse(**updated)
+
+
+@router.post(
+    "/related-content/majors/{slug}",
+    response_model=RelatedMajorEntityResponse,
+)
+def update_major_related_content(
+    slug: str,
+    payload: RelatedMajorUpdateRequest,
+    _authorized: None = Depends(require_admin),
+) -> RelatedMajorEntityResponse:
+    try:
+        updated = update_related_content(
+            "majors",
+            slug,
+            "related_schools",
+            normalize_related_slugs(payload.related_schools),
+        )
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="related content entity not found",
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+
+    return RelatedMajorEntityResponse(**updated)
 
 
 @router.get("/featured-content", response_model=FeaturedContentResponse)

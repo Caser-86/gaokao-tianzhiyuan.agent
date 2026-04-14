@@ -172,6 +172,28 @@ def list_admin_content_sections() -> dict[str, Any]:
     }
 
 
+def list_admin_related_content() -> dict[str, Any]:
+    catalog = load_catalog()
+    return {
+        "schools": [
+            {
+                "slug": school["slug"],
+                "name": school["name"],
+                "related_majors": school.get("related_majors", []),
+            }
+            for school in catalog["schools"]
+        ],
+        "majors": [
+            {
+                "slug": major["slug"],
+                "name": major["name"],
+                "related_schools": major.get("related_schools", []),
+            }
+            for major in catalog["majors"]
+        ],
+    }
+
+
 def update_ranking_references(
     entity_key: str,
     slug: str,
@@ -248,4 +270,41 @@ def update_content_sections(
         "slug": entity["slug"],
         "name": entity["name"],
         "sections": entity.get("sections", []),
+    }
+
+
+def update_related_content(
+    entity_key: str,
+    slug: str,
+    related_field: str,
+    related_slugs: list[str],
+) -> dict[str, Any]:
+    catalog = load_catalog()
+    entries = catalog[entity_key]
+    entity = next((item for item in entries if item["slug"] == slug), None)
+    if entity is None:
+        raise KeyError(slug)
+
+    related_entity_key = "majors" if related_field == "related_majors" else "schools"
+    valid_related_slugs = {
+        item["slug"]
+        for item in catalog[related_entity_key]
+    }
+    invalid_slugs = [
+        related_slug for related_slug in related_slugs if related_slug not in valid_related_slugs
+    ]
+    if invalid_slugs:
+        raise ValueError("related content slug is invalid")
+
+    entity[related_field] = related_slugs
+    CATALOG_PATH.write_text(
+        json.dumps(catalog, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    load_catalog.cache_clear()
+
+    return {
+        "slug": entity["slug"],
+        "name": entity["name"],
+        related_field: entity.get(related_field, []),
     }
