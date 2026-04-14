@@ -1299,9 +1299,76 @@ export default function DashboardShell({
 
     return gapItems[0] ? `${buildPreviewDateHref(previewDate)}${gapItems[0].href}` : null;
   };
+  const buildSelectedDateGapHref = (itemKey: string, fallbackHref: string): string => {
+    if (!selectedDatePreview) {
+      return fallbackHref;
+    }
+
+    const schoolSlugByKey: Record<string, string | undefined> = {
+      'school-images': schoolsMissingImages.find((school) => selectedDateSchoolSlugs.has(school.slug))?.slug,
+      'school-rankings': missingSchoolRankingReferences.find((school) =>
+        selectedDateSchoolSlugs.has(school.slug),
+      )?.slug,
+      'school-summaries': missingSchoolSummaries.find((school) =>
+        selectedDateSchoolSlugs.has(school.slug),
+      )?.slug,
+      'school-sections': missingSchoolSections.find((school) =>
+        selectedDateSchoolSlugs.has(school.slug),
+      )?.slug,
+      'school-related': missingSchoolRelatedContent.find((school) =>
+        selectedDateSchoolSlugs.has(school.slug),
+      )?.slug,
+    };
+    const majorSlugByKey: Record<string, string | undefined> = {
+      'major-rankings': missingMajorRankingReferences.find((major) =>
+        selectedDateMajorSlugs.has(major.slug),
+      )?.slug,
+      'major-summaries': missingMajorSummaries.find((major) =>
+        selectedDateMajorSlugs.has(major.slug),
+      )?.slug,
+      'major-sections': missingMajorSections.find((major) =>
+        selectedDateMajorSlugs.has(major.slug),
+      )?.slug,
+      'major-related': missingMajorRelatedContent.find((major) =>
+        selectedDateMajorSlugs.has(major.slug),
+      )?.slug,
+    };
+
+    const deepLinkByKey: Record<string, string | undefined> = {
+      'school-images': schoolSlugByKey['school-images']
+        ? `#featured-school-${schoolSlugByKey['school-images']}`
+        : undefined,
+      'school-rankings': schoolSlugByKey['school-rankings']
+        ? `#school-ranking-reference-${schoolSlugByKey['school-rankings']}`
+        : undefined,
+      'major-rankings': majorSlugByKey['major-rankings']
+        ? `#major-ranking-reference-${majorSlugByKey['major-rankings']}`
+        : undefined,
+      'school-summaries': schoolSlugByKey['school-summaries']
+        ? `#school-summary-${schoolSlugByKey['school-summaries']}`
+        : undefined,
+      'major-summaries': majorSlugByKey['major-summaries']
+        ? `#major-summary-${majorSlugByKey['major-summaries']}`
+        : undefined,
+      'school-sections': schoolSlugByKey['school-sections']
+        ? `#school-sections-${schoolSlugByKey['school-sections']}`
+        : undefined,
+      'major-sections': majorSlugByKey['major-sections']
+        ? `#major-sections-${majorSlugByKey['major-sections']}`
+        : undefined,
+      'school-related': schoolSlugByKey['school-related']
+        ? `#school-related-content-${schoolSlugByKey['school-related']}`
+        : undefined,
+      'major-related': majorSlugByKey['major-related']
+        ? `#major-related-content-${majorSlugByKey['major-related']}`
+        : undefined,
+    };
+
+    return `${buildPreviewDateHref(selectedDatePreview.date)}${deepLinkByKey[itemKey] ?? fallbackHref}`;
+  };
   const selectedDateGapOverviewLinks = selectedDateGapOverviewItems.map((item) => ({
     ...item,
-    href: withSelectedPreviewDate(item.href),
+    href: buildSelectedDateGapHref(item.key, item.href),
   }));
   const scheduledPreviewDays = featuredSchedule.map((day) => {
     const scheduleDaySchoolSlugs = new Set(day.schools.map((school) => school.slug));
