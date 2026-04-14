@@ -18,6 +18,10 @@ import {
   updateSchoolSections,
 } from '../../../lib/admin-content-sections-api';
 import {
+  updateMajorRelatedContent,
+  updateSchoolRelatedContent,
+} from '../../../lib/admin-related-content-api';
+import {
   type AdminRankingReference,
   updateMajorRankingReferences,
   updateSchoolRankingReferences,
@@ -64,6 +68,12 @@ const parseRequiredSummary = (rawValue: FormDataEntryValue | null): string => {
   }
   return summary;
 };
+
+const parseSlugLines = (rawValue: FormDataEntryValue | null): string[] =>
+  String(rawValue ?? '')
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
 
 const parseContentSectionRows = (formData: FormData): AdminContentSection[] => {
   const rowCount = parsePositiveNumber(formData.get('rowCount'), 'rowCount');
@@ -283,6 +293,34 @@ export async function updateMajorSectionsAction(formData: FormData): Promise<voi
     const sections = parseContentSectionRows(formData);
 
     await updateMajorSections(slug, sections);
+    revalidatePath('/admin');
+    revalidatePath('/');
+    revalidatePath(`/majors/${slug}`);
+  } catch {
+    return;
+  }
+}
+
+export async function updateSchoolRelatedContentAction(formData: FormData): Promise<void> {
+  try {
+    const slug = parseRequiredSlug(formData.get('slug'));
+    const relatedMajors = parseSlugLines(formData.get('relatedMajors'));
+
+    await updateSchoolRelatedContent(slug, relatedMajors);
+    revalidatePath('/admin');
+    revalidatePath('/');
+    revalidatePath(`/schools/${slug}`);
+  } catch {
+    return;
+  }
+}
+
+export async function updateMajorRelatedContentAction(formData: FormData): Promise<void> {
+  try {
+    const slug = parseRequiredSlug(formData.get('slug'));
+    const relatedSchools = parseSlugLines(formData.get('relatedSchools'));
+
+    await updateMajorRelatedContent(slug, relatedSchools);
     revalidatePath('/admin');
     revalidatePath('/');
     revalidatePath(`/majors/${slug}`);
