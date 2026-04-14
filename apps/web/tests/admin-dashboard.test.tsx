@@ -357,3 +357,130 @@ test('renders error state when queue loading fails', () => {
   expect(screen.queryByRole('link', { name: '查看前一天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看后一天' })).not.toBeInTheDocument();
 });
+
+test('renders content gap overview shortcuts for high-priority missing content', () => {
+  render(
+    <DashboardShell
+      title="内容运营后台"
+      queueItems={[]}
+      featuredSchools={[
+        {
+          slug: 'southeast-university',
+          name: 'Southeast University',
+          isFeatured: true,
+          heroImageUrl: '',
+        },
+        {
+          slug: 'wuhan-university',
+          name: 'Wuhan University',
+          isFeatured: true,
+          heroImageUrl: '',
+        },
+      ]}
+      featuredMajors={[
+        {
+          slug: 'clinical-medicine',
+          name: 'Clinical Medicine',
+          isFeatured: true,
+        },
+        {
+          slug: 'software-engineering',
+          name: 'Software Engineering',
+          isFeatured: true,
+        },
+      ]}
+      schoolRotation={schoolRotation}
+      majorRotation={majorRotation}
+      featuredSchoolPreview={[
+        {
+          slug: 'southeast-university',
+          name: 'Southeast University',
+        },
+      ]}
+      featuredMajorPreview={[
+        {
+          slug: 'clinical-medicine',
+          name: 'Clinical Medicine',
+        },
+      ]}
+      nextFeaturedSchoolPreview={[
+        {
+          slug: 'wuhan-university',
+          name: 'Wuhan University',
+        },
+      ]}
+      nextFeaturedMajorPreview={[
+        {
+          slug: 'software-engineering',
+          name: 'Software Engineering',
+        },
+      ]}
+      featuredSchedule={[]}
+      summarySchools={[
+        { slug: 'southeast-university', name: 'Southeast University', summary: '' },
+      ]}
+      summaryMajors={[
+        { slug: 'clinical-medicine', name: 'Clinical Medicine', summary: '' },
+      ]}
+      sectionSchools={[
+        { slug: 'wuhan-university', name: 'Wuhan University', sections: [] },
+      ]}
+      sectionMajors={[
+        { slug: 'software-engineering', name: 'Software Engineering', sections: [] },
+      ]}
+      relatedSchools={[
+        { slug: 'southeast-university', name: 'Southeast University', relatedMajors: [] },
+      ]}
+      relatedMajors={[
+        { slug: 'clinical-medicine', name: 'Clinical Medicine', relatedSchools: [] },
+      ]}
+      rankingReferenceSchools={[
+        { slug: 'wuhan-university', name: 'Wuhan University', rankingReferences: [] },
+      ]}
+      rankingReferenceMajors={[
+        { slug: 'software-engineering', name: 'Software Engineering', rankingReferences: [] },
+      ]}
+      selectedPreviewDateValue=""
+      selectedDatePreview={null}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
+    />,
+  );
+
+  const overviewRegion = screen.getByRole('region', { name: '内容缺口总览' });
+
+  expect(
+    within(overviewRegion).getByText('今日待补 5 项，下一轮待补 5 项，总待补 10 项'),
+  ).toBeInTheDocument();
+  expect(
+    within(overviewRegion).getByRole('link', { name: '学校图片：今日 1，下一轮 1，待补 2' }),
+  ).toHaveAttribute('href', '#missing-school-images-heading');
+  expect(
+    within(overviewRegion).getByRole('link', { name: '学校摘要：今日 1，下一轮 0，待补 1' }),
+  ).toHaveAttribute('href', '#missing-school-summary-heading');
+  expect(
+    within(overviewRegion).getByRole('link', { name: '专业摘要：今日 1，下一轮 0，待补 1' }),
+  ).toHaveAttribute('href', '#missing-major-summary-heading');
+  expect(
+    within(overviewRegion).getByRole('link', { name: '学校正文：今日 0，下一轮 1，待补 1' }),
+  ).toHaveAttribute('href', '#missing-school-sections-heading');
+  expect(
+    within(overviewRegion).getByRole('link', { name: '专业正文：今日 0，下一轮 1，待补 1' }),
+  ).toHaveAttribute('href', '#missing-major-sections-heading');
+  expect(
+    within(overviewRegion).getByRole('link', { name: '学校相关推荐：今日 1，下一轮 0，待补 1' }),
+  ).toHaveAttribute('href', '#missing-school-related-content-heading');
+  expect(
+    within(overviewRegion).getByRole('link', { name: '专业相关推荐：今日 1，下一轮 0，待补 1' }),
+  ).toHaveAttribute('href', '#missing-major-related-content-heading');
+  expect(
+    within(overviewRegion).getByRole('link', { name: '学校榜单：今日 0，下一轮 1，待补 1' }),
+  ).toHaveAttribute('href', '#missing-school-ranking-reference-heading');
+  expect(
+    within(overviewRegion).getByRole('link', { name: '专业榜单：今日 0，下一轮 1，待补 1' }),
+  ).toHaveAttribute('href', '#missing-major-ranking-reference-heading');
+});

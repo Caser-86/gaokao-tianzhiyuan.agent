@@ -749,6 +749,92 @@ export default function DashboardShell({
         (major) => major.sections.length === 0 && scheduledMissingMajorRelatedSlugs.has(major.slug),
       )
     : sortedSectionMajors;
+  const contentGapOverviewItems = [
+    {
+      key: 'school-images',
+      label: '学校图片',
+      href: '#missing-school-images-heading',
+      todayCount: todayMissingImagesCount,
+      nextCount: nextMissingImagesCount,
+      totalCount: schoolsMissingImages.length,
+    },
+    {
+      key: 'school-rankings',
+      label: '学校榜单',
+      href: '#missing-school-ranking-reference-heading',
+      todayCount: todayMissingSchoolRankingCount,
+      nextCount: nextMissingSchoolRankingCount,
+      totalCount: missingSchoolRankingReferences.length,
+    },
+    {
+      key: 'major-rankings',
+      label: '专业榜单',
+      href: '#missing-major-ranking-reference-heading',
+      todayCount: todayMissingMajorRankingCount,
+      nextCount: nextMissingMajorRankingCount,
+      totalCount: missingMajorRankingReferences.length,
+    },
+    {
+      key: 'school-summaries',
+      label: '学校摘要',
+      href: '#missing-school-summary-heading',
+      todayCount: missingSchoolSummaries.filter((school) => todayPreviewSchoolSlugs.has(school.slug)).length,
+      nextCount: missingSchoolSummaries.filter((school) => nextPreviewSchoolSlugs.has(school.slug)).length,
+      totalCount: missingSchoolSummaries.length,
+    },
+    {
+      key: 'major-summaries',
+      label: '专业摘要',
+      href: '#missing-major-summary-heading',
+      todayCount: missingMajorSummaries.filter((major) => todayPreviewMajorSlugs.has(major.slug)).length,
+      nextCount: missingMajorSummaries.filter((major) => nextPreviewMajorSlugs.has(major.slug)).length,
+      totalCount: missingMajorSummaries.length,
+    },
+    {
+      key: 'school-sections',
+      label: '学校正文',
+      href: '#missing-school-sections-heading',
+      todayCount: missingSchoolSections.filter((school) => todayPreviewSchoolSlugs.has(school.slug)).length,
+      nextCount: missingSchoolSections.filter((school) => nextPreviewSchoolSlugs.has(school.slug)).length,
+      totalCount: missingSchoolSections.length,
+    },
+    {
+      key: 'major-sections',
+      label: '专业正文',
+      href: '#missing-major-sections-heading',
+      todayCount: missingMajorSections.filter((major) => todayPreviewMajorSlugs.has(major.slug)).length,
+      nextCount: missingMajorSections.filter((major) => nextPreviewMajorSlugs.has(major.slug)).length,
+      totalCount: missingMajorSections.length,
+    },
+    {
+      key: 'school-related',
+      label: '学校相关推荐',
+      href: '#missing-school-related-content-heading',
+      todayCount: todayMissingSchoolRelatedCount,
+      nextCount: nextMissingSchoolRelatedCount,
+      totalCount: missingSchoolRelatedContent.length,
+    },
+    {
+      key: 'major-related',
+      label: '专业相关推荐',
+      href: '#missing-major-related-content-heading',
+      todayCount: todayMissingMajorRelatedCount,
+      nextCount: nextMissingMajorRelatedCount,
+      totalCount: missingMajorRelatedContent.length,
+    },
+  ].filter((item) => item.totalCount > 0);
+  const contentGapOverviewTodayCount = contentGapOverviewItems.reduce(
+    (sum, item) => sum + item.todayCount,
+    0,
+  );
+  const contentGapOverviewNextCount = contentGapOverviewItems.reduce(
+    (sum, item) => sum + item.nextCount,
+    0,
+  );
+  const contentGapOverviewTotalCount = contentGapOverviewItems.reduce(
+    (sum, item) => sum + item.totalCount,
+    0,
+  );
 
   const schoolFilterLinks = (
     <p>
@@ -854,6 +940,24 @@ export default function DashboardShell({
             <h2>{card}</h2>
           </article>
         ))}
+      </section>
+
+      <section aria-labelledby="content-gap-overview-heading">
+        <h2 id="content-gap-overview-heading">内容缺口总览</h2>
+        {contentGapOverviewItems.length === 0 ? (
+          <p>当前没有待补内容缺口</p>
+        ) : (
+          <>
+            <p>{`今日待补 ${contentGapOverviewTodayCount} 项，下一轮待补 ${contentGapOverviewNextCount} 项，总待补 ${contentGapOverviewTotalCount} 项`}</p>
+            <ul>
+              {contentGapOverviewItems.map((item) => (
+                <li key={item.key}>
+                  <a href={item.href}>{`${item.label}：今日 ${item.todayCount}，下一轮 ${item.nextCount}，待补 ${item.totalCount}`}</a>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </section>
 
       <section aria-labelledby="review-queue-heading">
