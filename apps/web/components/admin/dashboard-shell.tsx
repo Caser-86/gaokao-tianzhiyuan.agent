@@ -2299,6 +2299,13 @@ export default function DashboardShell({
                 {day.gapCount === 1 ? <p>少量待补</p> : null}
                 {day.gapCount === 0 ? <p>内容已齐备</p> : null}
                 <p>学校</p>
+                {day.gapCount > 0 ? (
+                  <p>
+                    <a href={`${buildPreviewDateHref(day.date)}#selected-date-gap-overview-heading`}>
+                      澶勭悊璇ユ棩缂哄彛
+                    </a>
+                  </p>
+                ) : null}
                 {day.schools.length === 0 ? (
                   <p>当天没有展示学校</p>
                 ) : (

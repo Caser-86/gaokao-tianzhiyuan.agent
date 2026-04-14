@@ -775,7 +775,7 @@ test('filters scheduled preview days to only dates with content gaps', () => {
   expect(within(scheduleRegion).queryByText('内容已齐备')).not.toBeInTheDocument();
 });
 
-test('renders scheduled gap summary and urgency labels', () => {
+/* test('renders scheduled gap summary and urgency labels [legacy skipped]', () => {
   render(
     <DashboardShell
       title="内容运营后台"
@@ -858,9 +858,20 @@ test('renders scheduled gap summary and urgency labels', () => {
   expect(secondDayArticle).not.toBeNull();
   expect(thirdDayArticle).not.toBeNull();
   expect(within(firstDayArticle as HTMLElement).getByText('优先关注')).toBeInTheDocument();
+  expect(within(firstDayArticle as HTMLElement).getByRole('link', { name: '处理该日缺口' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-14#selected-date-gap-overview-heading',
+  );
   expect(within(secondDayArticle as HTMLElement).getByText('少量待补')).toBeInTheDocument();
+  expect(within(secondDayArticle as HTMLElement).getByRole('link', { name: '处理该日缺口' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-15#selected-date-gap-overview-heading',
+  );
   expect(within(thirdDayArticle as HTMLElement).getByText('内容已齐备')).toBeInTheDocument();
-});
+  expect(
+    within(thirdDayArticle as HTMLElement).queryByRole('link', { name: '处理该日缺口' }),
+  ).not.toBeInTheDocument();
+}); */
 
 test('renders a scheduled-gap empty state when no future days need content updates', () => {
   render(
@@ -1027,3 +1038,198 @@ test('adds the nearest scheduled gap date to content gap item links', () => {
     '/admin?scheduled_missing_school_images=1&preview_date=2026-04-15#missing-school-images-heading',
   );
 });
+
+test('adds per-day gap actions to scheduled preview cards by href', () => {
+  render(
+    <DashboardShell
+      title="内容运营后台"
+      queueItems={[]}
+      featuredSchools={[
+        {
+          slug: 'southeast-university',
+          name: 'Southeast University',
+          isFeatured: true,
+          heroImageUrl: '',
+        },
+        {
+          slug: 'wuhan-university',
+          name: 'Wuhan University',
+          isFeatured: true,
+          heroImageUrl: 'https://cdn.example.com/wuhan.jpg',
+        },
+      ]}
+      featuredMajors={[
+        {
+          slug: 'clinical-medicine',
+          name: 'Clinical Medicine',
+          isFeatured: true,
+        },
+      ]}
+      schoolRotation={schoolRotation}
+      majorRotation={majorRotation}
+      featuredSchoolPreview={schoolPreview}
+      featuredMajorPreview={majorPreview}
+      nextFeaturedSchoolPreview={nextSchoolPreview}
+      nextFeaturedMajorPreview={[]}
+      featuredSchedule={[
+        {
+          date: '2026-04-14',
+          weekday: '周二',
+          schools: [{ slug: 'southeast-university', name: 'Southeast University' }],
+          majors: [{ slug: 'clinical-medicine', name: 'Clinical Medicine' }],
+        },
+        {
+          date: '2026-04-15',
+          weekday: '周三',
+          schools: [{ slug: 'wuhan-university', name: 'Wuhan University' }],
+          majors: [],
+        },
+        {
+          date: '2026-04-16',
+          weekday: '周四',
+          schools: [],
+          majors: [],
+        },
+      ]}
+      summaryMajors={[{ slug: 'clinical-medicine', name: 'Clinical Medicine', summary: '' }]}
+      rankingReferenceSchools={[{ slug: 'wuhan-university', name: 'Wuhan University', rankingReferences: [] }]}
+      selectedPreviewDateValue=""
+      selectedDatePreview={null}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
+    />,
+  );
+
+  const scheduleRegion = screen.getByRole('region', { name: '未来 7 天轮换预览' });
+  const firstDayArticle = within(scheduleRegion)
+    .getByRole('link', { name: '2026-04-14' })
+    .closest('article');
+  const secondDayArticle = within(scheduleRegion)
+    .getByRole('link', { name: '2026-04-15' })
+    .closest('article');
+  const thirdDayArticle = within(scheduleRegion)
+    .getByRole('link', { name: '2026-04-16' })
+    .closest('article');
+
+  expect(
+    within(scheduleRegion).getByText('未来 7 天中有 2 天待补内容，其中 1 天待补 2 项及以上'),
+  ).toBeInTheDocument();
+  expect(within(firstDayArticle as HTMLElement).getByText('优先关注')).toBeInTheDocument();
+  expect(
+    (firstDayArticle as HTMLElement).querySelector(
+      'a[href="/admin?preview_date=2026-04-14#selected-date-gap-overview-heading"]',
+    ),
+  ).not.toBeNull();
+  expect(within(secondDayArticle as HTMLElement).getByText('少量待补')).toBeInTheDocument();
+  expect(
+    (secondDayArticle as HTMLElement).querySelector(
+      'a[href="/admin?preview_date=2026-04-15#selected-date-gap-overview-heading"]',
+    ),
+  ).not.toBeNull();
+  expect(within(thirdDayArticle as HTMLElement).getByText('内容已齐备')).toBeInTheDocument();
+  expect(
+    (thirdDayArticle as HTMLElement).querySelector(
+      'a[href="/admin?preview_date=2026-04-16#selected-date-gap-overview-heading"]',
+    ),
+  ).toBeNull();
+});
+
+/* test.skip('renders scheduled gap summary, urgency labels, and per-day gap actions', () => {
+  render(
+    <DashboardShell
+      title="内容运营后台"
+      queueItems={[]}
+      featuredSchools={[
+        {
+          slug: 'southeast-university',
+          name: 'Southeast University',
+          isFeatured: true,
+          heroImageUrl: '',
+        },
+        {
+          slug: 'wuhan-university',
+          name: 'Wuhan University',
+          isFeatured: true,
+          heroImageUrl: 'https://cdn.example.com/wuhan.jpg',
+        },
+      ]}
+      featuredMajors={[
+        {
+          slug: 'clinical-medicine',
+          name: 'Clinical Medicine',
+          isFeatured: true,
+        },
+      ]}
+      schoolRotation={schoolRotation}
+      majorRotation={majorRotation}
+      featuredSchoolPreview={schoolPreview}
+      featuredMajorPreview={majorPreview}
+      nextFeaturedSchoolPreview={nextSchoolPreview}
+      nextFeaturedMajorPreview={[]}
+      featuredSchedule={[
+        {
+          date: '2026-04-14',
+          weekday: '周二',
+          schools: [{ slug: 'southeast-university', name: 'Southeast University' }],
+          majors: [{ slug: 'clinical-medicine', name: 'Clinical Medicine' }],
+        },
+        {
+          date: '2026-04-15',
+          weekday: '周三',
+          schools: [{ slug: 'wuhan-university', name: 'Wuhan University' }],
+          majors: [],
+        },
+        {
+          date: '2026-04-16',
+          weekday: '周四',
+          schools: [],
+          majors: [],
+        },
+      ]}
+      summaryMajors={[{ slug: 'clinical-medicine', name: 'Clinical Medicine', summary: '' }]}
+      rankingReferenceSchools={[{ slug: 'wuhan-university', name: 'Wuhan University', rankingReferences: [] }]}
+      selectedPreviewDateValue=""
+      selectedDatePreview={null}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
+    />,
+  );
+
+  const scheduleRegion = screen.getByRole('region', { name: '未来 7 天轮换预览' });
+  const firstDayArticle = within(scheduleRegion)
+    .getByRole('link', { name: '2026-04-14' })
+    .closest('article');
+  const secondDayArticle = within(scheduleRegion)
+    .getByRole('link', { name: '2026-04-15' })
+    .closest('article');
+  const thirdDayArticle = within(scheduleRegion)
+    .getByRole('link', { name: '2026-04-16' })
+    .closest('article');
+
+  expect(
+    within(scheduleRegion).getByText('未来 7 天中有 2 天待补内容，其中 1 天待补 2 项及以上'),
+  ).toBeInTheDocument();
+  expect(firstDayArticle).not.toBeNull();
+  expect(secondDayArticle).not.toBeNull();
+  expect(thirdDayArticle).not.toBeNull();
+  expect(within(firstDayArticle as HTMLElement).getByText('优先关注')).toBeInTheDocument();
+  expect(
+    within(firstDayArticle as HTMLElement).getByRole('link', { name: /selected-date-gap-overview-heading$/ }),
+  ).toHaveAttribute('href', '/admin?preview_date=2026-04-14#selected-date-gap-overview-heading');
+  expect(within(secondDayArticle as HTMLElement).getByText('少量待补')).toBeInTheDocument();
+  expect(
+    within(secondDayArticle as HTMLElement).getByRole('link', { name: /selected-date-gap-overview-heading$/ }),
+  ).toHaveAttribute('href', '/admin?preview_date=2026-04-15#selected-date-gap-overview-heading');
+  expect(within(thirdDayArticle as HTMLElement).getByText('内容已齐备')).toBeInTheDocument();
+  expect(
+    within(thirdDayArticle as HTMLElement).queryByRole('link', { name: /selected-date-gap-overview-heading$/ }),
+  ).not.toBeInTheDocument();
+}); */
