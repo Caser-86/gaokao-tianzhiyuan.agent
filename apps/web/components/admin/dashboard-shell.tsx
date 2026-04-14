@@ -79,9 +79,15 @@ type DashboardShellProps = {
   showMissingSchoolRankingsOnly?: boolean;
   showMissingSchoolRankingsOnlyHref?: string;
   showAllSchoolRankingReferencesHref?: string;
+  showScheduledMissingSchoolRankingsOnly?: boolean;
+  showScheduledMissingSchoolRankingsOnlyHref?: string;
+  showAllScheduledSchoolRankingReferencesHref?: string;
   showMissingMajorRankingsOnly?: boolean;
   showMissingMajorRankingsOnlyHref?: string;
   showAllMajorRankingReferencesHref?: string;
+  showScheduledMissingMajorRankingsOnly?: boolean;
+  showScheduledMissingMajorRankingsOnlyHref?: string;
+  showAllScheduledMajorRankingReferencesHref?: string;
   showMissingSchoolRelatedOnly?: boolean;
   showMissingSchoolRelatedOnlyHref?: string;
   showAllSchoolRelatedContentHref?: string;
@@ -355,9 +361,15 @@ export default function DashboardShell({
   showMissingSchoolRankingsOnly = false,
   showMissingSchoolRankingsOnlyHref,
   showAllSchoolRankingReferencesHref,
+  showScheduledMissingSchoolRankingsOnly = false,
+  showScheduledMissingSchoolRankingsOnlyHref,
+  showAllScheduledSchoolRankingReferencesHref,
   showMissingMajorRankingsOnly = false,
   showMissingMajorRankingsOnlyHref,
   showAllMajorRankingReferencesHref,
+  showScheduledMissingMajorRankingsOnly = false,
+  showScheduledMissingMajorRankingsOnlyHref,
+  showAllScheduledMajorRankingReferencesHref,
   showMissingSchoolRelatedOnly = false,
   showMissingSchoolRelatedOnlyHref,
   showAllSchoolRelatedContentHref,
@@ -461,12 +473,6 @@ export default function DashboardShell({
   const missingMajorRankingReferences = sortedRankingReferenceMajors.filter(
     (major) => major.rankingReferences.length === 0,
   );
-  const displayedSchoolRankingReferences = showMissingSchoolRankingsOnly
-    ? missingSchoolRankingReferences
-    : sortedRankingReferenceSchools;
-  const displayedMajorRankingReferences = showMissingMajorRankingsOnly
-    ? missingMajorRankingReferences
-    : sortedRankingReferenceMajors;
   const configuredSchoolRankingReferenceCount =
     sortedRankingReferenceSchools.length - missingSchoolRankingReferences.length;
   const configuredMajorRankingReferenceCount =
@@ -485,6 +491,36 @@ export default function DashboardShell({
   const nextMissingMajorRankingCount = missingMajorRankingReferences.filter((major) =>
     nextPreviewMajorSlugs.has(major.slug),
   ).length;
+  const scheduledMissingSchoolRankingSlugs = new Set([
+    ...featuredSchoolPreview.map((school) => school.slug),
+    ...nextFeaturedSchoolPreview.map((school) => school.slug),
+  ]);
+  const scheduledMissingMajorRankingSlugs = new Set([
+    ...featuredMajorPreview.map((major) => major.slug),
+    ...nextFeaturedMajorPreview.map((major) => major.slug),
+  ]);
+  const scheduledMissingSchoolRankingCount = missingSchoolRankingReferences.filter((school) =>
+    scheduledMissingSchoolRankingSlugs.has(school.slug),
+  ).length;
+  const scheduledMissingMajorRankingCount = missingMajorRankingReferences.filter((major) =>
+    scheduledMissingMajorRankingSlugs.has(major.slug),
+  ).length;
+  const displayedSchoolRankingReferences = showMissingSchoolRankingsOnly
+    ? missingSchoolRankingReferences
+    : showScheduledMissingSchoolRankingsOnly
+      ? sortedRankingReferenceSchools.filter(
+          (school) =>
+            school.rankingReferences.length === 0 && scheduledMissingSchoolRankingSlugs.has(school.slug),
+        )
+      : sortedRankingReferenceSchools;
+  const displayedMajorRankingReferences = showMissingMajorRankingsOnly
+    ? missingMajorRankingReferences
+    : showScheduledMissingMajorRankingsOnly
+      ? sortedRankingReferenceMajors.filter(
+          (major) =>
+            major.rankingReferences.length === 0 && scheduledMissingMajorRankingSlugs.has(major.slug),
+        )
+      : sortedRankingReferenceMajors;
   const relatedCoveragePriority = (
     slug: string,
     featuredSlugs: Set<string>,
@@ -909,6 +945,14 @@ export default function DashboardShell({
 
     if (showMissingMajorRankingsOnly) {
       searchParams.set('missing_major_rankings', '1');
+    }
+
+    if (showScheduledMissingSchoolRankingsOnly) {
+      searchParams.set('scheduled_missing_school_rankings', '1');
+    }
+
+    if (showScheduledMissingMajorRankingsOnly) {
+      searchParams.set('scheduled_missing_major_rankings', '1');
     }
 
     if (showMissingSchoolRelatedOnly) {
@@ -1592,14 +1636,40 @@ export default function DashboardShell({
         {!rankingReferenceError ? (
           <div>
             <p>{`已配置学校榜单 ${configuredSchoolRankingReferenceCount} 所，待补学校榜单 ${missingSchoolRankingReferences.length} 所`}</p>
-            {showMissingSchoolRankingsOnlyHref || showAllSchoolRankingReferencesHref ? (
+            {showMissingSchoolRankingsOnlyHref ||
+            showAllSchoolRankingReferencesHref ||
+            showScheduledMissingSchoolRankingsOnlyHref ||
+            showAllScheduledSchoolRankingReferencesHref ? (
               <p>
                 {!showMissingSchoolRankingsOnly && showMissingSchoolRankingsOnlyHref ? (
                   <a href={showMissingSchoolRankingsOnlyHref}>{`仅看待补学校榜单（${missingSchoolRankingReferences.length}）`}</a>
                 ) : null}
+                {!showScheduledMissingSchoolRankingsOnly &&
+                showScheduledMissingSchoolRankingsOnlyHref ? (
+                  <>
+                    {!showMissingSchoolRankingsOnly && showMissingSchoolRankingsOnlyHref ? ' ' : null}
+                    <a href={showScheduledMissingSchoolRankingsOnlyHref}>{`仅看近期待补学校榜单（${scheduledMissingSchoolRankingCount}）`}</a>
+                  </>
+                ) : null}
                 {showMissingSchoolRankingsOnly && showAllSchoolRankingReferencesHref ? (
                   <a href={showAllSchoolRankingReferencesHref}>查看全部学校榜单</a>
                 ) : null}
+                {showScheduledMissingSchoolRankingsOnly &&
+                showAllScheduledSchoolRankingReferencesHref ? (
+                  <>
+                    {showMissingSchoolRankingsOnly && showAllSchoolRankingReferencesHref ? ' ' : null}
+                    <a href={showAllScheduledSchoolRankingReferencesHref}>查看全部近期待补学校榜单</a>
+                  </>
+                ) : null}
+              </p>
+            ) : null}
+            {displayedSchoolRankingReferences.length === 0 ? (
+              <p>
+                {showScheduledMissingSchoolRankingsOnly
+                  ? '当前没有近期待补学校榜单'
+                  : showMissingSchoolRankingsOnly
+                    ? '当前没有待补学校榜单'
+                    : '当前没有可编辑的学校榜单'}
               </p>
             ) : null}
             {displayedSchoolRankingReferences.map((school) => (
@@ -1651,14 +1721,40 @@ export default function DashboardShell({
         {!rankingReferenceError ? (
           <div>
             <p>{`已配置专业榜单 ${configuredMajorRankingReferenceCount} 个，待补专业榜单 ${missingMajorRankingReferences.length} 个`}</p>
-            {showMissingMajorRankingsOnlyHref || showAllMajorRankingReferencesHref ? (
+            {showMissingMajorRankingsOnlyHref ||
+            showAllMajorRankingReferencesHref ||
+            showScheduledMissingMajorRankingsOnlyHref ||
+            showAllScheduledMajorRankingReferencesHref ? (
               <p>
                 {!showMissingMajorRankingsOnly && showMissingMajorRankingsOnlyHref ? (
                   <a href={showMissingMajorRankingsOnlyHref}>{`仅看待补专业榜单（${missingMajorRankingReferences.length}）`}</a>
                 ) : null}
+                {!showScheduledMissingMajorRankingsOnly &&
+                showScheduledMissingMajorRankingsOnlyHref ? (
+                  <>
+                    {!showMissingMajorRankingsOnly && showMissingMajorRankingsOnlyHref ? ' ' : null}
+                    <a href={showScheduledMissingMajorRankingsOnlyHref}>{`仅看近期待补专业榜单（${scheduledMissingMajorRankingCount}）`}</a>
+                  </>
+                ) : null}
                 {showMissingMajorRankingsOnly && showAllMajorRankingReferencesHref ? (
                   <a href={showAllMajorRankingReferencesHref}>查看全部专业榜单</a>
                 ) : null}
+                {showScheduledMissingMajorRankingsOnly &&
+                showAllScheduledMajorRankingReferencesHref ? (
+                  <>
+                    {showMissingMajorRankingsOnly && showAllMajorRankingReferencesHref ? ' ' : null}
+                    <a href={showAllScheduledMajorRankingReferencesHref}>查看全部近期待补专业榜单</a>
+                  </>
+                ) : null}
+              </p>
+            ) : null}
+            {displayedMajorRankingReferences.length === 0 ? (
+              <p>
+                {showScheduledMissingMajorRankingsOnly
+                  ? '当前没有近期待补专业榜单'
+                  : showMissingMajorRankingsOnly
+                    ? '当前没有待补专业榜单'
+                    : '当前没有可编辑的专业榜单'}
               </p>
             ) : null}
             {displayedMajorRankingReferences.map((major) => (
@@ -1837,6 +1933,12 @@ export default function DashboardShell({
           ) : null}
           {showMissingMajorRankingsOnly ? (
             <input type="hidden" name="missing_major_rankings" value="1" />
+          ) : null}
+          {showScheduledMissingSchoolRankingsOnly ? (
+            <input type="hidden" name="scheduled_missing_school_rankings" value="1" />
+          ) : null}
+          {showScheduledMissingMajorRankingsOnly ? (
+            <input type="hidden" name="scheduled_missing_major_rankings" value="1" />
           ) : null}
           {showMissingSchoolRelatedOnly ? (
             <input type="hidden" name="missing_school_related" value="1" />

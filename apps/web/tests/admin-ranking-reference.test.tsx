@@ -381,6 +381,150 @@ test('filters school ranking references down to missing entries only and preserv
   );
 });
 
+test('filters ranking references down to scheduled gaps only and preserves date shortcuts', async () => {
+  listReviewQueueMock.mockResolvedValue([]);
+  listFeaturedContentMock.mockResolvedValue({
+    schools: [
+      {
+        slug: 'southeast-university',
+        name: '东南大学',
+        isFeatured: true,
+        heroImageUrl: '',
+      },
+      {
+        slug: 'wuhan-university',
+        name: '武汉大学',
+        isFeatured: true,
+        heroImageUrl: '',
+      },
+    ],
+    majors: [
+      {
+        slug: 'clinical-medicine',
+        name: '临床医学',
+        isFeatured: true,
+      },
+      {
+        slug: 'software-engineering',
+        name: '软件工程',
+        isFeatured: true,
+      },
+    ],
+    rotation: {
+      schools: {
+        enabled: true,
+        frequencyDays: 1,
+        windowSize: 2,
+        orderedSlugs: ['southeast-university', 'wuhan-university'],
+      },
+      majors: {
+        enabled: true,
+        frequencyDays: 1,
+        windowSize: 2,
+        orderedSlugs: ['clinical-medicine', 'software-engineering'],
+      },
+    },
+    preview: {
+      today: {
+        schools: [{ slug: 'southeast-university', name: '东南大学' }],
+        majors: [{ slug: 'clinical-medicine', name: '临床医学' }],
+      },
+      next: {
+        schools: [{ slug: 'wuhan-university', name: '武汉大学' }],
+        majors: [{ slug: 'software-engineering', name: '软件工程' }],
+      },
+      schedule: [],
+      selectedDate: null,
+      selectedDateError: null,
+    },
+  });
+  listRankingReferencesMock.mockResolvedValue({
+    schools: [
+      {
+        slug: 'zhejiang-university',
+        name: '浙江大学',
+        rankingReferences: [],
+      },
+      {
+        slug: 'wuhan-university',
+        name: '武汉大学',
+        rankingReferences: [],
+      },
+      {
+        slug: 'southeast-university',
+        name: '东南大学',
+        rankingReferences: [],
+      },
+    ],
+    majors: [
+      {
+        slug: 'finance',
+        name: '金融学',
+        rankingReferences: [],
+      },
+      {
+        slug: 'software-engineering',
+        name: '软件工程',
+        rankingReferences: [],
+      },
+      {
+        slug: 'clinical-medicine',
+        name: '临床医学',
+        rankingReferences: [],
+      },
+    ],
+  });
+
+  render(
+    await AdminPage({
+      searchParams: Promise.resolve({
+        preview_date: '2026-04-18',
+        scheduled_missing_school_rankings: '1',
+        scheduled_missing_major_rankings: '1',
+      } as never),
+    }),
+  );
+
+  const schoolRankingRegion = screen.getByRole('region', { name: '学校榜单引用' });
+  const majorRankingRegion = screen.getByRole('region', { name: '专业榜单引用' });
+
+  expect(
+    within(schoolRankingRegion)
+      .getAllByRole('heading', { level: 3 })
+      .map((heading) => heading.textContent),
+  ).toEqual(['东南大学', '武汉大学']);
+  expect(
+    within(majorRankingRegion)
+      .getAllByRole('heading', { level: 3 })
+      .map((heading) => heading.textContent),
+  ).toEqual(['临床医学', '软件工程']);
+
+  expect(
+    within(schoolRankingRegion).getByRole('link', { name: '查看全部近期待补学校榜单' }),
+  ).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-18&scheduled_missing_school_rankings=0&scheduled_missing_major_rankings=1',
+  );
+  expect(
+    within(majorRankingRegion).getByRole('link', { name: '查看全部近期待补专业榜单' }),
+  ).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-18&scheduled_missing_school_rankings=1&scheduled_missing_major_rankings=0',
+  );
+  expect(screen.getByRole('link', { name: '查看前一天' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-17&scheduled_missing_school_rankings=1&scheduled_missing_major_rankings=1',
+  );
+  expect(screen.getByRole('link', { name: '回到今天' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-14&scheduled_missing_school_rankings=1&scheduled_missing_major_rankings=1',
+  );
+  expect(screen.getByRole('link', { name: '查看后一天' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-19&scheduled_missing_school_rankings=1&scheduled_missing_major_rankings=1',
+  );
+});
+
 test('preserves ranking-reference filters across date preview shortcuts', async () => {
   listReviewQueueMock.mockResolvedValue([]);
   listFeaturedContentMock.mockResolvedValue({
