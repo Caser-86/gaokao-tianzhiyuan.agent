@@ -234,6 +234,20 @@ def _preview_entry_for_date(
     }
 
 
+def _next_preview_items(
+    entries: list[dict[str, Any]],
+    rule: dict[str, Any],
+    *,
+    today: date,
+) -> list[dict[str, str]]:
+    if not rule.get("enabled") or not rule.get("ordered_slugs"):
+        return _preview_items(_current_rotation_window(entries, rule, today=today))
+
+    frequency_days = int(rule.get("frequency_days", 1) or 1)
+    next_date = today + timedelta(days=max(frequency_days, 1))
+    return _preview_items(_current_rotation_window(entries, rule, today=next_date))
+
+
 def list_current_featured_schools() -> list[dict[str, Any]]:
     payload = list_featured_content()
     return _current_rotation_window(payload["schools"], payload["rotation"]["schools"])
@@ -244,10 +258,22 @@ def list_current_featured_majors() -> list[dict[str, Any]]:
     return _current_rotation_window(payload["majors"], payload["rotation"]["majors"])
 
 
-def build_featured_content_preview() -> dict[str, list[dict[str, str]]]:
+def build_featured_content_preview() -> dict[str, Any]:
     payload = list_featured_content()
     today = date.today()
     today_entry = _preview_entry_for_date(payload, today)
+    next_preview = {
+        "schools": _next_preview_items(
+            payload["schools"],
+            payload["rotation"]["schools"],
+            today=today,
+        ),
+        "majors": _next_preview_items(
+            payload["majors"],
+            payload["rotation"]["majors"],
+            today=today,
+        ),
+    }
     schedule = [
         _preview_entry_for_date(payload, today + timedelta(days=offset))
         for offset in range(7)
@@ -257,5 +283,6 @@ def build_featured_content_preview() -> dict[str, list[dict[str, str]]]:
             "schools": today_entry["schools"],
             "majors": today_entry["majors"],
         },
+        "next": next_preview,
         "schedule": schedule,
     }

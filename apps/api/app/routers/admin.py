@@ -100,6 +100,7 @@ class FeaturedTodayPreviewResponse(SQLModel):
 
 class FeaturedContentPreviewResponse(SQLModel):
     today: FeaturedTodayPreviewResponse
+    next: FeaturedTodayPreviewResponse
     schedule: list[FeaturedPreviewDayResponse]
 
 
@@ -210,6 +211,16 @@ def get_featured_content(
                 majors=[
                     FeaturedPreviewItemResponse(**major)
                     for major in preview["today"]["majors"]
+                ],
+            ),
+            next=FeaturedTodayPreviewResponse(
+                schools=[
+                    FeaturedPreviewItemResponse(**school)
+                    for school in preview["next"]["schools"]
+                ],
+                majors=[
+                    FeaturedPreviewItemResponse(**major)
+                    for major in preview["next"]["majors"]
                 ],
             ),
             schedule=[

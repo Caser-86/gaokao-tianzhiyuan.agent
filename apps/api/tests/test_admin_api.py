@@ -327,6 +327,34 @@ def test_featured_content_endpoint_returns_seven_day_schedule(
     ]
 
 
+def test_featured_content_endpoint_returns_next_preview(
+    admin_client,
+    featured_content_file,
+) -> None:
+    client, _engine = admin_client
+
+    response = client.get(
+        "/api/admin/featured-content",
+        headers={"x-admin-token": settings.admin_token},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["preview"]["next"] == {
+        "schools": [
+            {
+                "slug": "west-china-medical-center",
+                "name": "华西医学中心",
+            }
+        ],
+        "majors": [
+            {
+                "slug": "computer-science",
+                "name": "计算机科学与技术",
+            }
+        ],
+    }
+
+
 def test_update_featured_school_persists_is_featured_and_image_url(
     admin_client,
     featured_content_file,
