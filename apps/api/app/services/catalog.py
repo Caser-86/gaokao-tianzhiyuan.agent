@@ -128,6 +128,28 @@ def list_admin_ranking_references() -> dict[str, Any]:
     }
 
 
+def list_admin_content_summaries() -> dict[str, Any]:
+    catalog = load_catalog()
+    return {
+        "schools": [
+            {
+                "slug": school["slug"],
+                "name": school["name"],
+                "summary": school["summary"],
+            }
+            for school in catalog["schools"]
+        ],
+        "majors": [
+            {
+                "slug": major["slug"],
+                "name": major["name"],
+                "summary": major["summary"],
+            }
+            for major in catalog["majors"]
+        ],
+    }
+
+
 def update_ranking_references(
     entity_key: str,
     slug: str,
@@ -150,4 +172,33 @@ def update_ranking_references(
         "slug": entity["slug"],
         "name": entity["name"],
         "ranking_references": entity.get("ranking_references", []),
+    }
+
+
+def update_content_summary(
+    entity_key: str,
+    slug: str,
+    summary: str,
+) -> dict[str, Any]:
+    normalized_summary = summary.strip()
+    if not normalized_summary:
+        raise ValueError("summary is required")
+
+    catalog = load_catalog()
+    entries = catalog[entity_key]
+    entity = next((item for item in entries if item["slug"] == slug), None)
+    if entity is None:
+        raise KeyError(slug)
+
+    entity["summary"] = normalized_summary
+    CATALOG_PATH.write_text(
+        json.dumps(catalog, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    load_catalog.cache_clear()
+
+    return {
+        "slug": entity["slug"],
+        "name": entity["name"],
+        "summary": entity["summary"],
     }

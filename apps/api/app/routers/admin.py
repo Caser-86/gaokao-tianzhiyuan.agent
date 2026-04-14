@@ -14,7 +14,9 @@ from ..services.featured_content import (
     update_featured_school,
 )
 from ..services.catalog import (
+    list_admin_content_summaries,
     list_admin_ranking_references,
+    update_content_summary,
     update_ranking_references,
 )
 
@@ -150,6 +152,21 @@ class RankingReferenceUpdateRequest(SQLModel):
     ranking_references: list[RankingReferenceRequest]
 
 
+class ContentSummaryEntityResponse(SQLModel):
+    slug: str
+    name: str
+    summary: str
+
+
+class ContentSummaryListResponse(SQLModel):
+    schools: list[ContentSummaryEntityResponse]
+    majors: list[ContentSummaryEntityResponse]
+
+
+class ContentSummaryUpdateRequest(SQLModel):
+    summary: str
+
+
 def serialize_review_queue_item(item: ReviewQueue) -> ReviewQueueItemResponse:
     created_at = item.created_at
     if created_at.tzinfo is None:
@@ -239,6 +256,16 @@ def normalize_ranking_references(
     return normalized
 
 
+def normalize_content_summary(summary: str) -> str:
+    normalized = summary.strip()
+    if not normalized:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="summary is required",
+        )
+    return normalized
+
+
 @router.get("/review-queue", response_model=ReviewQueueListResponse)
 def list_review_queue(
     _authorized: None = Depends(require_admin),
@@ -263,6 +290,17 @@ def get_ranking_references(
     return RankingReferenceListResponse(
         schools=[RankingReferenceEntityResponse(**item) for item in payload["schools"]],
         majors=[RankingReferenceEntityResponse(**item) for item in payload["majors"]],
+    )
+
+
+@router.get("/content-summaries", response_model=ContentSummaryListResponse)
+def get_content_summaries(
+    _authorized: None = Depends(require_admin),
+) -> ContentSummaryListResponse:
+    payload = list_admin_content_summaries()
+    return ContentSummaryListResponse(
+        schools=[ContentSummaryEntityResponse(**item) for item in payload["schools"]],
+        majors=[ContentSummaryEntityResponse(**item) for item in payload["majors"]],
     )
 
 
@@ -312,6 +350,64 @@ def update_major_ranking_references(
         ) from exc
 
     return RankingReferenceEntityResponse(**updated)
+
+
+@router.post(
+    "/content-summaries/schools/{slug}",
+    response_model=ContentSummaryEntityResponse,
+)
+def update_school_content_summary(
+    slug: str,
+    payload: ContentSummaryUpdateRequest,
+    _authorized: None = Depends(require_admin),
+) -> ContentSummaryEntityResponse:
+    try:
+        updated = update_content_summary(
+            "schools",
+            slug,
+            normalize_content_summary(payload.summary),
+        )
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="content summary entity not found",
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+
+    return ContentSummaryEntityResponse(**updated)
+
+
+@router.post(
+    "/content-summaries/majors/{slug}",
+    response_model=ContentSummaryEntityResponse,
+)
+def update_major_content_summary(
+    slug: str,
+    payload: ContentSummaryUpdateRequest,
+    _authorized: None = Depends(require_admin),
+) -> ContentSummaryEntityResponse:
+    try:
+        updated = update_content_summary(
+            "majors",
+            slug,
+            normalize_content_summary(payload.summary),
+        )
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="content summary entity not found",
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+
+    return ContentSummaryEntityResponse(**updated)
 
 
 @router.get("/featured-content", response_model=FeaturedContentResponse)
