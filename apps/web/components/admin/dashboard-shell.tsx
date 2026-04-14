@@ -130,6 +130,12 @@ type DashboardShellProps = {
 
 const cards = ['待审核内容', '最近发布', '抓取状态'];
 const noopAction = async (): Promise<void> => undefined;
+const buildSchoolWebsiteSearchHref = (name: string): string =>
+  `https://www.baidu.com/s?wd=${encodeURIComponent(`${name} 官网`)}`;
+const buildSchoolImageSearchHref = (name: string): string =>
+  `https://image.baidu.com/search/index?tn=baiduimage&word=${encodeURIComponent(
+    `${name} 校园`,
+  )}`;
 
 function PreviewList({
   items,
@@ -1769,7 +1775,25 @@ export default function DashboardShell({
 
                 {schoolImageSuggestions[school.slug]?.status !== 'found' &&
                 schoolImageSuggestions[school.slug]?.message ? (
-                  <p>{schoolImageSuggestions[school.slug]?.message}</p>
+                  <div>
+                    <p>{schoolImageSuggestions[school.slug]?.message}</p>
+                    <p>
+                      <a
+                        href={buildSchoolWebsiteSearchHref(school.name)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {'\u641c\u7d22\u5b66\u6821\u5b98\u7f51'}
+                      </a>{' '}
+                      <a
+                        href={buildSchoolImageSearchHref(school.name)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {'\u641c\u7d22\u5b66\u6821\u56fe\u7247'}
+                      </a>
+                    </p>
+                  </div>
                 ) : null}
 
                 {school.heroImageUrl ? (

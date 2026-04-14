@@ -336,6 +336,62 @@ test('renders school image suggestion controls and success state', () => {
   expect(screen.getByRole('button', { name: '使用该图片' })).toBeInTheDocument();
 });
 
+test('renders manual fallback links when school image suggestion fails', () => {
+  render(
+    <DashboardShell
+      title="内容运营后台"
+      queueItems={[]}
+      featuredSchools={[
+        {
+          slug: 'southeast-university',
+          name: '东南大学',
+          isFeatured: true,
+          heroImageUrl: '',
+        },
+      ]}
+      featuredMajors={[]}
+      schoolRotation={{ enabled: false, frequencyDays: 1, windowSize: 1, orderedSlugs: [] }}
+      majorRotation={{ enabled: false, frequencyDays: 1, windowSize: 1, orderedSlugs: [] }}
+      featuredSchoolPreview={[]}
+      featuredMajorPreview={[]}
+      nextFeaturedSchoolPreview={[]}
+      nextFeaturedMajorPreview={[]}
+      featuredSchedule={[]}
+      selectedPreviewDateValue=""
+      selectedDatePreview={null}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
+      schoolImageSuggestions={{
+        'southeast-university': {
+          slug: 'southeast-university',
+          name: '东南大学',
+          status: 'failed',
+          sourceUrl: null,
+          suggestedImageUrl: null,
+          message: '抓取失败，请稍后重试',
+        },
+      }}
+      suggestSchoolImageHrefBySlug={{
+        'southeast-university': '/admin?suggested_school_image_slug=southeast-university',
+      }}
+    />,
+  );
+
+  expect(screen.getByText('抓取失败，请稍后重试')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: '搜索学校官网' })).toHaveAttribute(
+    'href',
+    'https://www.baidu.com/s?wd=%E4%B8%9C%E5%8D%97%E5%A4%A7%E5%AD%A6%20%E5%AE%98%E7%BD%91',
+  );
+  expect(screen.getByRole('link', { name: '搜索学校图片' })).toHaveAttribute(
+    'href',
+    'https://image.baidu.com/search/index?tn=baiduimage&word=%E4%B8%9C%E5%8D%97%E5%A4%A7%E5%AD%A6%20%E6%A0%A1%E5%9B%AD',
+  );
+});
+
 test('renders selected-date validation error and no schedule highlight when needed', () => {
   render(
     <DashboardShell
