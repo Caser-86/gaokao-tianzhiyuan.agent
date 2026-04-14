@@ -1,11 +1,88 @@
+import json
+
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services import featured_content as featured_content_service
 
 client = TestClient(app)
 
 
-def test_list_schools_filters_by_region() -> None:
+def _write_featured_content(path) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "schools": [
+                    {
+                        "slug": "southeast-university",
+                        "is_featured": True,
+                        "hero_image_url": "https://cdn.example.com/southeast.jpg",
+                    },
+                    {
+                        "slug": "west-china-medical-center",
+                        "is_featured": True,
+                        "hero_image_url": "",
+                    },
+                ],
+                "majors": [
+                    {
+                        "slug": "clinical-medicine",
+                        "is_featured": True,
+                    },
+                    {
+                        "slug": "computer-science",
+                        "is_featured": True,
+                    },
+                ],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def test_list_schools_only_returns_featured_items(tmp_path, monkeypatch) -> None:
+    featured_content_path = tmp_path / "featured-content.json"
+    _write_featured_content(featured_content_path)
+    monkeypatch.setattr(featured_content_service, "FEATURED_CONTENT_PATH", featured_content_path)
+
+    response = client.get("/api/public/schools")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "items": [
+            {
+                "slug": "southeast-university",
+                "name": "\u4e1c\u5357\u5927\u5b66",
+                "region": "\u6c5f\u82cf",
+                "city": "\u5357\u4eac",
+                "tags": ["985", "\u53cc\u4e00\u6d41", "\u5de5\u79d1\u5f3a\u6821"],
+                "summary": "\u5efa\u7b51\u3001\u7535\u5b50\u3001\u5de5\u79d1\u5b9e\u529b\u5f3a\uff0c\u9002\u5408\u7406\u5de5\u57fa\u7840\u624e\u5b9e\u4e14\u60f3\u7559\u5728\u957f\u4e09\u89d2\u53d1\u5c55\u7684\u8003\u751f\u3002",
+                "hero_image_url": "https://cdn.example.com/southeast.jpg",
+                "has_ranking_references": True,
+            },
+            {
+                "slug": "west-china-medical-center",
+                "name": "\u534e\u897f\u533b\u5b66\u4e2d\u5fc3",
+                "region": "\u56db\u5ddd",
+                "city": "\u6210\u90fd",
+                "tags": ["\u533b\u5b66\u5f3a\u6821", "\u897f\u90e8\u9f99\u5934", "\u9644\u5c5e\u533b\u9662\u5f3a"],
+                "summary": "\u4e34\u5e8a\u533b\u5b66\u57f9\u517b\u5b9e\u529b\u5f3a\uff0c\u9002\u5408\u60f3\u8d70\u533b\u5b66\u957f\u7ebf\u53d1\u5c55\u3001\u80fd\u63a5\u53d7\u9ad8\u5f3a\u5ea6\u57f9\u517b\u7684\u8003\u751f\u3002",
+                "hero_image_url": "",
+                "has_ranking_references": True,
+            },
+        ],
+        "total": 2,
+    }
+
+
+def test_list_schools_filters_by_region(tmp_path, monkeypatch) -> None:
+    featured_content_path = tmp_path / "featured-content.json"
+    _write_featured_content(featured_content_path)
+    monkeypatch.setattr(featured_content_service, "FEATURED_CONTENT_PATH", featured_content_path)
+
     response = client.get("/api/public/schools", params={"region": "\u6c5f\u82cf"})
 
     assert response.status_code == 200
@@ -18,6 +95,7 @@ def test_list_schools_filters_by_region() -> None:
                 "city": "\u5357\u4eac",
                 "tags": ["985", "\u53cc\u4e00\u6d41", "\u5de5\u79d1\u5f3a\u6821"],
                 "summary": "\u5efa\u7b51\u3001\u7535\u5b50\u3001\u5de5\u79d1\u5b9e\u529b\u5f3a\uff0c\u9002\u5408\u7406\u5de5\u57fa\u7840\u624e\u5b9e\u4e14\u60f3\u7559\u5728\u957f\u4e09\u89d2\u53d1\u5c55\u7684\u8003\u751f\u3002",
+                "hero_image_url": "https://cdn.example.com/southeast.jpg",
                 "has_ranking_references": True,
             }
         ],
@@ -164,13 +242,17 @@ def test_major_detail_returns_ranking_references_for_computer_science() -> None:
     ]
 
 
-def test_list_majors_returns_catalog_cards() -> None:
+def test_list_majors_returns_catalog_cards(tmp_path, monkeypatch) -> None:
+    featured_content_path = tmp_path / "featured-content.json"
+    _write_featured_content(featured_content_path)
+    monkeypatch.setattr(featured_content_service, "FEATURED_CONTENT_PATH", featured_content_path)
+
     response = client.get("/api/public/majors")
 
     assert response.status_code == 200
 
     payload = response.json()
-    assert payload["total"] == 4
+    assert payload["total"] == 2
     assert payload["items"][0] == {
         "slug": "clinical-medicine",
         "name": "\u4e34\u5e8a\u533b\u5b66",
@@ -183,5 +265,5 @@ def test_list_majors_returns_catalog_cards() -> None:
         "summary": "\u57f9\u517b\u5468\u671f\u957f\u3001\u5b66\u4e60\u538b\u529b\u9ad8\uff0c\u4f46\u804c\u4e1a\u58c1\u5792\u5f3a\uff0c\u9002\u5408\u6297\u538b\u5f3a\u4e14\u613f\u610f\u957f\u671f\u6295\u5165\u7684\u8003\u751f\u3002",
         "has_ranking_references": True,
     }
-    assert payload["items"][-1]["slug"] == "microelectronics"
-    assert payload["items"][-1]["has_ranking_references"] is False
+    assert payload["items"][-1]["slug"] == "computer-science"
+    assert payload["items"][-1]["has_ranking_references"] is True

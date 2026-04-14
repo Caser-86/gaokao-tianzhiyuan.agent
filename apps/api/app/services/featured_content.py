@@ -4,9 +4,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .catalog import load_catalog
-
-
 FEATURED_CONTENT_PATH = Path(__file__).resolve().parents[4] / "data" / "featured-content.json"
 
 
@@ -28,6 +25,8 @@ def _write_featured_content(payload: dict[str, Any]) -> None:
 
 
 def _catalog_entities(entity_key: str) -> list[dict[str, Any]]:
+    from .catalog import load_catalog
+
     return load_catalog()[entity_key]
 
 

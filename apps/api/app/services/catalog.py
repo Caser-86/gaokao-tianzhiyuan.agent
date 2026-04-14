@@ -5,6 +5,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from .featured_content import list_featured_content
+
 
 CATALOG_PATH = Path(__file__).resolve().parents[4] / "data" / "catalog.json"
 
@@ -20,9 +22,18 @@ def get_search_entry() -> dict[str, Any]:
 
 def list_schools(*, region: str | None = None, keyword: str | None = None) -> dict[str, Any]:
     schools = load_catalog()["schools"]
+    featured_schools = {
+        school["slug"]: school
+        for school in list_featured_content()["schools"]
+        if school["is_featured"]
+    }
     filtered = []
 
     for school in schools:
+        config = featured_schools.get(school["slug"])
+        if config is None:
+            continue
+
         if region and school["region"] != region:
             continue
 
@@ -47,6 +58,7 @@ def list_schools(*, region: str | None = None, keyword: str | None = None) -> di
                 "city": school["city"],
                 "tags": school["tags"],
                 "summary": school["summary"],
+                "hero_image_url": config["hero_image_url"],
                 "has_ranking_references": bool(school.get("ranking_references")),
             }
         )
@@ -59,6 +71,11 @@ def list_schools(*, region: str | None = None, keyword: str | None = None) -> di
 
 def list_majors() -> dict[str, Any]:
     majors = load_catalog()["majors"]
+    featured_majors = {
+        major["slug"]
+        for major in list_featured_content()["majors"]
+        if major["is_featured"]
+    }
     items = [
         {
             "slug": major["slug"],
@@ -69,6 +86,7 @@ def list_majors() -> dict[str, Any]:
             "has_ranking_references": bool(major.get("ranking_references")),
         }
         for major in majors
+        if major["slug"] in featured_majors
     ]
 
     return {
