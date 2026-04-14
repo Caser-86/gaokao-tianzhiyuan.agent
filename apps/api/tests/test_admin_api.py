@@ -388,6 +388,87 @@ def test_update_featured_school_persists_is_featured_and_image_url(
     }
 
 
+def test_suggest_featured_school_image_returns_candidate(
+    admin_client,
+    featured_content_file,
+    monkeypatch,
+) -> None:
+    client, _engine = admin_client
+
+    monkeypatch.setattr(
+        featured_content_service,
+        "fetch_school_image_candidate",
+        lambda slug: {
+            "slug": slug,
+            "name": "东南大学",
+            "status": "found",
+            "source_url": "https://www.seu.edu.cn/",
+            "suggested_image_url": "https://www.seu.edu.cn/assets/hero.jpg",
+            "message": None,
+        },
+    )
+
+    response = client.post(
+        "/api/admin/featured-content/schools/southeast-university/suggest-image",
+        headers={"x-admin-token": settings.admin_token},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "slug": "southeast-university",
+        "name": "东南大学",
+        "status": "found",
+        "source_url": "https://www.seu.edu.cn/",
+        "suggested_image_url": "https://www.seu.edu.cn/assets/hero.jpg",
+        "message": None,
+    }
+
+
+def test_suggest_featured_school_image_returns_missing_when_school_has_no_website(
+    admin_client,
+    featured_content_file,
+    monkeypatch,
+) -> None:
+    client, _engine = admin_client
+
+    monkeypatch.setattr(
+        featured_content_service,
+        "fetch_school_image_candidate",
+        lambda slug: {
+            "slug": slug,
+            "name": "东南大学",
+            "status": "missing",
+            "source_url": None,
+            "suggested_image_url": None,
+            "message": "学校未配置可抓取的官网地址",
+        },
+    )
+
+    response = client.post(
+        "/api/admin/featured-content/schools/southeast-university/suggest-image",
+        headers={"x-admin-token": settings.admin_token},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "missing"
+    assert response.json()["message"] == "学校未配置可抓取的官网地址"
+
+
+def test_suggest_featured_school_image_returns_404_for_unknown_slug(
+    admin_client,
+    featured_content_file,
+) -> None:
+    client, _engine = admin_client
+
+    response = client.post(
+        "/api/admin/featured-content/schools/missing-school/suggest-image",
+        headers={"x-admin-token": settings.admin_token},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "featured content entity not found"}
+
+
 def test_update_featured_major_rejects_unknown_slug(
     admin_client,
     featured_content_file,

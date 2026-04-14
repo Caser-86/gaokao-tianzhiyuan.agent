@@ -101,6 +101,19 @@ def get_school_detail(slug: str) -> dict[str, Any] | None:
     return next((school for school in schools if school["slug"] == slug), None)
 
 
+def get_school_website(slug: str) -> str | None:
+    school = get_school_detail(slug)
+    if school is None:
+        raise KeyError(slug)
+
+    for key in ("website", "official_website", "source_url"):
+        value = school.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    return None
+
+
 def get_major_detail(slug: str) -> dict[str, Any] | None:
     majors = load_catalog()["majors"]
     return next((major for major in majors if major["slug"] == slug), None)

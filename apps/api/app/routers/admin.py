@@ -6,6 +6,7 @@ from sqlmodel import SQLModel, Session, select
 from ..config import settings
 from ..db import get_session
 from ..models.ingestion import ReviewQueue
+from ..services import featured_content as featured_content_service
 from ..services.featured_content import (
     build_featured_content_preview,
     list_featured_content,
@@ -70,6 +71,15 @@ class FeaturedSchoolConfigRequest(SQLModel):
 
 class FeaturedMajorConfigRequest(SQLModel):
     is_featured: bool
+
+
+class FeaturedSchoolImageSuggestionResponse(SQLModel):
+    slug: str
+    name: str
+    status: str
+    source_url: str | None = None
+    suggested_image_url: str | None = None
+    message: str | None = None
 
 
 class FeaturedRotationRuleRequest(SQLModel):
@@ -744,6 +754,25 @@ def update_featured_school_config(
         ) from exc
 
     return FeaturedSchoolConfigResponse(**updated)
+
+
+@router.post(
+    "/featured-content/schools/{slug}/suggest-image",
+    response_model=FeaturedSchoolImageSuggestionResponse,
+)
+def suggest_featured_school_image(
+    slug: str,
+    _authorized: None = Depends(require_admin),
+) -> FeaturedSchoolImageSuggestionResponse:
+    try:
+        suggestion = featured_content_service.fetch_school_image_candidate(slug)
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="featured content entity not found",
+        ) from exc
+
+    return FeaturedSchoolImageSuggestionResponse(**suggestion)
 
 
 @router.post(

@@ -2,12 +2,35 @@ from __future__ import annotations
 
 import json
 from datetime import date, timedelta
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
+from urllib.parse import urljoin
+from urllib.request import Request, urlopen
 
 FEATURED_CONTENT_PATH = Path(__file__).resolve().parents[4] / "data" / "featured-content.json"
 ROTATION_ANCHOR_DATE = date(2026, 4, 14)
 WEEKDAY_LABELS = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+
+
+class _ImageCandidateParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.og_image: str | None = None
+        self.first_image: str | None = None
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = dict(attrs)
+        if tag == "meta":
+            property_name = (values.get("property") or values.get("name") or "").lower()
+            content = (values.get("content") or "").strip()
+            if property_name == "og:image" and content and self.og_image is None:
+                self.og_image = content
+
+        if tag == "img":
+            src = (values.get("src") or "").strip()
+            if src and self.first_image is None:
+                self.first_image = src
 
 
 def _default_rotation_rule() -> dict[str, Any]:
@@ -70,6 +93,66 @@ def _validate_rotation_rule(entity_key: str, ordered_slugs: list[str]) -> None:
     for slug in ordered_slugs:
         if slug not in catalog_slugs:
             raise KeyError(slug)
+
+
+def fetch_school_image_candidate(slug: str) -> dict[str, Any]:
+    from .catalog import get_school_detail, get_school_website
+
+    school = get_school_detail(slug)
+    if school is None:
+        raise KeyError(slug)
+
+    website = get_school_website(slug)
+    if not website:
+        return {
+            "slug": school["slug"],
+            "name": school["name"],
+            "status": "missing",
+            "source_url": None,
+            "suggested_image_url": None,
+            "message": "学校未配置可抓取的官网地址",
+        }
+
+    request = Request(
+        website,
+        headers={"User-Agent": "gaokao-agent/1.0 (+featured-school-image-suggestion)"},
+    )
+
+    try:
+        with urlopen(request, timeout=8) as response:
+            html = response.read().decode("utf-8", errors="ignore")
+    except Exception:
+        return {
+            "slug": school["slug"],
+            "name": school["name"],
+            "status": "failed",
+            "source_url": website,
+            "suggested_image_url": None,
+            "message": "抓取失败，请稍后重试",
+        }
+
+    parser = _ImageCandidateParser()
+    parser.feed(html)
+    candidate = parser.og_image or parser.first_image
+
+    if not candidate:
+        return {
+            "slug": school["slug"],
+            "name": school["name"],
+            "status": "missing",
+            "source_url": website,
+            "suggested_image_url": None,
+            "message": "官网页面未找到可用图片",
+        }
+
+    return {
+        "slug": school["slug"],
+        "name": school["name"],
+        "status": "found",
+        "source_url": website,
+        "suggested_image_url": urljoin(website, candidate),
+        "message": None,
+    }
 
 
 def list_featured_content() -> dict[str, Any]:
