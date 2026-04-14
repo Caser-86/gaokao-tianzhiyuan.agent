@@ -1169,6 +1169,7 @@ export default function DashboardShell({
     ? scheduledPreviewDays.filter((day) => day.gapCount > 0)
     : scheduledPreviewDays;
   const scheduledGapDayCount = scheduledPreviewDays.filter((day) => day.gapCount > 0).length;
+  const scheduledHighPriorityDayCount = scheduledPreviewDays.filter((day) => day.gapCount >= 2).length;
 
   return (
     <main>
@@ -2221,6 +2222,7 @@ export default function DashboardShell({
           <p>当前没有未来轮换预览</p>
         ) : (
           <div>
+            <p>{`未来 7 天中有 ${scheduledGapDayCount} 天待补内容，其中 ${scheduledHighPriorityDayCount} 天待补 2 项及以上`}</p>
             {showScheduledGapDaysOnlyHref || showAllScheduledGapDaysHref ? (
               <p>
                 {!showScheduledGapDaysOnly && showScheduledGapDaysOnlyHref ? (
@@ -2245,6 +2247,8 @@ export default function DashboardShell({
                 <p>{day.weekday}</p>
                 {day.date === highlightedScheduleDate ? <p>当前查看</p> : null}
                 <p>{`该日待补 ${day.gapCount} 项`}</p>
+                {day.gapCount >= 2 ? <p>优先关注</p> : null}
+                {day.gapCount === 1 ? <p>少量待补</p> : null}
                 {day.gapCount === 0 ? <p>内容已齐备</p> : null}
                 <p>学校</p>
                 {day.schools.length === 0 ? (
