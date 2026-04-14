@@ -282,6 +282,60 @@ test('renders helper text and highlights today when no selected preview date is 
   expect(screen.queryByRole('link', { name: '查看后一天' })).not.toBeInTheDocument();
 });
 
+test('renders school image suggestion controls and success state', () => {
+  render(
+    <DashboardShell
+      title="内容运营后台"
+      queueItems={[]}
+      featuredSchools={[
+        {
+          slug: 'southeast-university',
+          name: '东南大学',
+          isFeatured: true,
+          heroImageUrl: '',
+        },
+      ]}
+      featuredMajors={[]}
+      schoolRotation={{ enabled: false, frequencyDays: 1, windowSize: 1, orderedSlugs: [] }}
+      majorRotation={{ enabled: false, frequencyDays: 1, windowSize: 1, orderedSlugs: [] }}
+      featuredSchoolPreview={[]}
+      featuredMajorPreview={[]}
+      nextFeaturedSchoolPreview={[]}
+      nextFeaturedMajorPreview={[]}
+      featuredSchedule={[]}
+      selectedPreviewDateValue=""
+      selectedDatePreview={null}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
+      schoolImageSuggestions={{
+        'southeast-university': {
+          slug: 'southeast-university',
+          name: '东南大学',
+          status: 'found',
+          sourceUrl: 'https://www.seu.edu.cn/',
+          suggestedImageUrl: 'https://www.seu.edu.cn/assets/hero.jpg',
+          message: null,
+        },
+      }}
+      suggestSchoolImageHrefBySlug={{
+        'southeast-university': '/admin?suggested_school_image_slug=southeast-university',
+      }}
+    />,
+  );
+
+  expect(screen.getByRole('button', { name: '尝试抓取图片' })).toBeInTheDocument();
+  expect(screen.getByAltText('东南大学候选图片')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: '查看来源页' })).toHaveAttribute(
+    'href',
+    'https://www.seu.edu.cn/',
+  );
+  expect(screen.getByRole('button', { name: '使用该图片' })).toBeInTheDocument();
+});
+
 test('renders selected-date validation error and no schedule highlight when needed', () => {
   render(
     <DashboardShell

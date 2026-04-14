@@ -4,6 +4,7 @@ import { beforeEach, expect, test, vi } from 'vitest';
 const {
   listReviewQueueMock,
   listFeaturedContentMock,
+  suggestFeaturedSchoolImageMock,
   listRankingReferencesMock,
   listContentSummariesMock,
   listContentSectionsMock,
@@ -11,6 +12,7 @@ const {
 } = vi.hoisted(() => ({
   listReviewQueueMock: vi.fn(),
   listFeaturedContentMock: vi.fn(),
+  suggestFeaturedSchoolImageMock: vi.fn(),
   listRankingReferencesMock: vi.fn(),
   listContentSummariesMock: vi.fn(),
   listContentSectionsMock: vi.fn(),
@@ -23,6 +25,7 @@ vi.mock('../lib/admin-review-api', () => ({
 
 vi.mock('../lib/admin-featured-content-api', () => ({
   listFeaturedContent: listFeaturedContentMock,
+  suggestFeaturedSchoolImage: suggestFeaturedSchoolImageMock,
 }));
 
 vi.mock('../lib/admin-ranking-reference-api', () => ({
@@ -45,6 +48,7 @@ vi.mock('../app/(admin)/admin/actions', () => ({
   approveReviewQueueAction: async () => undefined,
   rejectReviewQueueAction: async () => undefined,
   updateFeaturedSchoolAction: async () => undefined,
+  suggestSchoolImageAction: async () => undefined,
   updateFeaturedMajorAction: async () => undefined,
   updateSchoolSummaryAction: async () => undefined,
   updateMajorSummaryAction: async () => undefined,
@@ -63,6 +67,7 @@ import AdminPage from '../app/(admin)/admin/page';
 beforeEach(() => {
   listReviewQueueMock.mockReset();
   listFeaturedContentMock.mockReset();
+  suggestFeaturedSchoolImageMock.mockReset();
   listRankingReferencesMock.mockReset();
   listContentSummariesMock.mockReset();
   listContentSectionsMock.mockReset();
@@ -82,6 +87,14 @@ beforeEach(() => {
   listRelatedContentMock.mockResolvedValue({
     schools: [],
     majors: [],
+  });
+  suggestFeaturedSchoolImageMock.mockResolvedValue({
+    slug: 'southeast-university',
+    name: '东南大学',
+    status: 'found',
+    sourceUrl: 'https://www.seu.edu.cn/',
+    suggestedImageUrl: 'https://www.seu.edu.cn/assets/hero.jpg',
+    message: null,
   });
 });
 
@@ -319,6 +332,53 @@ test('renders queue items, date preview shortcuts, and schedule highlight return
   expect(within(scheduleRegion).queryByRole('link', { name: '2026-04-15' })).not.toBeInTheDocument();
   expect(selectedScheduleDay).not.toBeNull();
   expect(within(selectedScheduleDay as HTMLElement).getByText('当前查看')).toBeInTheDocument();
+});
+
+test('passes school image suggestions into the admin shell', async () => {
+  listReviewQueueMock.mockResolvedValue([]);
+  listFeaturedContentMock.mockResolvedValue({
+    schools: [
+      {
+        slug: 'southeast-university',
+        name: '东南大学',
+        isFeatured: true,
+        heroImageUrl: '',
+      },
+    ],
+    majors: [],
+    rotation: {
+      schools: {
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      },
+      majors: {
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      },
+    },
+    preview: {
+      today: { schools: [], majors: [] },
+      next: { schools: [], majors: [] },
+      schedule: [],
+      selectedDate: null,
+      selectedDateError: null,
+    },
+  });
+
+  render(
+    await AdminPage({
+      searchParams: Promise.resolve({
+        suggested_school_image_slug: 'southeast-university',
+      }),
+    }),
+  );
+
+  expect(suggestFeaturedSchoolImageMock).toHaveBeenCalledWith('southeast-university');
+  expect(screen.getByAltText('东南大学候选图片')).toBeInTheDocument();
 });
 
 test('renders selected-date validation error when preview_date is invalid', async () => {

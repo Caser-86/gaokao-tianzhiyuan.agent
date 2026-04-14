@@ -18,9 +18,11 @@ import {
   type AdminFeaturedMajor,
   type AdminFeaturedPreviewDay,
   type AdminFeaturedPreviewItem,
+  type AdminFeaturedSchoolImageSuggestion,
   type AdminFeaturedSchool,
   type AdminRotationRule,
   listFeaturedContent,
+  suggestFeaturedSchoolImage,
 } from '../../../lib/admin-featured-content-api';
 import {
   type AdminRankingReferenceEntity,
@@ -54,6 +56,7 @@ const defaultRotationRule = (): AdminRotationRule => ({
 type AdminPageProps = {
   searchParams?: Promise<{
     preview_date?: string;
+    suggested_school_image_slug?: string;
     missing_school_images?: string;
     scheduled_missing_school_images?: string;
     missing_school_rankings?: string;
@@ -109,6 +112,7 @@ const buildAdminHref = ({
   showScheduledMissingSchoolSectionsOnly,
   showScheduledMissingMajorSectionsOnly,
   showScheduledGapDaysOnly,
+  suggestedSchoolImageSlug,
 }: {
   previewDate?: string;
   showMissingImageSchoolsOnly?: boolean;
@@ -130,6 +134,7 @@ const buildAdminHref = ({
   showScheduledMissingSchoolSectionsOnly?: boolean;
   showScheduledMissingMajorSectionsOnly?: boolean;
   showScheduledGapDaysOnly?: boolean;
+  suggestedSchoolImageSlug?: string;
 }): string => {
   const searchParams = new URLSearchParams();
 
@@ -237,6 +242,10 @@ const buildAdminHref = ({
     searchParams.set('scheduled_gap_days', '1');
   }
 
+  if (suggestedSchoolImageSlug) {
+    searchParams.set('suggested_school_image_slug', suggestedSchoolImageSlug);
+  }
+
   const queryString = searchParams.toString();
   return queryString ? `/admin?${queryString}` : '/admin';
 };
@@ -244,6 +253,8 @@ const buildAdminHref = ({
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const previewDate = resolvedSearchParams?.preview_date?.trim() || undefined;
+  const suggestedSchoolImageSlug =
+    resolvedSearchParams?.suggested_school_image_slug?.trim() || undefined;
   const showMissingImageSchoolsOnly =
     resolvedSearchParams?.missing_school_images?.trim() === '1';
   const showScheduledMissingImageSchoolsOnly =
@@ -832,6 +843,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   let relatedSchools: AdminRelatedSchoolEntity[] = [];
   let relatedMajors: AdminRelatedMajorEntity[] = [];
   let relatedContentError: string | undefined;
+  let schoolImageSuggestions: Record<string, AdminFeaturedSchoolImageSuggestion> = {};
   let schoolRotation = defaultRotationRule();
   let majorRotation = defaultRotationRule();
 
@@ -854,6 +866,27 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     featuredSchedule = featuredContent.preview.schedule;
     selectedDatePreview = featuredContent.preview.selectedDate;
     selectedDateError = featuredContent.preview.selectedDateError ?? undefined;
+
+    if (suggestedSchoolImageSlug) {
+      try {
+        const suggestion = await suggestFeaturedSchoolImage(suggestedSchoolImageSlug);
+        schoolImageSuggestions = { [suggestion.slug]: suggestion };
+      } catch {
+        const matchedSchool = featuredContent.schools.find(
+          (school) => school.slug === suggestedSchoolImageSlug,
+        );
+        schoolImageSuggestions = {
+          [suggestedSchoolImageSlug]: {
+            slug: suggestedSchoolImageSlug,
+            name: matchedSchool?.name ?? suggestedSchoolImageSlug,
+            status: 'failed',
+            sourceUrl: null,
+            suggestedImageUrl: null,
+            message: '抓取失败，请稍后重试',
+          },
+        };
+      }
+    }
   } catch {
     featuredContentError = '展示配置加载失败，请稍后重试';
   }
@@ -889,6 +922,35 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   } catch {
     relatedContentError = '相关推荐加载失败，请稍后重试';
   }
+
+  const suggestSchoolImageHrefBySlug = Object.fromEntries(
+    featuredSchools.map((school) => [
+      school.slug,
+      buildAdminHref({
+        previewDate,
+        showMissingImageSchoolsOnly,
+        showScheduledMissingImageSchoolsOnly,
+        showMissingSchoolRankingsOnly: rankingSchoolFilterState,
+        showMissingMajorRankingsOnly: rankingMajorFilterState,
+        showScheduledMissingSchoolRankingsOnly: scheduledRankingSchoolFilterState,
+        showScheduledMissingMajorRankingsOnly: scheduledRankingMajorFilterState,
+        showMissingSchoolRelatedOnly: relatedSchoolFilterState,
+        showMissingMajorRelatedOnly: relatedMajorFilterState,
+        showScheduledMissingSchoolRelatedOnly: scheduledRelatedSchoolFilterState,
+        showScheduledMissingMajorRelatedOnly: scheduledRelatedMajorFilterState,
+        showMissingSchoolSummariesOnly: summarySchoolFilterState,
+        showMissingMajorSummariesOnly: summaryMajorFilterState,
+        showScheduledMissingSchoolSummariesOnly: scheduledSummarySchoolFilterState,
+        showScheduledMissingMajorSummariesOnly: scheduledSummaryMajorFilterState,
+        showMissingSchoolSectionsOnly: sectionSchoolFilterState,
+        showMissingMajorSectionsOnly: sectionMajorFilterState,
+        showScheduledMissingSchoolSectionsOnly: scheduledSectionSchoolFilterState,
+        showScheduledMissingMajorSectionsOnly: scheduledSectionMajorFilterState,
+        showScheduledGapDaysOnly,
+        suggestedSchoolImageSlug: school.slug,
+      }),
+    ]),
+  );
 
   return (
     <DashboardShell
@@ -930,6 +992,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       selectedPreviewDateValue={previewDate ?? ''}
       selectedDatePreview={selectedDatePreview}
       selectedDateError={selectedDateError}
+      schoolImageSuggestions={schoolImageSuggestions}
+      suggestSchoolImageHrefBySlug={suggestSchoolImageHrefBySlug}
       todayPreviewDateHref={todayPreviewDateHref}
       previousPreviewDateHref={previousPreviewDateHref}
       nextPreviewDateHref={nextPreviewDateHref}

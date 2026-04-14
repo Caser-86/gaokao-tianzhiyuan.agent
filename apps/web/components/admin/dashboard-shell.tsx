@@ -14,6 +14,7 @@ import type {
   AdminFeaturedPreviewDay,
   AdminFeaturedPreviewItem,
   AdminFeaturedSchool,
+  AdminFeaturedSchoolImageSuggestion,
   AdminRotationRule,
 } from '../../lib/admin-featured-content-api';
 import type { AdminRankingReferenceEntity } from '../../lib/admin-ranking-reference-api';
@@ -71,6 +72,8 @@ type DashboardShellProps = {
   selectedPreviewDateValue: string;
   selectedDatePreview: AdminFeaturedPreviewDay | null;
   selectedDateError?: string;
+  schoolImageSuggestions?: Record<string, AdminFeaturedSchoolImageSuggestion>;
+  suggestSchoolImageHrefBySlug?: Record<string, string>;
   todayPreviewDateHref?: string;
   previousPreviewDateHref?: string;
   nextPreviewDateHref?: string;
@@ -356,6 +359,8 @@ export default function DashboardShell({
   selectedPreviewDateValue,
   selectedDatePreview,
   selectedDateError,
+  schoolImageSuggestions = {},
+  suggestSchoolImageHrefBySlug = {},
   todayPreviewDateHref,
   previousPreviewDateHref,
   nextPreviewDateHref,
@@ -1724,6 +1729,48 @@ export default function DashboardShell({
                   ) : null}
                   <button type="submit">保存</button>
                 </form>
+
+                {suggestSchoolImageHrefBySlug[school.slug] ? (
+                  <form action={suggestSchoolImageHrefBySlug[school.slug]} method="GET">
+                    <button type="submit">{'\u5c1d\u8bd5\u6293\u53d6\u56fe\u7247'}</button>
+                  </form>
+                ) : null}
+
+                {schoolImageSuggestions[school.slug]?.status === 'found' &&
+                schoolImageSuggestions[school.slug]?.suggestedImageUrl ? (
+                  <div>
+                    <img
+                      src={schoolImageSuggestions[school.slug]?.suggestedImageUrl ?? ''}
+                      alt={`${school.name}${'\u5019\u9009\u56fe\u7247'}`}
+                      width={160}
+                      height={96}
+                    />
+                    {schoolImageSuggestions[school.slug]?.sourceUrl ? (
+                      <a
+                        href={schoolImageSuggestions[school.slug]?.sourceUrl ?? undefined}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {'\u67e5\u770b\u6765\u6e90\u9875'}
+                      </a>
+                    ) : null}
+                    <form action={updateFeaturedSchoolAction}>
+                      <input type="hidden" name="slug" value={school.slug} />
+                      <input type="hidden" name="isFeatured" value={school.isFeatured ? 'on' : ''} />
+                      <input
+                        type="hidden"
+                        name="heroImageUrl"
+                        value={schoolImageSuggestions[school.slug]?.suggestedImageUrl ?? ''}
+                      />
+                      <button type="submit">{'\u4f7f\u7528\u8be5\u56fe\u7247'}</button>
+                    </form>
+                  </div>
+                ) : null}
+
+                {schoolImageSuggestions[school.slug]?.status !== 'found' &&
+                schoolImageSuggestions[school.slug]?.message ? (
+                  <p>{schoolImageSuggestions[school.slug]?.message}</p>
+                ) : null}
 
                 {school.heroImageUrl ? (
                   <form action={updateFeaturedSchoolAction}>
