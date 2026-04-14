@@ -183,6 +183,11 @@ test('renders admin dashboard heading, date preview shortcuts, and schedule high
   expect(within(scheduleRegion).getByText('周二')).toBeInTheDocument();
   expect(within(scheduleRegion).getByRole('heading', { name: '2026-04-15' })).toBeInTheDocument();
   expect(within(scheduleRegion).getByText('周三')).toBeInTheDocument();
+  expect(within(scheduleRegion).getByRole('link', { name: '2026-04-14' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-14',
+  );
+  expect(within(scheduleRegion).queryByRole('link', { name: '2026-04-15' })).not.toBeInTheDocument();
   expect(highlightedScheduleDay).not.toBeNull();
   expect(within(highlightedScheduleDay as HTMLElement).getByText('当前查看')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '通过' })).toBeInTheDocument();
@@ -224,6 +229,7 @@ test('renders helper text and highlights today when no selected preview date is 
 
   expect(screen.getByText('选择一个日期查看当天轮换结果')).toBeInTheDocument();
   expect(renderedTodayScheduleDay).not.toBeNull();
+  expect(screen.queryByRole('link', { name: '2026-04-14' })).not.toBeInTheDocument();
   expect(within(renderedTodayScheduleDay as HTMLElement).getByText('当前查看')).toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '回到今天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看前一天' })).not.toBeInTheDocument();

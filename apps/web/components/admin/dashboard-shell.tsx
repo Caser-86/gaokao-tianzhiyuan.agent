@@ -353,7 +353,13 @@ export default function DashboardShell({
           <div>
             {featuredSchedule.map((day) => (
               <article key={day.date}>
-                <h3>{day.date}</h3>
+                <h3>
+                  {day.date === highlightedScheduleDate ? (
+                    day.date
+                  ) : (
+                    <a href={`/admin?preview_date=${day.date}`}>{day.date}</a>
+                  )}
+                </h3>
                 <p>{day.weekday}</p>
                 {day.date === highlightedScheduleDate ? <p>当前查看</p> : null}
                 <p>学校</p>

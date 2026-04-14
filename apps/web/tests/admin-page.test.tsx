@@ -216,6 +216,11 @@ test('renders queue items, date preview shortcuts, and schedule highlight return
   expect(within(scheduleRegion).getByText('周二')).toBeInTheDocument();
   expect(within(scheduleRegion).getByRole('heading', { name: '2026-04-15' })).toBeInTheDocument();
   expect(within(scheduleRegion).getByText('周三')).toBeInTheDocument();
+  expect(within(scheduleRegion).getByRole('link', { name: '2026-04-14' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-14',
+  );
+  expect(within(scheduleRegion).queryByRole('link', { name: '2026-04-15' })).not.toBeInTheDocument();
   expect(selectedScheduleDay).not.toBeNull();
   expect(within(selectedScheduleDay as HTMLElement).getByText('当前查看')).toBeInTheDocument();
 });
@@ -323,6 +328,7 @@ test('renders queue error while still highlighting today when no preview date is
   const todayScheduleDay = screen.getByText('2026-04-14').closest('article');
 
   expect(screen.getByText('审核队列加载失败，请稍后重试')).toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: '2026-04-14' })).not.toBeInTheDocument();
   expect(todayScheduleDay).not.toBeNull();
   expect(within(todayScheduleDay as HTMLElement).getByText('当前查看')).toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '回到今天' })).not.toBeInTheDocument();
