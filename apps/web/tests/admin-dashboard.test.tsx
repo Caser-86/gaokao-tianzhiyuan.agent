@@ -151,6 +151,7 @@ test('renders admin dashboard heading, missing-image shortcuts, and schedule hig
   expect(screen.getByText('school #101')).toBeInTheDocument();
   expect(screen.getByText('summary, strengths')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '学校展示配置' })).toBeInTheDocument();
+  expect(screen.getByText('已配置图片 1 所，待补图片 1 所')).toBeInTheDocument();
   expect(screen.getByRole('checkbox', { name: '东南大学' })).toBeInTheDocument();
   expect(screen.getByRole('checkbox', { name: '华西医学中心' })).toBeInTheDocument();
   expect(
@@ -305,6 +306,7 @@ test('renders selected-date validation error and no schedule highlight when need
   );
 
   expect(screen.getByText('当前没有待审核内容')).toBeInTheDocument();
+  expect(screen.getByText('已配置图片 0 所，待补图片 0 所')).toBeInTheDocument();
   expect(screen.getByText('当前没有可展示学校')).toBeInTheDocument();
   expect(screen.getByText('当前没有可展示专业')).toBeInTheDocument();
   expect(screen.getByText('当前没有下一轮展示学校')).toBeInTheDocument();

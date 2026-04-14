@@ -116,6 +116,7 @@ export default function DashboardShell({
   const schoolsMissingImages = sortedFeaturedSchools
     .filter((school) => !school.heroImageUrl)
     .map(({ slug, name }) => ({ slug, name }));
+  const schoolsWithImagesCount = featuredSchools.length - schoolsMissingImages.length;
 
   return (
     <main>
@@ -166,6 +167,7 @@ export default function DashboardShell({
 
       <section aria-labelledby="featured-schools-heading">
         <h2 id="featured-schools-heading">学校展示配置</h2>
+        <p>{`已配置图片 ${schoolsWithImagesCount} 所，待补图片 ${schoolsMissingImages.length} 所`}</p>
 
         {featuredContentError ? <p>{featuredContentError}</p> : null}
 

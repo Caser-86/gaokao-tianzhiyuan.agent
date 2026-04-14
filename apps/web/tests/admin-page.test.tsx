@@ -178,6 +178,7 @@ test('renders queue items, date preview shortcuts, and schedule highlight return
   expect(screen.getByRole('heading', { name: '内容运营后台' })).toBeInTheDocument();
   expect(screen.getByText('school #901')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '学校展示配置' })).toBeInTheDocument();
+  expect(screen.getByText('已配置图片 1 所，待补图片 1 所')).toBeInTheDocument();
 
   const featuredSchoolsRegion = screen.getByRole('region', { name: '学校展示配置' });
   expect(screen.getByText('内容学校')).toBeInTheDocument();
@@ -316,6 +317,7 @@ test('renders selected-date validation error when preview_date is invalid', asyn
 
   expect(listFeaturedContentMock).toHaveBeenCalledWith('2026-99-99');
   expect(screen.getByText('预览日期格式无效')).toBeInTheDocument();
+  expect(screen.getByText('已配置图片 0 所，待补图片 0 所')).toBeInTheDocument();
   expect(screen.getByText('当前没有待补图片学校')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '待补图片学校（0）' })).toBeInTheDocument();
   expect(screen.queryByText('当前查看')).not.toBeInTheDocument();
@@ -426,6 +428,7 @@ test('renders empty preview states when today, next, and selected-date preview a
   );
 
   expect(screen.getByText('当前没有可展示学校')).toBeInTheDocument();
+  expect(screen.getByText('已配置图片 0 所，待补图片 0 所')).toBeInTheDocument();
   expect(screen.getByText('当前没有可展示专业')).toBeInTheDocument();
   expect(screen.getByText('当前没有下一轮展示学校')).toBeInTheDocument();
   expect(screen.getByText('当前没有下一轮展示专业')).toBeInTheDocument();
