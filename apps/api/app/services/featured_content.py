@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
 FEATURED_CONTENT_PATH = Path(__file__).resolve().parents[4] / "data" / "featured-content.json"
 ROTATION_ANCHOR_DATE = date(2026, 4, 14)
+WEEKDAY_LABELS = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
 
 
 def _default_rotation_rule() -> dict[str, Any]:
@@ -211,6 +212,28 @@ def _preview_items(entries: list[dict[str, Any]]) -> list[dict[str, str]]:
     ]
 
 
+def _preview_entry_for_date(
+    payload: dict[str, Any],
+    target_date: date,
+) -> dict[str, Any]:
+    schools = _current_rotation_window(
+        payload["schools"],
+        payload["rotation"]["schools"],
+        today=target_date,
+    )
+    majors = _current_rotation_window(
+        payload["majors"],
+        payload["rotation"]["majors"],
+        today=target_date,
+    )
+    return {
+        "date": target_date.isoformat(),
+        "weekday": WEEKDAY_LABELS[target_date.weekday()],
+        "schools": _preview_items(schools),
+        "majors": _preview_items(majors),
+    }
+
+
 def list_current_featured_schools() -> list[dict[str, Any]]:
     payload = list_featured_content()
     return _current_rotation_window(payload["schools"], payload["rotation"]["schools"])
@@ -222,7 +245,17 @@ def list_current_featured_majors() -> list[dict[str, Any]]:
 
 
 def build_featured_content_preview() -> dict[str, list[dict[str, str]]]:
+    payload = list_featured_content()
+    today = date.today()
+    today_entry = _preview_entry_for_date(payload, today)
+    schedule = [
+        _preview_entry_for_date(payload, today + timedelta(days=offset))
+        for offset in range(7)
+    ]
     return {
-        "schools": _preview_items(list_current_featured_schools()),
-        "majors": _preview_items(list_current_featured_majors()),
+        "today": {
+            "schools": today_entry["schools"],
+            "majors": today_entry["majors"],
+        },
+        "schedule": schedule,
     }

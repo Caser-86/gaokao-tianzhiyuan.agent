@@ -86,9 +86,21 @@ class FeaturedPreviewItemResponse(SQLModel):
     name: str
 
 
-class FeaturedContentPreviewResponse(SQLModel):
+class FeaturedPreviewDayResponse(SQLModel):
+    date: str
+    weekday: str
     schools: list[FeaturedPreviewItemResponse]
     majors: list[FeaturedPreviewItemResponse]
+
+
+class FeaturedTodayPreviewResponse(SQLModel):
+    schools: list[FeaturedPreviewItemResponse]
+    majors: list[FeaturedPreviewItemResponse]
+
+
+class FeaturedContentPreviewResponse(SQLModel):
+    today: FeaturedTodayPreviewResponse
+    schedule: list[FeaturedPreviewDayResponse]
 
 
 class FeaturedContentResponse(SQLModel):
@@ -190,13 +202,30 @@ def get_featured_content(
             majors=FeaturedRotationRuleResponse(**payload["rotation"]["majors"]),
         ),
         preview=FeaturedContentPreviewResponse(
-            schools=[
-                FeaturedPreviewItemResponse(**school)
-                for school in preview["schools"]
-            ],
-            majors=[
-                FeaturedPreviewItemResponse(**major)
-                for major in preview["majors"]
+            today=FeaturedTodayPreviewResponse(
+                schools=[
+                    FeaturedPreviewItemResponse(**school)
+                    for school in preview["today"]["schools"]
+                ],
+                majors=[
+                    FeaturedPreviewItemResponse(**major)
+                    for major in preview["today"]["majors"]
+                ],
+            ),
+            schedule=[
+                FeaturedPreviewDayResponse(
+                    date=day["date"],
+                    weekday=day["weekday"],
+                    schools=[
+                        FeaturedPreviewItemResponse(**school)
+                        for school in day["schools"]
+                    ],
+                    majors=[
+                        FeaturedPreviewItemResponse(**major)
+                        for major in day["majors"]
+                    ],
+                )
+                for day in preview["schedule"]
             ],
         ),
     )

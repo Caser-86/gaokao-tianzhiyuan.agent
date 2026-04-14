@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -267,7 +267,7 @@ def test_featured_content_endpoint_returns_today_preview(
     )
 
     assert response.status_code == 200
-    assert response.json()["preview"] == {
+    assert response.json()["preview"]["today"] == {
         "schools": [
             {
                 "slug": "southeast-university",
@@ -281,6 +281,50 @@ def test_featured_content_endpoint_returns_today_preview(
             }
         ],
     }
+
+
+def test_featured_content_endpoint_returns_seven_day_schedule(
+    admin_client,
+    featured_content_file,
+) -> None:
+    client, _engine = admin_client
+    today = date.today()
+
+    response = client.get(
+        "/api/admin/featured-content",
+        headers={"x-admin-token": settings.admin_token},
+    )
+
+    assert response.status_code == 200
+    schedule = response.json()["preview"]["schedule"]
+
+    assert len(schedule) == 7
+    assert schedule[0]["date"] == today.isoformat()
+    assert schedule[0]["schools"] == [
+        {
+            "slug": "southeast-university",
+            "name": "东南大学",
+        }
+    ]
+    assert schedule[0]["majors"] == [
+        {
+            "slug": "clinical-medicine",
+            "name": "临床医学",
+        }
+    ]
+    assert schedule[1]["date"] == (today + timedelta(days=1)).isoformat()
+    assert schedule[1]["schools"] == [
+        {
+            "slug": "west-china-medical-center",
+            "name": "华西医学中心",
+        }
+    ]
+    assert schedule[1]["majors"] == [
+        {
+            "slug": "computer-science",
+            "name": "计算机科学与技术",
+        }
+    ]
 
 
 def test_update_featured_school_persists_is_featured_and_image_url(
