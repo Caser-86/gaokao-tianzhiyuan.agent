@@ -140,6 +140,12 @@ export default function DashboardShell({
   const scheduledMissingImagesCount = schoolsMissingImages.filter((school) =>
     scheduledMissingSchoolSlugs.has(school.slug),
   ).length;
+  const todayMissingImagesCount = schoolsMissingImages.filter((school) =>
+    todayPreviewSchoolSlugs.has(school.slug),
+  ).length;
+  const nextMissingImagesCount = schoolsMissingImages.filter((school) =>
+    nextPreviewSchoolSlugs.has(school.slug),
+  ).length;
   const displayedFeaturedSchools = showScheduledMissingImageSchoolsOnly
     ? sortedFeaturedSchools.filter(
         (school) => !school.heroImageUrl && scheduledMissingSchoolSlugs.has(school.slug),
@@ -311,20 +317,23 @@ export default function DashboardShell({
         {featuredContentError ? null : schoolsMissingImages.length === 0 ? (
           <p>当前没有待补图片学校</p>
         ) : (
-          <ul>
-            {schoolsMissingImages.map((school) => (
-              <li key={school.slug}>
-                <a href={`#featured-school-${school.slug}`}>{school.name}</a>
-                <span>{school.slug}</span>
-                {todayPreviewSchoolSlugs.has(school.slug) ? (
-                  <a href="#featured-school-preview-heading">今日展示</a>
-                ) : null}
-                {nextPreviewSchoolSlugs.has(school.slug) ? (
-                  <a href="#next-featured-school-preview-heading">下一轮展示</a>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+          <>
+            <p>{`今日缺图 ${todayMissingImagesCount} 所，下一轮缺图 ${nextMissingImagesCount} 所`}</p>
+            <ul>
+              {schoolsMissingImages.map((school) => (
+                <li key={school.slug}>
+                  <a href={`#featured-school-${school.slug}`}>{school.name}</a>
+                  <span>{school.slug}</span>
+                  {todayPreviewSchoolSlugs.has(school.slug) ? (
+                    <a href="#featured-school-preview-heading">今日展示</a>
+                  ) : null}
+                  {nextPreviewSchoolSlugs.has(school.slug) ? (
+                    <a href="#next-featured-school-preview-heading">下一轮展示</a>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </section>
 

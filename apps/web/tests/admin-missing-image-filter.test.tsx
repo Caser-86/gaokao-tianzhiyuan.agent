@@ -299,6 +299,7 @@ test('links missing-image schedule badges back to today and next preview section
 
   const missingImageRegion = screen.getByRole('region', { name: '待补图片学校（1）' });
 
+  expect(within(missingImageRegion).getByText('今日缺图 1 所，下一轮缺图 1 所')).toBeInTheDocument();
   expect(within(missingImageRegion).getByRole('link', { name: '今日展示' })).toHaveAttribute(
     'href',
     '#featured-school-preview-heading',
