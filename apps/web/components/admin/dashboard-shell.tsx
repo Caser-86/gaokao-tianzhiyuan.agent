@@ -103,10 +103,17 @@ export default function DashboardShell({
 }: DashboardShellProps) {
   const showSelectedDateHelper =
     !selectedPreviewDateValue && !selectedDatePreview && !selectedDateError;
+  const sortedFeaturedSchools = [...featuredSchools].sort((left, right) => {
+    if (left.heroImageUrl === right.heroImageUrl) {
+      return 0;
+    }
+
+    return left.heroImageUrl ? 1 : -1;
+  });
   const schoolImageAvailabilityBySlug = Object.fromEntries(
     featuredSchools.map((school) => [school.slug, Boolean(school.heroImageUrl)]),
   );
-  const schoolsMissingImages = featuredSchools
+  const schoolsMissingImages = sortedFeaturedSchools
     .filter((school) => !school.heroImageUrl)
     .map(({ slug, name }) => ({ slug, name }));
 
@@ -164,7 +171,7 @@ export default function DashboardShell({
 
         {!featuredContentError ? (
           <div>
-            {featuredSchools.map((school) => (
+            {sortedFeaturedSchools.map((school) => (
               <div key={school.slug} id={`featured-school-${school.slug}`}>
                 <form action={updateFeaturedSchoolAction}>
                   <input type="hidden" name="slug" value={school.slug} />

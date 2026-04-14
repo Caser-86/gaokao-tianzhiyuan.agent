@@ -154,6 +154,11 @@ test('renders admin dashboard heading, missing-image shortcuts, and schedule hig
   expect(screen.getByRole('checkbox', { name: '东南大学' })).toBeInTheDocument();
   expect(screen.getByRole('checkbox', { name: '华西医学中心' })).toBeInTheDocument();
   expect(
+    within(featuredSchoolsRegion)
+      .getAllByRole('checkbox')
+      .map((checkbox) => checkbox.parentElement?.textContent?.trim()),
+  ).toEqual(['华西医学中心', '东南大学']);
+  expect(
     screen.getByRole('img', { name: 'featured-school-image-southeast-university' }),
   ).toHaveAttribute('src', 'https://cdn.example.com/southeast.jpg');
   expect(screen.getByRole('link', { name: '查看原图' })).toHaveAttribute(

@@ -182,6 +182,11 @@ test('renders queue items, date preview shortcuts, and schedule highlight return
   const featuredSchoolsRegion = screen.getByRole('region', { name: '学校展示配置' });
   expect(screen.getByText('内容学校')).toBeInTheDocument();
   expect(within(featuredSchoolsRegion).getByText('内容候补学校')).toBeInTheDocument();
+  expect(
+    within(featuredSchoolsRegion)
+      .getAllByRole('checkbox')
+      .map((checkbox) => checkbox.parentElement?.textContent?.trim()),
+  ).toEqual(['内容候补学校', '内容学校']);
   expect(screen.getByDisplayValue('https://cdn.example.com/southeast.jpg')).toBeInTheDocument();
   expect(
     screen.getByRole('img', { name: 'featured-school-image-southeast-university' }),
