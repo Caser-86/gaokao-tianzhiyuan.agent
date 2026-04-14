@@ -1529,6 +1529,7 @@ export default function DashboardShell({
                 <li key={item.key}>
                   <a href={withNearestScheduledGapDate(item.key, item.href)}>
                     {`${item.todayCount > 0 ? '今日优先' : item.nextCount > 0 ? '下一轮关注' : '待补关注'} · ${item.label}：今日 ${item.todayCount}，下一轮 ${item.nextCount}，待补 ${item.totalCount}`}
+                    {nearestScheduledGapDay ? `，最近待补 ${nearestScheduledGapDay.date}` : ''}
                   </a>
                 </li>
               ))}
