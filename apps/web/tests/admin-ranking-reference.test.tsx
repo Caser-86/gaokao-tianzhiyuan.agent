@@ -341,3 +341,66 @@ test('filters school ranking references down to missing entries only and preserv
     '/admin?preview_date=2026-04-18&missing_school_rankings=0',
   );
 });
+
+test('preserves ranking-reference filters across date preview shortcuts', async () => {
+  listReviewQueueMock.mockResolvedValue([]);
+  listFeaturedContentMock.mockResolvedValue({
+    schools: [],
+    majors: [],
+    rotation: {
+      schools: {
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      },
+      majors: {
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      },
+    },
+    preview: {
+      today: { schools: [], majors: [] },
+      next: { schools: [], majors: [] },
+      schedule: [
+        {
+          date: '2026-04-17',
+          weekday: '周五',
+          schools: [],
+          majors: [],
+        },
+      ],
+      selectedDate: null,
+      selectedDateError: null,
+    },
+  });
+  listRankingReferencesMock.mockResolvedValue({
+    schools: [],
+    majors: [],
+  });
+
+  render(
+    await AdminPage({
+      searchParams: Promise.resolve({
+        preview_date: '2026-04-18',
+        missing_school_rankings: '1',
+        missing_major_rankings: '1',
+      }),
+    }),
+  );
+
+  expect(screen.getByRole('link', { name: '查看前一天' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-17&missing_school_rankings=1&missing_major_rankings=1',
+  );
+  expect(screen.getByRole('link', { name: '回到今天' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-14&missing_school_rankings=1&missing_major_rankings=1',
+  );
+  expect(screen.getByRole('link', { name: '查看后一天' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-19&missing_school_rankings=1&missing_major_rankings=1',
+  );
+});
