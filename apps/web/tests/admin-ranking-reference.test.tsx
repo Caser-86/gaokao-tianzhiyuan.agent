@@ -259,3 +259,85 @@ test('surfaces missing ranking-reference coverage and prioritizes missing featur
       .map((heading) => heading.textContent),
   ).toEqual(['临床医学', '金融学']);
 });
+
+test('filters school ranking references down to missing entries only and preserves preview date in filter links', async () => {
+  listReviewQueueMock.mockResolvedValue([]);
+  listFeaturedContentMock.mockResolvedValue({
+    schools: [
+      {
+        slug: 'southeast-university',
+        name: '东南大学',
+        isFeatured: true,
+        heroImageUrl: '',
+      },
+    ],
+    majors: [],
+    rotation: {
+      schools: {
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      },
+      majors: {
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      },
+    },
+    preview: {
+      today: { schools: [], majors: [] },
+      next: { schools: [], majors: [] },
+      schedule: [],
+      selectedDate: null,
+      selectedDateError: null,
+    },
+  });
+  listRankingReferencesMock.mockResolvedValue({
+    schools: [
+      {
+        slug: 'zhejiang-university',
+        name: '浙江大学',
+        rankingReferences: [
+          {
+            source: '软科中国大学排名',
+            year: 2025,
+            label: '全国第 3 名',
+            scope: '',
+            note: '',
+            url: '',
+          },
+        ],
+      },
+      {
+        slug: 'southeast-university',
+        name: '东南大学',
+        rankingReferences: [],
+      },
+    ],
+    majors: [],
+  });
+
+  render(
+    await AdminPage({
+      searchParams: Promise.resolve({
+        preview_date: '2026-04-18',
+        missing_school_rankings: '1',
+      } as never),
+    }),
+  );
+
+  const schoolRankingRegion = screen.getByRole('region', { name: '学校榜单引用' });
+  const viewAllLink = within(schoolRankingRegion).getByRole('link', { name: '查看全部学校榜单' });
+
+  expect(
+    within(schoolRankingRegion)
+      .getAllByRole('heading', { level: 3 })
+      .map((heading) => heading.textContent),
+  ).toEqual(['东南大学']);
+  expect(viewAllLink).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-18&missing_school_rankings=0',
+  );
+});

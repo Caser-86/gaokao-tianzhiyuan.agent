@@ -37,6 +37,8 @@ type AdminPageProps = {
     preview_date?: string;
     missing_school_images?: string;
     scheduled_missing_school_images?: string;
+    missing_school_rankings?: string;
+    missing_major_rankings?: string;
   }>;
 };
 
@@ -56,10 +58,14 @@ const buildAdminHref = ({
   previewDate,
   showMissingImageSchoolsOnly,
   showScheduledMissingImageSchoolsOnly,
+  showMissingSchoolRankingsOnly,
+  showMissingMajorRankingsOnly,
 }: {
   previewDate?: string;
   showMissingImageSchoolsOnly?: boolean;
   showScheduledMissingImageSchoolsOnly?: boolean;
+  showMissingSchoolRankingsOnly?: boolean;
+  showMissingMajorRankingsOnly?: boolean;
 }): string => {
   const searchParams = new URLSearchParams();
 
@@ -75,6 +81,14 @@ const buildAdminHref = ({
     searchParams.set('scheduled_missing_school_images', '1');
   }
 
+  if (showMissingSchoolRankingsOnly !== undefined) {
+    searchParams.set('missing_school_rankings', showMissingSchoolRankingsOnly ? '1' : '0');
+  }
+
+  if (showMissingMajorRankingsOnly !== undefined) {
+    searchParams.set('missing_major_rankings', showMissingMajorRankingsOnly ? '1' : '0');
+  }
+
   const queryString = searchParams.toString();
   return queryString ? `/admin?${queryString}` : '/admin';
 };
@@ -86,6 +100,18 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     resolvedSearchParams?.missing_school_images?.trim() === '1';
   const showScheduledMissingImageSchoolsOnly =
     resolvedSearchParams?.scheduled_missing_school_images?.trim() === '1';
+  const showMissingSchoolRankingsOnly =
+    resolvedSearchParams?.missing_school_rankings?.trim() === '1';
+  const showMissingMajorRankingsOnly =
+    resolvedSearchParams?.missing_major_rankings?.trim() === '1';
+  const rankingSchoolFilterState =
+    resolvedSearchParams?.missing_school_rankings !== undefined
+      ? showMissingSchoolRankingsOnly
+      : undefined;
+  const rankingMajorFilterState =
+    resolvedSearchParams?.missing_major_rankings !== undefined
+      ? showMissingMajorRankingsOnly
+      : undefined;
   const normalizedPreviewDate = previewDate ? shiftIsoDate(previewDate, 0) : null;
   const todayPreviewDate = todayIsoDate();
   const highlightedScheduleDate =
@@ -98,6 +124,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           previewDate: todayPreviewDate,
           showMissingImageSchoolsOnly,
           showScheduledMissingImageSchoolsOnly,
+          showMissingSchoolRankingsOnly: rankingSchoolFilterState,
+          showMissingMajorRankingsOnly: rankingMajorFilterState,
         })
       : undefined;
   const previousPreviewDateHref = previousPreviewDate
@@ -105,6 +133,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         previewDate: previousPreviewDate,
         showMissingImageSchoolsOnly,
         showScheduledMissingImageSchoolsOnly,
+        showMissingSchoolRankingsOnly: rankingSchoolFilterState,
+        showMissingMajorRankingsOnly: rankingMajorFilterState,
       })
     : undefined;
   const nextPreviewDateHref = nextPreviewDate
@@ -112,6 +142,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         previewDate: nextPreviewDate,
         showMissingImageSchoolsOnly,
         showScheduledMissingImageSchoolsOnly,
+        showMissingSchoolRankingsOnly: rankingSchoolFilterState,
+        showMissingMajorRankingsOnly: rankingMajorFilterState,
       })
     : undefined;
   const showMissingImageSchoolsOnlyHref =
@@ -119,22 +151,68 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       ? buildAdminHref({
           previewDate,
           showMissingImageSchoolsOnly: true,
+          showMissingSchoolRankingsOnly: rankingSchoolFilterState,
+          showMissingMajorRankingsOnly: rankingMajorFilterState,
         })
       : showScheduledMissingImageSchoolsOnly
         ? buildAdminHref({
             previewDate,
             showMissingImageSchoolsOnly: true,
+            showMissingSchoolRankingsOnly: rankingSchoolFilterState,
+            showMissingMajorRankingsOnly: rankingMajorFilterState,
           })
         : undefined;
   const showScheduledMissingImageSchoolsOnlyHref = !showScheduledMissingImageSchoolsOnly
     ? buildAdminHref({
         previewDate,
         showScheduledMissingImageSchoolsOnly: true,
+        showMissingSchoolRankingsOnly: rankingSchoolFilterState,
+        showMissingMajorRankingsOnly: rankingMajorFilterState,
+      })
+    : undefined;
+  const showMissingSchoolRankingsOnlyHref = !showMissingSchoolRankingsOnly
+    ? buildAdminHref({
+        previewDate,
+        showMissingImageSchoolsOnly,
+        showScheduledMissingImageSchoolsOnly,
+        showMissingSchoolRankingsOnly: true,
+        showMissingMajorRankingsOnly: rankingMajorFilterState,
+      })
+    : undefined;
+  const showAllSchoolRankingReferencesHref = showMissingSchoolRankingsOnly
+    ? buildAdminHref({
+        previewDate,
+        showMissingImageSchoolsOnly,
+        showScheduledMissingImageSchoolsOnly,
+        showMissingSchoolRankingsOnly: false,
+        showMissingMajorRankingsOnly: rankingMajorFilterState,
+      })
+    : undefined;
+  const showMissingMajorRankingsOnlyHref = !showMissingMajorRankingsOnly
+    ? buildAdminHref({
+        previewDate,
+        showMissingImageSchoolsOnly,
+        showScheduledMissingImageSchoolsOnly,
+        showMissingSchoolRankingsOnly: rankingSchoolFilterState,
+        showMissingMajorRankingsOnly: true,
+      })
+    : undefined;
+  const showAllMajorRankingReferencesHref = showMissingMajorRankingsOnly
+    ? buildAdminHref({
+        previewDate,
+        showMissingImageSchoolsOnly,
+        showScheduledMissingImageSchoolsOnly,
+        showMissingSchoolRankingsOnly: rankingSchoolFilterState,
+        showMissingMajorRankingsOnly: false,
       })
     : undefined;
   const showAllFeaturedSchoolsHref =
     showMissingImageSchoolsOnly || showScheduledMissingImageSchoolsOnly
-      ? buildAdminHref({ previewDate })
+      ? buildAdminHref({
+          previewDate,
+          showMissingSchoolRankingsOnly: rankingSchoolFilterState,
+          showMissingMajorRankingsOnly: rankingMajorFilterState,
+        })
       : undefined;
 
   let queueItems: AdminReviewItem[] = [];
@@ -213,6 +291,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       showScheduledMissingImageSchoolsOnly={showScheduledMissingImageSchoolsOnly}
       showScheduledMissingImageSchoolsOnlyHref={showScheduledMissingImageSchoolsOnlyHref}
       showAllFeaturedSchoolsHref={showAllFeaturedSchoolsHref}
+      showMissingSchoolRankingsOnly={showMissingSchoolRankingsOnly}
+      showMissingSchoolRankingsOnlyHref={showMissingSchoolRankingsOnlyHref}
+      showAllSchoolRankingReferencesHref={showAllSchoolRankingReferencesHref}
+      showMissingMajorRankingsOnly={showMissingMajorRankingsOnly}
+      showMissingMajorRankingsOnlyHref={showMissingMajorRankingsOnlyHref}
+      showAllMajorRankingReferencesHref={showAllMajorRankingReferencesHref}
       rankingReferenceError={rankingReferenceError}
       queueError={queueError}
       featuredContentError={featuredContentError}

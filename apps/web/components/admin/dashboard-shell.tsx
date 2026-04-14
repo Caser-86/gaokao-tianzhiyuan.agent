@@ -47,6 +47,12 @@ type DashboardShellProps = {
   showScheduledMissingImageSchoolsOnly?: boolean;
   showScheduledMissingImageSchoolsOnlyHref?: string;
   showAllFeaturedSchoolsHref?: string;
+  showMissingSchoolRankingsOnly?: boolean;
+  showMissingSchoolRankingsOnlyHref?: string;
+  showAllSchoolRankingReferencesHref?: string;
+  showMissingMajorRankingsOnly?: boolean;
+  showMissingMajorRankingsOnlyHref?: string;
+  showAllMajorRankingReferencesHref?: string;
   rankingReferenceError?: string;
   queueError?: string;
   featuredContentError?: string;
@@ -185,6 +191,12 @@ export default function DashboardShell({
   showScheduledMissingImageSchoolsOnly = false,
   showScheduledMissingImageSchoolsOnlyHref,
   showAllFeaturedSchoolsHref,
+  showMissingSchoolRankingsOnly = false,
+  showMissingSchoolRankingsOnlyHref,
+  showAllSchoolRankingReferencesHref,
+  showMissingMajorRankingsOnly = false,
+  showMissingMajorRankingsOnlyHref,
+  showAllMajorRankingReferencesHref,
   rankingReferenceError,
   queueError,
   featuredContentError,
@@ -267,6 +279,12 @@ export default function DashboardShell({
   const missingMajorRankingReferences = sortedRankingReferenceMajors.filter(
     (major) => major.rankingReferences.length === 0,
   );
+  const displayedSchoolRankingReferences = showMissingSchoolRankingsOnly
+    ? missingSchoolRankingReferences
+    : sortedRankingReferenceSchools;
+  const displayedMajorRankingReferences = showMissingMajorRankingsOnly
+    ? missingMajorRankingReferences
+    : sortedRankingReferenceMajors;
   const configuredSchoolRankingReferenceCount =
     sortedRankingReferenceSchools.length - missingSchoolRankingReferences.length;
   const configuredMajorRankingReferenceCount =
@@ -497,7 +515,17 @@ export default function DashboardShell({
         {!rankingReferenceError ? (
           <div>
             <p>{`已配置学校榜单 ${configuredSchoolRankingReferenceCount} 所，待补学校榜单 ${missingSchoolRankingReferences.length} 所`}</p>
-            {sortedRankingReferenceSchools.map((school) => (
+            {showMissingSchoolRankingsOnlyHref || showAllSchoolRankingReferencesHref ? (
+              <p>
+                {!showMissingSchoolRankingsOnly && showMissingSchoolRankingsOnlyHref ? (
+                  <a href={showMissingSchoolRankingsOnlyHref}>{`仅看待补学校榜单（${missingSchoolRankingReferences.length}）`}</a>
+                ) : null}
+                {showMissingSchoolRankingsOnly && showAllSchoolRankingReferencesHref ? (
+                  <a href={showAllSchoolRankingReferencesHref}>查看全部学校榜单</a>
+                ) : null}
+              </p>
+            ) : null}
+            {displayedSchoolRankingReferences.map((school) => (
               <div key={school.slug} id={`school-ranking-reference-${school.slug}`}>
                 <RankingReferenceForm
                   entity={school}
@@ -546,7 +574,17 @@ export default function DashboardShell({
         {!rankingReferenceError ? (
           <div>
             <p>{`已配置专业榜单 ${configuredMajorRankingReferenceCount} 个，待补专业榜单 ${missingMajorRankingReferences.length} 个`}</p>
-            {sortedRankingReferenceMajors.map((major) => (
+            {showMissingMajorRankingsOnlyHref || showAllMajorRankingReferencesHref ? (
+              <p>
+                {!showMissingMajorRankingsOnly && showMissingMajorRankingsOnlyHref ? (
+                  <a href={showMissingMajorRankingsOnlyHref}>{`仅看待补专业榜单（${missingMajorRankingReferences.length}）`}</a>
+                ) : null}
+                {showMissingMajorRankingsOnly && showAllMajorRankingReferencesHref ? (
+                  <a href={showAllMajorRankingReferencesHref}>查看全部专业榜单</a>
+                ) : null}
+              </p>
+            ) : null}
+            {displayedMajorRankingReferences.map((major) => (
               <div key={major.slug} id={`major-ranking-reference-${major.slug}`}>
                 <RankingReferenceForm
                   entity={major}
