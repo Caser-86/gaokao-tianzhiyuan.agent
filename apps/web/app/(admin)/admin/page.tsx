@@ -91,7 +91,7 @@ const shiftIsoDate = (value: string, offsetDays: number): string | null => {
 
 const todayIsoDate = (): string => new Date().toISOString().slice(0, 10);
 
-const buildAdminHref = ({
+const buildAdminHrefBase = ({
   previewDate,
   showMissingImageSchoolsOnly,
   showScheduledMissingImageSchoolsOnly,
@@ -293,6 +293,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     resolvedSearchParams?.scheduled_missing_major_sections?.trim() === '1';
   const showScheduledGapDaysOnly =
     resolvedSearchParams?.scheduled_gap_days?.trim() === '1';
+  const buildAdminHref = (
+    options: Omit<Parameters<typeof buildAdminHrefBase>[0], 'suggestedSchoolImageSlug'>,
+  ): string =>
+    buildAdminHrefBase({
+      ...options,
+      suggestedSchoolImageSlug,
+    });
+
   const rankingSchoolFilterState =
     resolvedSearchParams?.missing_school_rankings !== undefined
       ? showMissingSchoolRankingsOnly
@@ -926,7 +934,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const suggestSchoolImageHrefBySlug = Object.fromEntries(
     featuredSchools.map((school) => [
       school.slug,
-      buildAdminHref({
+      buildAdminHrefBase({
         previewDate,
         showMissingImageSchoolsOnly,
         showScheduledMissingImageSchoolsOnly,
@@ -990,6 +998,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       relatedMajors={relatedMajors}
       highlightedScheduleDate={highlightedScheduleDate}
       selectedPreviewDateValue={previewDate ?? ''}
+      selectedSuggestedSchoolImageSlug={suggestedSchoolImageSlug}
       selectedDatePreview={selectedDatePreview}
       selectedDateError={selectedDateError}
       schoolImageSuggestions={schoolImageSuggestions}

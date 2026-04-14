@@ -381,6 +381,70 @@ test('passes school image suggestions into the admin shell', async () => {
   expect(screen.getByAltText('东南大学候选图片')).toBeInTheDocument();
 });
 
+test('preserves suggested school image context across admin preview links', async () => {
+  listReviewQueueMock.mockResolvedValue([]);
+  listFeaturedContentMock.mockResolvedValue({
+    schools: [
+      {
+        slug: 'southeast-university',
+        name: '东南大学',
+        isFeatured: true,
+        heroImageUrl: '',
+      },
+    ],
+    majors: [],
+    rotation: {
+      schools: {
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      },
+      majors: {
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      },
+    },
+    preview: {
+      today: { schools: [], majors: [] },
+      next: { schools: [], majors: [] },
+      schedule: [],
+      selectedDate: {
+        date: '2026-04-20',
+        weekday: '周一',
+        schools: [],
+        majors: [],
+      },
+      selectedDateError: null,
+    },
+  });
+
+  render(
+    await AdminPage({
+      searchParams: Promise.resolve({
+        preview_date: '2026-04-20',
+        suggested_school_image_slug: 'southeast-university',
+        scheduled_gap_days: '1',
+      }),
+    }),
+  );
+
+  expect(screen.getByRole('link', { name: '查看前一天' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-19&scheduled_gap_days=1&suggested_school_image_slug=southeast-university',
+  );
+  expect(screen.getByRole('link', { name: '查看后一天' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-21&scheduled_gap_days=1&suggested_school_image_slug=southeast-university',
+  );
+  expect(screen.getByRole('link', { name: '查看全部日期' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-20&suggested_school_image_slug=southeast-university',
+  );
+});
+
 test('renders selected-date validation error when preview_date is invalid', async () => {
   listReviewQueueMock.mockResolvedValue([]);
   listFeaturedContentMock.mockResolvedValue({

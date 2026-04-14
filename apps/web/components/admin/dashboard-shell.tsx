@@ -70,6 +70,7 @@ type DashboardShellProps = {
   rankingReferenceMajors?: AdminRankingReferenceEntity[];
   highlightedScheduleDate?: string;
   selectedPreviewDateValue: string;
+  selectedSuggestedSchoolImageSlug?: string;
   selectedDatePreview: AdminFeaturedPreviewDay | null;
   selectedDateError?: string;
   schoolImageSuggestions?: Record<string, AdminFeaturedSchoolImageSuggestion>;
@@ -363,6 +364,7 @@ export default function DashboardShell({
   rankingReferenceMajors = [],
   highlightedScheduleDate,
   selectedPreviewDateValue,
+  selectedSuggestedSchoolImageSlug,
   selectedDatePreview,
   selectedDateError,
   schoolImageSuggestions = {},
@@ -2604,6 +2606,13 @@ export default function DashboardShell({
             预览日期
             <input type="date" name="preview_date" defaultValue={selectedPreviewDateValue} />
           </label>
+          {selectedSuggestedSchoolImageSlug ? (
+            <input
+              type="hidden"
+              name="suggested_school_image_slug"
+              value={selectedSuggestedSchoolImageSlug}
+            />
+          ) : null}
           {showMissingImageSchoolsOnly ? (
             <input type="hidden" name="missing_school_images" value="1" />
           ) : null}
