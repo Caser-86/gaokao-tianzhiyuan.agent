@@ -41,6 +41,8 @@ type DashboardShellProps = {
   nextPreviewDateHref?: string;
   showMissingImageSchoolsOnly?: boolean;
   showMissingImageSchoolsOnlyHref?: string;
+  showScheduledMissingImageSchoolsOnly?: boolean;
+  showScheduledMissingImageSchoolsOnlyHref?: string;
   showAllFeaturedSchoolsHref?: string;
   queueError?: string;
   featuredContentError?: string;
@@ -101,6 +103,8 @@ export default function DashboardShell({
   nextPreviewDateHref,
   showMissingImageSchoolsOnly = false,
   showMissingImageSchoolsOnlyHref,
+  showScheduledMissingImageSchoolsOnly = false,
+  showScheduledMissingImageSchoolsOnlyHref,
   showAllFeaturedSchoolsHref,
   queueError,
   featuredContentError,
@@ -123,15 +127,62 @@ export default function DashboardShell({
   const schoolImageAvailabilityBySlug = Object.fromEntries(
     featuredSchools.map((school) => [school.slug, Boolean(school.heroImageUrl)]),
   );
+  const todayPreviewSchoolSlugs = new Set(featuredSchoolPreview.map((school) => school.slug));
+  const nextPreviewSchoolSlugs = new Set(nextFeaturedSchoolPreview.map((school) => school.slug));
+  const scheduledMissingSchoolSlugs = new Set([
+    ...featuredSchoolPreview.map((school) => school.slug),
+    ...nextFeaturedSchoolPreview.map((school) => school.slug),
+  ]);
   const schoolsMissingImages = sortedFeaturedSchools
     .filter((school) => !school.heroImageUrl)
     .map(({ slug, name }) => ({ slug, name }));
   const schoolsWithImagesCount = featuredSchools.length - schoolsMissingImages.length;
-  const displayedFeaturedSchools = showMissingImageSchoolsOnly
-    ? sortedFeaturedSchools.filter((school) => !school.heroImageUrl)
-    : sortedFeaturedSchools;
-  const todayPreviewSchoolSlugs = new Set(featuredSchoolPreview.map((school) => school.slug));
-  const nextPreviewSchoolSlugs = new Set(nextFeaturedSchoolPreview.map((school) => school.slug));
+  const displayedFeaturedSchools = showScheduledMissingImageSchoolsOnly
+    ? sortedFeaturedSchools.filter(
+        (school) => !school.heroImageUrl && scheduledMissingSchoolSlugs.has(school.slug),
+      )
+    : showMissingImageSchoolsOnly
+      ? sortedFeaturedSchools.filter((school) => !school.heroImageUrl)
+      : sortedFeaturedSchools;
+
+  const schoolFilterLinks = (
+    <p>
+      {!showMissingImageSchoolsOnly &&
+      !showScheduledMissingImageSchoolsOnly &&
+      showMissingImageSchoolsOnlyHref ? (
+        <a href={showMissingImageSchoolsOnlyHref}>仅看待补图片学校</a>
+      ) : null}
+      {!showScheduledMissingImageSchoolsOnly && showScheduledMissingImageSchoolsOnlyHref ? (
+        <>
+          {!showMissingImageSchoolsOnly &&
+          !showScheduledMissingImageSchoolsOnly &&
+          showMissingImageSchoolsOnlyHref
+            ? ' '
+            : null}
+          <a href={showScheduledMissingImageSchoolsOnlyHref}>仅看近期缺图学校</a>
+        </>
+      ) : null}
+      {(showMissingImageSchoolsOnly || showScheduledMissingImageSchoolsOnly) &&
+      showAllFeaturedSchoolsHref ? (
+        <>
+          {' '}
+          <a href={showAllFeaturedSchoolsHref}>查看全部学校</a>
+        </>
+      ) : null}
+      {showScheduledMissingImageSchoolsOnly && showMissingImageSchoolsOnlyHref ? (
+        <>
+          {' '}
+          <a href={showMissingImageSchoolsOnlyHref}>仅看待补图片学校</a>
+        </>
+      ) : null}
+      {showMissingImageSchoolsOnly && showScheduledMissingImageSchoolsOnlyHref ? (
+        <>
+          {' '}
+          <a href={showScheduledMissingImageSchoolsOnlyHref}>仅看近期缺图学校</a>
+        </>
+      ) : null}
+    </p>
+  );
 
   return (
     <main>
@@ -183,22 +234,23 @@ export default function DashboardShell({
       <section aria-labelledby="featured-schools-heading">
         <h2 id="featured-schools-heading">学校展示配置</h2>
         <p>{`已配置图片 ${schoolsWithImagesCount} 所，待补图片 ${schoolsMissingImages.length} 所`}</p>
-        {showMissingImageSchoolsOnlyHref || showAllFeaturedSchoolsHref ? (
-          <p>
-            {!showMissingImageSchoolsOnly && showMissingImageSchoolsOnlyHref ? (
-              <a href={showMissingImageSchoolsOnlyHref}>仅看待补图片学校</a>
-            ) : null}
-            {showMissingImageSchoolsOnly && showAllFeaturedSchoolsHref ? (
-              <a href={showAllFeaturedSchoolsHref}>查看全部学校</a>
-            ) : null}
-          </p>
-        ) : null}
+        {showMissingImageSchoolsOnlyHref ||
+        showScheduledMissingImageSchoolsOnlyHref ||
+        showAllFeaturedSchoolsHref
+          ? schoolFilterLinks
+          : null}
 
         {featuredContentError ? <p>{featuredContentError}</p> : null}
 
         {!featuredContentError ? (
           <div>
-            {displayedFeaturedSchools.length === 0 ? <p>当前没有待补图片学校配置</p> : null}
+            {displayedFeaturedSchools.length === 0 ? (
+              <p>
+                {showScheduledMissingImageSchoolsOnly
+                  ? '当前没有近期会展示且缺图的学校'
+                  : '当前没有待补图片学校配置'}
+              </p>
+            ) : null}
             {displayedFeaturedSchools.map((school) => (
               <div key={school.slug} id={`featured-school-${school.slug}`}>
                 <form action={updateFeaturedSchoolAction}>
@@ -416,6 +468,9 @@ export default function DashboardShell({
           {showMissingImageSchoolsOnly ? (
             <input type="hidden" name="missing_school_images" value="1" />
           ) : null}
+          {showScheduledMissingImageSchoolsOnly ? (
+            <input type="hidden" name="scheduled_missing_school_images" value="1" />
+          ) : null}
           <button type="submit">查看该日轮换</button>
         </form>
 
@@ -476,9 +531,11 @@ export default function DashboardShell({
                   ) : (
                     <a
                       href={
-                        showMissingImageSchoolsOnly
-                          ? `/admin?preview_date=${day.date}&missing_school_images=1`
-                          : `/admin?preview_date=${day.date}`
+                        showScheduledMissingImageSchoolsOnly
+                          ? `/admin?preview_date=${day.date}&scheduled_missing_school_images=1`
+                          : showMissingImageSchoolsOnly
+                            ? `/admin?preview_date=${day.date}&missing_school_images=1`
+                            : `/admin?preview_date=${day.date}`
                       }
                     >
                       {day.date}
