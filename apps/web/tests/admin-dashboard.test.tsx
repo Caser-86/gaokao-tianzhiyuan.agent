@@ -1141,6 +1141,85 @@ test('adds per-day gap actions to scheduled preview cards by href', () => {
   ).toBeNull();
 });
 
+test('adds a top-priority gap shortcut to scheduled preview cards', () => {
+  render(
+    <DashboardShell
+      title="内容运营后台"
+      queueItems={[]}
+      featuredSchools={[
+        {
+          slug: 'southeast-university',
+          name: 'Southeast University',
+          isFeatured: true,
+          heroImageUrl: '',
+        },
+        {
+          slug: 'wuhan-university',
+          name: 'Wuhan University',
+          isFeatured: true,
+          heroImageUrl: 'https://cdn.example.com/wuhan.jpg',
+        },
+      ]}
+      featuredMajors={[
+        {
+          slug: 'clinical-medicine',
+          name: 'Clinical Medicine',
+          isFeatured: true,
+        },
+      ]}
+      schoolRotation={schoolRotation}
+      majorRotation={majorRotation}
+      featuredSchoolPreview={schoolPreview}
+      featuredMajorPreview={majorPreview}
+      nextFeaturedSchoolPreview={nextSchoolPreview}
+      nextFeaturedMajorPreview={[]}
+      featuredSchedule={[
+        {
+          date: '2026-04-14',
+          weekday: '周二',
+          schools: [{ slug: 'southeast-university', name: 'Southeast University' }],
+          majors: [{ slug: 'clinical-medicine', name: 'Clinical Medicine' }],
+        },
+        {
+          date: '2026-04-15',
+          weekday: '周三',
+          schools: [{ slug: 'wuhan-university', name: 'Wuhan University' }],
+          majors: [],
+        },
+      ]}
+      summaryMajors={[{ slug: 'clinical-medicine', name: 'Clinical Medicine', summary: '' }]}
+      rankingReferenceSchools={[{ slug: 'wuhan-university', name: 'Wuhan University', rankingReferences: [] }]}
+      selectedPreviewDateValue=""
+      selectedDatePreview={null}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
+    />,
+  );
+
+  const scheduleRegion = screen.getByRole('region', { name: '未来 7 天轮换预览' });
+  const firstDayArticle = within(scheduleRegion)
+    .getByRole('link', { name: '2026-04-14' })
+    .closest('article');
+  const secondDayArticle = within(scheduleRegion)
+    .getByRole('link', { name: '2026-04-15' })
+    .closest('article');
+
+  expect(
+    (firstDayArticle as HTMLElement).querySelector(
+      'a[href="/admin?preview_date=2026-04-14#missing-school-images-heading"]',
+    ),
+  ).not.toBeNull();
+  expect(
+    (secondDayArticle as HTMLElement).querySelector(
+      'a[href="/admin?preview_date=2026-04-15#missing-school-ranking-reference-heading"]',
+    ),
+  ).not.toBeNull();
+});
+
 /* test.skip('renders scheduled gap summary, urgency labels, and per-day gap actions', () => {
   render(
     <DashboardShell

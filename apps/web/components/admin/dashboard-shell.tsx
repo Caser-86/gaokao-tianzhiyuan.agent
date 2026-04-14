@@ -1184,6 +1184,86 @@ export default function DashboardShell({
 
     return `${pathname}${query ? `?${query}` : ''}${hash ? `#${hash}` : ''}`;
   };
+  const buildTopPriorityGapHref = (
+    previewDate: string,
+    schoolSlugs: Set<string>,
+    majorSlugs: Set<string>,
+  ): string | null => {
+    const gapItems = [
+      {
+        href: '#missing-school-images-heading',
+        selectedDateCount: countMatchingSlugs(schoolsMissingImages, schoolSlugs),
+        nextCount: countMatchingSlugs(schoolsMissingImages, nextPreviewSchoolSlugs),
+        totalCount: schoolsMissingImages.length,
+      },
+      {
+        href: '#missing-school-ranking-reference-heading',
+        selectedDateCount: countMatchingSlugs(missingSchoolRankingReferences, schoolSlugs),
+        nextCount: countMatchingSlugs(missingSchoolRankingReferences, nextPreviewSchoolSlugs),
+        totalCount: missingSchoolRankingReferences.length,
+      },
+      {
+        href: '#missing-major-ranking-reference-heading',
+        selectedDateCount: countMatchingSlugs(missingMajorRankingReferences, majorSlugs),
+        nextCount: countMatchingSlugs(missingMajorRankingReferences, nextPreviewMajorSlugs),
+        totalCount: missingMajorRankingReferences.length,
+      },
+      {
+        href: '#missing-school-summary-heading',
+        selectedDateCount: countMatchingSlugs(missingSchoolSummaries, schoolSlugs),
+        nextCount: countMatchingSlugs(missingSchoolSummaries, nextPreviewSchoolSlugs),
+        totalCount: missingSchoolSummaries.length,
+      },
+      {
+        href: '#missing-major-summary-heading',
+        selectedDateCount: countMatchingSlugs(missingMajorSummaries, majorSlugs),
+        nextCount: countMatchingSlugs(missingMajorSummaries, nextPreviewMajorSlugs),
+        totalCount: missingMajorSummaries.length,
+      },
+      {
+        href: '#missing-school-sections-heading',
+        selectedDateCount: countMatchingSlugs(missingSchoolSections, schoolSlugs),
+        nextCount: countMatchingSlugs(missingSchoolSections, nextPreviewSchoolSlugs),
+        totalCount: missingSchoolSections.length,
+      },
+      {
+        href: '#missing-major-sections-heading',
+        selectedDateCount: countMatchingSlugs(missingMajorSections, majorSlugs),
+        nextCount: countMatchingSlugs(missingMajorSections, nextPreviewMajorSlugs),
+        totalCount: missingMajorSections.length,
+      },
+      {
+        href: '#missing-school-related-content-heading',
+        selectedDateCount: countMatchingSlugs(missingSchoolRelatedContent, schoolSlugs),
+        nextCount: countMatchingSlugs(missingSchoolRelatedContent, nextPreviewSchoolSlugs),
+        totalCount: missingSchoolRelatedContent.length,
+      },
+      {
+        href: '#missing-major-related-content-heading',
+        selectedDateCount: countMatchingSlugs(missingMajorRelatedContent, majorSlugs),
+        nextCount: countMatchingSlugs(missingMajorRelatedContent, nextPreviewMajorSlugs),
+        totalCount: missingMajorRelatedContent.length,
+      },
+    ]
+      .filter((item) => item.selectedDateCount > 0 || item.nextCount > 0)
+      .sort((left, right) => {
+        if (left.selectedDateCount !== right.selectedDateCount) {
+          return right.selectedDateCount - left.selectedDateCount;
+        }
+
+        if (left.nextCount !== right.nextCount) {
+          return right.nextCount - left.nextCount;
+        }
+
+        if (left.totalCount !== right.totalCount) {
+          return right.totalCount - left.totalCount;
+        }
+
+        return 0;
+      });
+
+    return gapItems[0] ? `${buildPreviewDateHref(previewDate)}${gapItems[0].href}` : null;
+  };
   const selectedDateGapOverviewLinks = selectedDateGapOverviewItems.map((item) => ({
     ...item,
     href: withSelectedPreviewDate(item.href),
@@ -1196,6 +1276,11 @@ export default function DashboardShell({
     return {
       ...day,
       gapCount,
+      topPriorityGapHref: buildTopPriorityGapHref(
+        day.date,
+        scheduleDaySchoolSlugs,
+        scheduleDayMajorSlugs,
+      ),
     };
   });
   const displayedScheduledPreviewDays = showScheduledGapDaysOnly
@@ -2309,6 +2394,11 @@ export default function DashboardShell({
                     <a href={`${buildPreviewDateHref(day.date)}#selected-date-gap-overview-heading`}>
                       澶勭悊璇ユ棩缂哄彛
                     </a>
+                  </p>
+                ) : null}
+                {day.topPriorityGapHref ? (
+                  <p>
+                    <a href={day.topPriorityGapHref}>鏌ョ湅鏈€浼樺厛缂哄彛</a>
                   </p>
                 ) : null}
                 {day.schools.length === 0 ? (
