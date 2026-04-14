@@ -9,14 +9,19 @@ import {
   type AdminRotationRule,
   listFeaturedContent,
 } from '../../../lib/admin-featured-content-api';
+import {
+  type AdminRankingReferenceEntity,
+  listRankingReferences,
+} from '../../../lib/admin-ranking-reference-api';
 import { listReviewQueue } from '../../../lib/admin-review-api';
-
 import {
   approveReviewQueueAction,
   rejectReviewQueueAction,
   updateFeaturedMajorAction,
   updateFeaturedSchoolAction,
+  updateMajorRankingReferencesAction,
   updateMajorRotationAction,
+  updateSchoolRankingReferencesAction,
   updateSchoolRotationAction,
 } from './actions';
 
@@ -121,8 +126,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             showMissingImageSchoolsOnly: true,
           })
         : undefined;
-  const showScheduledMissingImageSchoolsOnlyHref =
-    !showScheduledMissingImageSchoolsOnly
+  const showScheduledMissingImageSchoolsOnlyHref = !showScheduledMissingImageSchoolsOnly
     ? buildAdminHref({
         previewDate,
         showScheduledMissingImageSchoolsOnly: true,
@@ -130,8 +134,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     : undefined;
   const showAllFeaturedSchoolsHref =
     showMissingImageSchoolsOnly || showScheduledMissingImageSchoolsOnly
-    ? buildAdminHref({ previewDate })
-    : undefined;
+      ? buildAdminHref({ previewDate })
+      : undefined;
 
   let queueItems: AdminReviewItem[] = [];
   let queueError: string | undefined;
@@ -145,6 +149,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   let selectedDatePreview: AdminFeaturedPreviewDay | null = null;
   let selectedDateError: string | undefined;
   let featuredContentError: string | undefined;
+  let rankingReferenceSchools: AdminRankingReferenceEntity[] = [];
+  let rankingReferenceMajors: AdminRankingReferenceEntity[] = [];
+  let rankingReferenceError: string | undefined;
   let schoolRotation = defaultRotationRule();
   let majorRotation = defaultRotationRule();
 
@@ -171,6 +178,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     featuredContentError = '展示配置加载失败，请稍后重试';
   }
 
+  try {
+    const rankingReferences = await listRankingReferences();
+    rankingReferenceSchools = rankingReferences.schools;
+    rankingReferenceMajors = rankingReferences.majors;
+  } catch {
+    rankingReferenceError = '榜单引用加载失败，请稍后重试';
+  }
+
   return (
     <DashboardShell
       title="内容运营后台"
@@ -184,6 +199,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       nextFeaturedSchoolPreview={nextFeaturedSchoolPreview}
       nextFeaturedMajorPreview={nextFeaturedMajorPreview}
       featuredSchedule={featuredSchedule}
+      rankingReferenceSchools={rankingReferenceSchools}
+      rankingReferenceMajors={rankingReferenceMajors}
       highlightedScheduleDate={highlightedScheduleDate}
       selectedPreviewDateValue={previewDate ?? ''}
       selectedDatePreview={selectedDatePreview}
@@ -196,12 +213,15 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       showScheduledMissingImageSchoolsOnly={showScheduledMissingImageSchoolsOnly}
       showScheduledMissingImageSchoolsOnlyHref={showScheduledMissingImageSchoolsOnlyHref}
       showAllFeaturedSchoolsHref={showAllFeaturedSchoolsHref}
+      rankingReferenceError={rankingReferenceError}
       queueError={queueError}
       featuredContentError={featuredContentError}
       approveAction={approveReviewQueueAction}
       rejectAction={rejectReviewQueueAction}
       updateFeaturedSchoolAction={updateFeaturedSchoolAction}
       updateFeaturedMajorAction={updateFeaturedMajorAction}
+      updateSchoolRankingReferencesAction={updateSchoolRankingReferencesAction}
+      updateMajorRankingReferencesAction={updateMajorRankingReferencesAction}
       updateSchoolRotationAction={updateSchoolRotationAction}
       updateMajorRotationAction={updateMajorRotationAction}
     />

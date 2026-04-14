@@ -3,15 +3,20 @@
 import { revalidatePath } from 'next/cache';
 
 import {
-  approveReviewQueueItem,
-  rejectReviewQueueItem,
-} from '../../../lib/admin-review-api';
-import {
   updateFeaturedMajor,
   updateFeaturedSchool,
   updateMajorRotationRule,
   updateSchoolRotationRule,
 } from '../../../lib/admin-featured-content-api';
+import {
+  type AdminRankingReference,
+  updateMajorRankingReferences,
+  updateSchoolRankingReferences,
+} from '../../../lib/admin-ranking-reference-api';
+import {
+  approveReviewQueueItem,
+  rejectReviewQueueItem,
+} from '../../../lib/admin-review-api';
 
 const parseQueueId = (rawValue: FormDataEntryValue | null): number => {
   const value = typeof rawValue === 'string' ? Number.parseInt(rawValue, 10) : Number.NaN;
@@ -42,6 +47,40 @@ const parseOrderedSlugs = (rawValue: FormDataEntryValue | null): string[] =>
     .split(/\r?\n/)
     .map((item) => item.trim())
     .filter(Boolean);
+
+const parseRankingReferenceRows = (formData: FormData): AdminRankingReference[] => {
+  const rowCount = parsePositiveNumber(formData.get('rowCount'), 'rowCount');
+  const rows: AdminRankingReference[] = [];
+
+  for (let index = 0; index < rowCount; index += 1) {
+    const source = String(formData.get(`source_${index}`) ?? '').trim();
+    const yearRaw = String(formData.get(`year_${index}`) ?? '').trim();
+    const label = String(formData.get(`label_${index}`) ?? '').trim();
+    const scope = String(formData.get(`scope_${index}`) ?? '').trim();
+    const note = String(formData.get(`note_${index}`) ?? '').trim();
+    const url = String(formData.get(`url_${index}`) ?? '').trim();
+
+    if (!source && !yearRaw && !label && !scope && !note && !url) {
+      continue;
+    }
+
+    const year = Number.parseInt(yearRaw, 10);
+    if (!source || !label || Number.isNaN(year) || year < 1) {
+      throw new Error('ranking reference row is invalid');
+    }
+
+    rows.push({
+      source,
+      year,
+      label,
+      scope,
+      note,
+      url,
+    });
+  }
+
+  return rows;
+};
 
 export async function approveReviewQueueAction(formData: FormData): Promise<void> {
   try {
@@ -120,6 +159,34 @@ export async function updateMajorRotationAction(formData: FormData): Promise<voi
     });
     revalidatePath('/admin');
     revalidatePath('/');
+  } catch {
+    return;
+  }
+}
+
+export async function updateSchoolRankingReferencesAction(formData: FormData): Promise<void> {
+  try {
+    const slug = parseRequiredSlug(formData.get('slug'));
+    const rankingReferences = parseRankingReferenceRows(formData);
+
+    await updateSchoolRankingReferences(slug, rankingReferences);
+    revalidatePath('/admin');
+    revalidatePath('/');
+    revalidatePath(`/schools/${slug}`);
+  } catch {
+    return;
+  }
+}
+
+export async function updateMajorRankingReferencesAction(formData: FormData): Promise<void> {
+  try {
+    const slug = parseRequiredSlug(formData.get('slug'));
+    const rankingReferences = parseRankingReferenceRows(formData);
+
+    await updateMajorRankingReferences(slug, rankingReferences);
+    revalidatePath('/admin');
+    revalidatePath('/');
+    revalidatePath(`/majors/${slug}`);
   } catch {
     return;
   }

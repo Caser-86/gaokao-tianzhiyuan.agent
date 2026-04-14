@@ -3,9 +3,10 @@ import { beforeEach, expect, test, vi } from 'vitest';
 
 import DashboardShell from '../components/admin/dashboard-shell';
 
-const { listReviewQueueMock, listFeaturedContentMock } = vi.hoisted(() => ({
+const { listReviewQueueMock, listFeaturedContentMock, listRankingReferencesMock } = vi.hoisted(() => ({
   listReviewQueueMock: vi.fn(),
   listFeaturedContentMock: vi.fn(),
+  listRankingReferencesMock: vi.fn(),
 }));
 
 vi.mock('../lib/admin-review-api', () => ({
@@ -16,11 +17,17 @@ vi.mock('../lib/admin-featured-content-api', () => ({
   listFeaturedContent: listFeaturedContentMock,
 }));
 
+vi.mock('../lib/admin-ranking-reference-api', () => ({
+  listRankingReferences: listRankingReferencesMock,
+}));
+
 vi.mock('../app/(admin)/admin/actions', () => ({
   approveReviewQueueAction: async () => undefined,
   rejectReviewQueueAction: async () => undefined,
   updateFeaturedSchoolAction: async () => undefined,
   updateFeaturedMajorAction: async () => undefined,
+  updateSchoolRankingReferencesAction: async () => undefined,
+  updateMajorRankingReferencesAction: async () => undefined,
   updateSchoolRotationAction: async () => undefined,
   updateMajorRotationAction: async () => undefined,
 }));
@@ -44,6 +51,11 @@ const majorRotation = {
 beforeEach(() => {
   listReviewQueueMock.mockReset();
   listFeaturedContentMock.mockReset();
+  listRankingReferencesMock.mockReset();
+  listRankingReferencesMock.mockResolvedValue({
+    schools: [],
+    majors: [],
+  });
 });
 
 test('filters the featured school configuration down to missing-image schools only', () => {

@@ -1,10 +1,11 @@
-﻿import type {
+import type {
   AdminFeaturedMajor,
   AdminFeaturedPreviewDay,
   AdminFeaturedPreviewItem,
   AdminFeaturedSchool,
   AdminRotationRule,
 } from '../../lib/admin-featured-content-api';
+import type { AdminRankingReferenceEntity } from '../../lib/admin-ranking-reference-api';
 
 export type AdminReviewItem = {
   id: number;
@@ -32,6 +33,8 @@ type DashboardShellProps = {
   nextFeaturedSchoolPreview: AdminFeaturedPreviewItem[];
   nextFeaturedMajorPreview: AdminFeaturedPreviewItem[];
   featuredSchedule: AdminFeaturedPreviewDay[];
+  rankingReferenceSchools?: AdminRankingReferenceEntity[];
+  rankingReferenceMajors?: AdminRankingReferenceEntity[];
   highlightedScheduleDate?: string;
   selectedPreviewDateValue: string;
   selectedDatePreview: AdminFeaturedPreviewDay | null;
@@ -44,17 +47,21 @@ type DashboardShellProps = {
   showScheduledMissingImageSchoolsOnly?: boolean;
   showScheduledMissingImageSchoolsOnlyHref?: string;
   showAllFeaturedSchoolsHref?: string;
+  rankingReferenceError?: string;
   queueError?: string;
   featuredContentError?: string;
   approveAction: (formData: FormData) => Promise<void>;
   rejectAction: (formData: FormData) => Promise<void>;
   updateFeaturedSchoolAction: (formData: FormData) => Promise<void>;
   updateFeaturedMajorAction: (formData: FormData) => Promise<void>;
+  updateSchoolRankingReferencesAction?: (formData: FormData) => Promise<void>;
+  updateMajorRankingReferencesAction?: (formData: FormData) => Promise<void>;
   updateSchoolRotationAction: (formData: FormData) => Promise<void>;
   updateMajorRotationAction: (formData: FormData) => Promise<void>;
 };
 
 const cards = ['待审核内容', '最近发布', '抓取状态'];
+const noopAction = async (): Promise<void> => undefined;
 
 function PreviewList({
   items,
@@ -82,6 +89,76 @@ function PreviewList({
   );
 }
 
+function RankingReferenceForm({
+  entity,
+  entityLabel,
+  action,
+  submitLabel,
+}: {
+  entity: AdminRankingReferenceEntity;
+  entityLabel: string;
+  action: (formData: FormData) => Promise<void>;
+  submitLabel: string;
+}) {
+  const rows = [
+    ...entity.rankingReferences,
+    {
+      source: '',
+      year: '',
+      label: '',
+      scope: '',
+      note: '',
+      url: '',
+    },
+  ];
+
+  return (
+    <form action={action}>
+      <input type="hidden" name="slug" value={entity.slug} />
+      <input type="hidden" name="rowCount" value={rows.length} />
+      <h3>{entity.name}</h3>
+      <p>{entity.slug}</p>
+
+      {rows.map((row, index) => (
+        <fieldset key={`${entity.slug}-${index}`}>
+          <legend>{`${entityLabel}榜单条目 ${index + 1}`}</legend>
+          <label>
+            来源
+            <input name={`source_${index}`} defaultValue={row.source} />
+          </label>
+          <label>
+            年份
+            <input
+              type="number"
+              min={1}
+              name={`year_${index}`}
+              defaultValue={row.year === '' ? '' : row.year}
+            />
+          </label>
+          <label>
+            结果
+            <input name={`label_${index}`} defaultValue={row.label} />
+          </label>
+          <label>
+            范围
+            <input name={`scope_${index}`} defaultValue={row.scope} />
+          </label>
+          <label>
+            备注
+            <input name={`note_${index}`} defaultValue={row.note} />
+          </label>
+          <label>
+            来源链接
+            <input name={`url_${index}`} defaultValue={row.url} />
+          </label>
+        </fieldset>
+      ))}
+
+      <button type="submit">{submitLabel}</button>
+    </form>
+  );
+}
+
 export default function DashboardShell({
   title,
   queueItems,
@@ -94,6 +171,8 @@ export default function DashboardShell({
   nextFeaturedSchoolPreview,
   nextFeaturedMajorPreview,
   featuredSchedule,
+  rankingReferenceSchools = [],
+  rankingReferenceMajors = [],
   highlightedScheduleDate,
   selectedPreviewDateValue,
   selectedDatePreview,
@@ -106,12 +185,15 @@ export default function DashboardShell({
   showScheduledMissingImageSchoolsOnly = false,
   showScheduledMissingImageSchoolsOnlyHref,
   showAllFeaturedSchoolsHref,
+  rankingReferenceError,
   queueError,
   featuredContentError,
   approveAction,
   rejectAction,
   updateFeaturedSchoolAction,
   updateFeaturedMajorAction,
+  updateSchoolRankingReferencesAction = noopAction,
+  updateMajorRankingReferencesAction = noopAction,
   updateSchoolRotationAction,
   updateMajorRotationAction,
 }: DashboardShellProps) {
@@ -355,6 +437,46 @@ export default function DashboardShell({
             ))}
           </div>
         )}
+      </section>
+
+      <section aria-labelledby="school-ranking-reference-heading">
+        <h2 id="school-ranking-reference-heading">学校榜单引用</h2>
+
+        {rankingReferenceError ? <p>{rankingReferenceError}</p> : null}
+
+        {!rankingReferenceError ? (
+          <div>
+            {rankingReferenceSchools.map((school) => (
+              <RankingReferenceForm
+                key={school.slug}
+                entity={school}
+                entityLabel="学校"
+                action={updateSchoolRankingReferencesAction}
+                submitLabel="保存学校榜单"
+              />
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      <section aria-labelledby="major-ranking-reference-heading">
+        <h2 id="major-ranking-reference-heading">专业榜单引用</h2>
+
+        {rankingReferenceError ? <p>{rankingReferenceError}</p> : null}
+
+        {!rankingReferenceError ? (
+          <div>
+            {rankingReferenceMajors.map((major) => (
+              <RankingReferenceForm
+                key={major.slug}
+                entity={major}
+                entityLabel="专业"
+                action={updateMajorRankingReferencesAction}
+                submitLabel="保存专业榜单"
+              />
+            ))}
+          </div>
+        ) : null}
       </section>
 
       <section aria-labelledby="school-rotation-heading">

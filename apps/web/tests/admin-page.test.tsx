@@ -1,9 +1,10 @@
 import { render, screen, within } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
 
-const { listReviewQueueMock, listFeaturedContentMock } = vi.hoisted(() => ({
+const { listReviewQueueMock, listFeaturedContentMock, listRankingReferencesMock } = vi.hoisted(() => ({
   listReviewQueueMock: vi.fn(),
   listFeaturedContentMock: vi.fn(),
+  listRankingReferencesMock: vi.fn(),
 }));
 
 vi.mock('../lib/admin-review-api', () => ({
@@ -14,11 +15,17 @@ vi.mock('../lib/admin-featured-content-api', () => ({
   listFeaturedContent: listFeaturedContentMock,
 }));
 
+vi.mock('../lib/admin-ranking-reference-api', () => ({
+  listRankingReferences: listRankingReferencesMock,
+}));
+
 vi.mock('../app/(admin)/admin/actions', () => ({
   approveReviewQueueAction: async () => undefined,
   rejectReviewQueueAction: async () => undefined,
   updateFeaturedSchoolAction: async () => undefined,
   updateFeaturedMajorAction: async () => undefined,
+  updateSchoolRankingReferencesAction: async () => undefined,
+  updateMajorRankingReferencesAction: async () => undefined,
   updateSchoolRotationAction: async () => undefined,
   updateMajorRotationAction: async () => undefined,
 }));
@@ -28,6 +35,11 @@ import AdminPage from '../app/(admin)/admin/page';
 beforeEach(() => {
   listReviewQueueMock.mockReset();
   listFeaturedContentMock.mockReset();
+  listRankingReferencesMock.mockReset();
+  listRankingReferencesMock.mockResolvedValue({
+    schools: [],
+    majors: [],
+  });
 });
 
 test('renders queue items, date preview shortcuts, and schedule highlight returned by the admin api client', async () => {
