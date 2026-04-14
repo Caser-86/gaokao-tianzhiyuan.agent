@@ -1155,6 +1155,24 @@ export default function DashboardShell({
 
     return `/admin?${searchParams.toString()}`;
   };
+  const withNearestScheduledGapDate = (href: string): string => {
+    if (!nearestScheduledGapDay) {
+      return href;
+    }
+
+    if (href.startsWith('#')) {
+      return `${buildPreviewDateHref(nearestScheduledGapDay.date)}${href}`;
+    }
+
+    const [pathAndSearch, hash = ''] = href.split('#');
+    const [pathname, search = ''] = pathAndSearch.split('?');
+    const searchParams = new URLSearchParams(search);
+    searchParams.set('preview_date', nearestScheduledGapDay.date);
+
+    const query = searchParams.toString();
+
+    return `${pathname}${query ? `?${query}` : ''}${hash ? `#${hash}` : ''}`;
+  };
   const scheduledPreviewDays = featuredSchedule.map((day) => {
     const scheduleDaySchoolSlugs = new Set(day.schools.map((school) => school.slug));
     const scheduleDayMajorSlugs = new Set(day.majors.map((major) => major.slug));
@@ -1201,7 +1219,7 @@ export default function DashboardShell({
             <ul>
               {contentGapOverviewItems.map((item) => (
                 <li key={item.key}>
-                  <a href={item.href}>
+                  <a href={withNearestScheduledGapDate(item.href)}>
                     {`${item.todayCount > 0 ? '今日优先' : item.nextCount > 0 ? '下一轮关注' : '待补关注'} · ${item.label}：今日 ${item.todayCount}，下一轮 ${item.nextCount}，待补 ${item.totalCount}`}
                   </a>
                 </li>

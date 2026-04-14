@@ -966,3 +966,64 @@ test('links content gap overview to the nearest scheduled gap day by anchor targ
     within(overviewRegion as HTMLElement).getByRole('link', { name: /2026-04-15/ }),
   ).toHaveAttribute('href', '/admin?preview_date=2026-04-15#featured-schedule-heading');
 });
+
+test('adds the nearest scheduled gap date to content gap item links', () => {
+  render(
+    <DashboardShell
+      title="内容运营后台"
+      queueItems={[]}
+      featuredSchools={[
+        {
+          slug: 'southeast-university',
+          name: 'Southeast University',
+          isFeatured: true,
+          heroImageUrl: '',
+        },
+      ]}
+      featuredMajors={[]}
+      schoolRotation={schoolRotation}
+      majorRotation={majorRotation}
+      featuredSchoolPreview={schoolPreview}
+      featuredMajorPreview={[]}
+      nextFeaturedSchoolPreview={[]}
+      nextFeaturedMajorPreview={[]}
+      featuredSchedule={[
+        {
+          date: '2026-04-14',
+          weekday: '周二',
+          schools: [],
+          majors: [],
+        },
+        {
+          date: '2026-04-15',
+          weekday: '周三',
+          schools: [{ slug: 'southeast-university', name: 'Southeast University' }],
+          majors: [],
+        },
+      ]}
+      showScheduledMissingImageSchoolsOnlyHref="/admin?scheduled_missing_school_images=1"
+      selectedPreviewDateValue=""
+      selectedDatePreview={null}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
+    />,
+  );
+
+  const overviewRegion = document.querySelector(
+    'section[aria-labelledby="content-gap-overview-heading"]',
+  );
+
+  expect(overviewRegion).not.toBeNull();
+  expect(
+    within(overviewRegion as HTMLElement).getByRole('link', {
+      name: /学校图片/,
+    }),
+  ).toHaveAttribute(
+    'href',
+    '/admin?scheduled_missing_school_images=1&preview_date=2026-04-15#missing-school-images-heading',
+  );
+});
