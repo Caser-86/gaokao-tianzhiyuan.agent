@@ -250,6 +250,9 @@ test('school page renders API-backed detail data', async () => {
 
   expect(screen.getByRole('heading', { name: '\u4e1c\u5357\u5927\u5b66' })).toBeInTheDocument();
   expect(screen.getByText('\u5b66\u6821\u4eae\u70b9')).toBeInTheDocument();
+  expect(
+    screen.getByRole('link', { name: '\u67e5\u770b\u53c2\u8003\u699c\u5355' }),
+  ).toHaveAttribute('href', '#ranking-references');
   expect(screen.getByRole('heading', { name: RANKING_SECTION_TITLE })).toBeInTheDocument();
   expect(screen.getByText(RANKING_HINT_TEXT)).toBeInTheDocument();
   expect(screen.getByText('\u8f6f\u79d1\u4e2d\u56fd\u5927\u5b66\u6392\u540d 2025')).toBeInTheDocument();
@@ -273,6 +276,9 @@ test('school page omits ranking references when none are available', async () =>
 
   render(await SchoolPage({ params: Promise.resolve({ slug: 'southeast-university' }) }));
 
+  expect(
+    screen.queryByRole('link', { name: '\u67e5\u770b\u53c2\u8003\u699c\u5355' }),
+  ).not.toBeInTheDocument();
   expect(screen.queryByRole('heading', { name: RANKING_SECTION_TITLE })).not.toBeInTheDocument();
   expect(screen.queryByText(RANKING_HINT_TEXT)).not.toBeInTheDocument();
 });
@@ -328,6 +334,9 @@ test('major page renders ranking references when present', async () => {
 
   render(await MajorPage({ params: Promise.resolve({ slug: 'clinical-medicine' }) }));
 
+  expect(
+    screen.getByRole('link', { name: '\u67e5\u770b\u53c2\u8003\u699c\u5355' }),
+  ).toHaveAttribute('href', '#ranking-references');
   expect(screen.getByRole('heading', { name: RANKING_SECTION_TITLE })).toBeInTheDocument();
   expect(screen.getByText(RANKING_HINT_TEXT)).toBeInTheDocument();
   expect(screen.getByText('\u6559\u80b2\u90e8\u5b66\u79d1\u8bc4\u4f30 2023')).toBeInTheDocument();

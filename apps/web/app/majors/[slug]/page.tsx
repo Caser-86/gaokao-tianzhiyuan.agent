@@ -18,7 +18,7 @@ export default async function MajorPage({ params }: MajorPageProps) {
     return (
       <main className="page-shell">
         <section className="masthead">
-          <span className="eyebrow">专业解读</span>
+          <span className="eyebrow">{'专业解读'}</span>
           <h1 className="hero-title">{major.name}</h1>
           <p className="hero-copy">{major.summary}</p>
           <div className="meta">
@@ -30,9 +30,14 @@ export default async function MajorPage({ params }: MajorPageProps) {
           <div className="link-row">
             {major.relatedSchools.map((schoolSlug) => (
               <Link key={schoolSlug} href={`/schools/${schoolSlug}`} className="cta secondary">
-                查看相关学校
+                {'查看相关学校'}
               </Link>
             ))}
+            {major.rankingReferences.length > 0 ? (
+              <Link href="#ranking-references" className="cta secondary">
+                {'查看参考榜单'}
+              </Link>
+            ) : null}
           </div>
         </section>
 
@@ -48,8 +53,8 @@ export default async function MajorPage({ params }: MajorPageProps) {
     return (
       <main className="page-shell">
         <section className="panel">
-          <h1 className="panel-title">专业内容暂时不可用</h1>
-          <p>公开内容加载失败，请稍后重试。</p>
+          <h1 className="panel-title">{'专业内容暂时不可用'}</h1>
+          <p>{'公开内容加载失败，请稍后重试。'}</p>
         </section>
       </main>
     );

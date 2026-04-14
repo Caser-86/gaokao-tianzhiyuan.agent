@@ -10,7 +10,7 @@ export default function RankingReferenceList({ references }: RankingReferenceLis
   }
 
   return (
-    <section className="panel" style={{ marginTop: 28 }}>
+    <section id="ranking-references" className="panel" style={{ marginTop: 28 }}>
       <h2 className="panel-title">{'\u53c2\u8003\u699c\u5355'}</h2>
       <p>{'\u4e0d\u540c\u699c\u5355\u53e3\u5f84\u4e0d\u540c\uff0c\u7ed3\u679c\u4ec5\u4f9b\u53c2\u8003\u3002'}</p>
       <div className="section-grid">

@@ -18,7 +18,7 @@ export default async function SchoolPage({ params }: SchoolPageProps) {
     return (
       <main className="page-shell">
         <section className="masthead">
-          <span className="eyebrow">学校解读</span>
+          <span className="eyebrow">{'学校解读'}</span>
           <h1 className="hero-title">{school.name}</h1>
           <p className="hero-copy">{school.summary}</p>
           <div className="meta">
@@ -31,9 +31,14 @@ export default async function SchoolPage({ params }: SchoolPageProps) {
           <div className="link-row">
             {school.relatedMajors.map((majorSlug) => (
               <Link key={majorSlug} href={`/majors/${majorSlug}`} className="cta secondary">
-                查看相关专业
+                {'查看相关专业'}
               </Link>
             ))}
+            {school.rankingReferences.length > 0 ? (
+              <Link href="#ranking-references" className="cta secondary">
+                {'查看参考榜单'}
+              </Link>
+            ) : null}
           </div>
         </section>
 
@@ -49,8 +54,8 @@ export default async function SchoolPage({ params }: SchoolPageProps) {
     return (
       <main className="page-shell">
         <section className="panel">
-          <h1 className="panel-title">学校内容暂时不可用</h1>
-          <p>公开内容加载失败，请稍后重试。</p>
+          <h1 className="panel-title">{'学校内容暂时不可用'}</h1>
+          <p>{'公开内容加载失败，请稍后重试。'}</p>
         </section>
       </main>
     );
