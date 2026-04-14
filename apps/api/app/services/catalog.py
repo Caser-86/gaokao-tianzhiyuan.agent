@@ -5,7 +5,10 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from .featured_content import list_featured_content
+from .featured_content import (
+    list_current_featured_majors,
+    list_current_featured_schools,
+)
 
 
 CATALOG_PATH = Path(__file__).resolve().parents[4] / "data" / "catalog.json"
@@ -24,8 +27,7 @@ def list_schools(*, region: str | None = None, keyword: str | None = None) -> di
     schools = load_catalog()["schools"]
     featured_schools = {
         school["slug"]: school
-        for school in list_featured_content()["schools"]
-        if school["is_featured"]
+        for school in list_current_featured_schools()
     }
     filtered = []
 
@@ -73,8 +75,7 @@ def list_majors() -> dict[str, Any]:
     majors = load_catalog()["majors"]
     featured_majors = {
         major["slug"]
-        for major in list_featured_content()["majors"]
-        if major["is_featured"]
+        for major in list_current_featured_majors()
     }
     items = [
         {

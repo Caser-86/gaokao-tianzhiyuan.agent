@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 from typing import Any
 
 FEATURED_CONTENT_PATH = Path(__file__).resolve().parents[4] / "data" / "featured-content.json"
+ROTATION_ANCHOR_DATE = date(2026, 4, 14)
 
 
 def _default_rotation_rule() -> dict[str, Any]:
@@ -169,3 +171,41 @@ def update_rotation_rule(
     }
     _write_featured_content(payload)
     return rotation[rotation_key]
+
+
+def _current_rotation_window(
+    entries: list[dict[str, Any]],
+    rule: dict[str, Any],
+    *,
+    today: date | None = None,
+) -> list[dict[str, Any]]:
+    eligible = [item for item in entries if item.get("is_featured")]
+    if not rule.get("enabled"):
+        return eligible
+
+    frequency_days = int(rule.get("frequency_days", 0) or 0)
+    window_size = int(rule.get("window_size", 0) or 0)
+    ordered_slugs = rule.get("ordered_slugs", [])
+
+    if frequency_days < 1 or window_size < 1 or not ordered_slugs:
+        return eligible
+
+    eligible_by_slug = {item["slug"]: item for item in eligible}
+    ordered = [eligible_by_slug[slug] for slug in ordered_slugs if slug in eligible_by_slug]
+    if not ordered:
+        return eligible
+
+    today = today or date.today()
+    rotation_step = ((today - ROTATION_ANCHOR_DATE).days // frequency_days) % len(ordered)
+    window_size = min(window_size, len(ordered))
+    return [ordered[(rotation_step + offset) % len(ordered)] for offset in range(window_size)]
+
+
+def list_current_featured_schools() -> list[dict[str, Any]]:
+    payload = list_featured_content()
+    return _current_rotation_window(payload["schools"], payload["rotation"]["schools"])
+
+
+def list_current_featured_majors() -> list[dict[str, Any]]:
+    payload = list_featured_content()
+    return _current_rotation_window(payload["majors"], payload["rotation"]["majors"])

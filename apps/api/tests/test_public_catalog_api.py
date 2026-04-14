@@ -1,4 +1,5 @@
 import json
+from datetime import date
 
 from fastapi.testclient import TestClient
 
@@ -34,6 +35,20 @@ def _write_featured_content(path) -> None:
                         "is_featured": True,
                     },
                 ],
+                "rotation": {
+                    "schools": {
+                        "enabled": False,
+                        "frequency_days": 1,
+                        "window_size": 1,
+                        "ordered_slugs": [],
+                    },
+                    "majors": {
+                        "enabled": False,
+                        "frequency_days": 1,
+                        "window_size": 1,
+                        "ordered_slugs": [],
+                    },
+                },
             },
             ensure_ascii=False,
             indent=2,
@@ -41,6 +56,66 @@ def _write_featured_content(path) -> None:
         + "\n",
         encoding="utf-8",
     )
+
+
+def test_list_schools_returns_current_rotation_window(tmp_path, monkeypatch) -> None:
+    featured_content_path = tmp_path / "featured-content.json"
+    featured_content_path.write_text(
+        json.dumps(
+            {
+                "schools": [
+                    {
+                        "slug": "southeast-university",
+                        "is_featured": True,
+                        "hero_image_url": "",
+                    },
+                    {
+                        "slug": "west-china-medical-center",
+                        "is_featured": True,
+                        "hero_image_url": "",
+                    },
+                ],
+                "majors": [
+                    {
+                        "slug": "clinical-medicine",
+                        "is_featured": True,
+                    },
+                    {
+                        "slug": "computer-science",
+                        "is_featured": True,
+                    },
+                ],
+                "rotation": {
+                    "schools": {
+                        "enabled": True,
+                        "frequency_days": 1,
+                        "window_size": 1,
+                        "ordered_slugs": [
+                            "west-china-medical-center",
+                            "southeast-university",
+                        ],
+                    },
+                    "majors": {
+                        "enabled": False,
+                        "frequency_days": 1,
+                        "window_size": 1,
+                        "ordered_slugs": [],
+                    },
+                },
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(featured_content_service, "FEATURED_CONTENT_PATH", featured_content_path)
+    monkeypatch.setattr(featured_content_service, "ROTATION_ANCHOR_DATE", date.today())
+
+    response = client.get("/api/public/schools")
+
+    assert response.status_code == 200
+    assert [item["slug"] for item in response.json()["items"]] == ["west-china-medical-center"]
 
 
 def test_list_schools_only_returns_featured_items(tmp_path, monkeypatch) -> None:
@@ -267,3 +342,20 @@ def test_list_majors_returns_catalog_cards(tmp_path, monkeypatch) -> None:
     }
     assert payload["items"][-1]["slug"] == "computer-science"
     assert payload["items"][-1]["has_ranking_references"] is True
+
+
+def test_list_majors_falls_back_to_all_featured_items_when_rotation_disabled(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    featured_content_path = tmp_path / "featured-content.json"
+    _write_featured_content(featured_content_path)
+    monkeypatch.setattr(featured_content_service, "FEATURED_CONTENT_PATH", featured_content_path)
+
+    response = client.get("/api/public/majors")
+
+    assert response.status_code == 200
+    assert {item["slug"] for item in response.json()["items"]} == {
+        "clinical-medicine",
+        "computer-science",
+    }
