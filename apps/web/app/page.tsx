@@ -45,7 +45,20 @@ export default async function HomePage() {
                       alt={school.name}
                       style={{ width: '100%', aspectRatio: '16 / 9', objectFit: 'cover' }}
                     />
-                  ) : null}
+                  ) : (
+                    <div
+                      style={{
+                        width: '100%',
+                        aspectRatio: '16 / 9',
+                        display: 'grid',
+                        placeItems: 'center',
+                        background: 'rgba(14, 47, 43, 0.08)',
+                        color: '#2f5b55',
+                      }}
+                    >
+                      {'暂未配置学校图片'}
+                    </div>
+                  )}
                   <strong>{school.name}</strong>
                   <p>{school.summary}</p>
                   <div className="meta">

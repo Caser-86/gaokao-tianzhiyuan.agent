@@ -153,6 +153,7 @@ test('home page renders API-backed search, catalog, and product data', async () 
     'src',
     'https://cdn.example.com/southeast.jpg',
   );
+  expect(screen.getByText('\u6682\u672a\u914d\u7f6e\u5b66\u6821\u56fe\u7247')).toBeInTheDocument();
   expect(screen.queryByRole('img', { name: '\u666e\u901a\u5b66\u6821' })).not.toBeInTheDocument();
   expect(screen.getAllByText(RANKING_BADGE_TEXT)).toHaveLength(2);
   expect(screen.getByRole('heading', { name: PLATFORM_SECTION_TITLE })).toBeInTheDocument();
