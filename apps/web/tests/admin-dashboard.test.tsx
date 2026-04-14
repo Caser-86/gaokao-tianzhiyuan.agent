@@ -114,6 +114,7 @@ test('renders admin dashboard heading, selected-date preview, next preview, and 
       selectedPreviewDateValue="2026-04-20"
       selectedDatePreview={selectedDatePreview}
       selectedDateError={undefined}
+      todayPreviewDateHref="/admin?preview_date=2026-04-14"
       previousPreviewDateHref="/admin?preview_date=2026-04-19"
       nextPreviewDateHref="/admin?preview_date=2026-04-21"
       approveAction={async () => undefined}
@@ -160,6 +161,10 @@ test('renders admin dashboard heading, selected-date preview, next preview, and 
   expect(screen.getByRole('link', { name: '查看前一天' })).toHaveAttribute(
     'href',
     '/admin?preview_date=2026-04-19',
+  );
+  expect(screen.getByRole('link', { name: '回到今天' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-14',
   );
   expect(screen.getByRole('link', { name: '查看后一天' })).toHaveAttribute(
     'href',
@@ -208,6 +213,7 @@ test('renders helper text when no selected preview date is provided', () => {
   );
 
   expect(screen.getByText('选择一个日期查看当天轮换结果')).toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: '回到今天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看前一天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看后一天' })).not.toBeInTheDocument();
 });
@@ -247,6 +253,7 @@ test('renders selected-date validation error and empty state when needed', () =>
   expect(screen.getByText('当前没有下一轮展示专业')).toBeInTheDocument();
   expect(screen.getByText('当前没有未来轮换预览')).toBeInTheDocument();
   expect(screen.getByText('预览日期格式无效')).toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: '回到今天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看前一天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看后一天' })).not.toBeInTheDocument();
 });
@@ -281,6 +288,7 @@ test('renders error state when queue loading fails', () => {
   );
 
   expect(screen.getByText('审核队列加载失败，请稍后重试')).toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: '回到今天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看前一天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看后一天' })).not.toBeInTheDocument();
 });

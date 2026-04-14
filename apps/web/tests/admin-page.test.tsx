@@ -191,6 +191,10 @@ test('renders queue items, selected-date preview, next preview, and schedule ret
     'href',
     '/admin?preview_date=2026-04-19',
   );
+  expect(screen.getByRole('link', { name: '回到今天' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-14',
+  );
   expect(screen.getByRole('link', { name: '查看后一天' })).toHaveAttribute(
     'href',
     '/admin?preview_date=2026-04-21',
@@ -254,6 +258,7 @@ test('renders selected-date validation error when preview_date is invalid', asyn
 
   expect(listFeaturedContentMock).toHaveBeenCalledWith('2026-99-99');
   expect(screen.getByText('预览日期格式无效')).toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: '回到今天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看前一天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看后一天' })).not.toBeInTheDocument();
 });
@@ -295,6 +300,7 @@ test('renders queue error when loading fails', async () => {
   render(await AdminPage({}));
 
   expect(screen.getByText('审核队列加载失败，请稍后重试')).toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: '回到今天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看前一天' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '查看后一天' })).not.toBeInTheDocument();
 });
@@ -356,6 +362,10 @@ test('renders empty preview states when today, next, and selected-date preview a
   expect(screen.getByRole('link', { name: '查看前一天' })).toHaveAttribute(
     'href',
     '/admin?preview_date=2026-04-19',
+  );
+  expect(screen.getByRole('link', { name: '回到今天' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-14',
   );
   expect(screen.getByRole('link', { name: '查看后一天' })).toHaveAttribute(
     'href',

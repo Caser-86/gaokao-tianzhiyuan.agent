@@ -43,11 +43,19 @@ const shiftIsoDate = (value: string, offsetDays: number): string | null => {
   return parsed.toISOString().slice(0, 10);
 };
 
+const todayIsoDate = (): string => new Date().toISOString().slice(0, 10);
+
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const previewDate = resolvedSearchParams?.preview_date?.trim() || undefined;
+  const normalizedPreviewDate = previewDate ? shiftIsoDate(previewDate, 0) : null;
+  const todayPreviewDate = todayIsoDate();
   const previousPreviewDate = previewDate ? shiftIsoDate(previewDate, -1) : null;
   const nextPreviewDate = previewDate ? shiftIsoDate(previewDate, 1) : null;
+  const todayPreviewDateHref =
+    normalizedPreviewDate && normalizedPreviewDate !== todayPreviewDate
+      ? `/admin?preview_date=${todayPreviewDate}`
+      : undefined;
   const previousPreviewDateHref = previousPreviewDate
     ? `/admin?preview_date=${previousPreviewDate}`
     : undefined;
@@ -109,6 +117,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       selectedPreviewDateValue={previewDate ?? ''}
       selectedDatePreview={selectedDatePreview}
       selectedDateError={selectedDateError}
+      todayPreviewDateHref={todayPreviewDateHref}
       previousPreviewDateHref={previousPreviewDateHref}
       nextPreviewDateHref={nextPreviewDateHref}
       queueError={queueError}

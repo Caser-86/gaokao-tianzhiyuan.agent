@@ -35,6 +35,7 @@ type DashboardShellProps = {
   selectedPreviewDateValue: string;
   selectedDatePreview: AdminFeaturedPreviewDay | null;
   selectedDateError?: string;
+  todayPreviewDateHref?: string;
   previousPreviewDateHref?: string;
   nextPreviewDateHref?: string;
   queueError?: string;
@@ -81,6 +82,7 @@ export default function DashboardShell({
   selectedPreviewDateValue,
   selectedDatePreview,
   selectedDateError,
+  todayPreviewDateHref,
   previousPreviewDateHref,
   nextPreviewDateHref,
   queueError,
@@ -301,10 +303,12 @@ export default function DashboardShell({
           <button type="submit">查看该日轮换</button>
         </form>
 
-        {previousPreviewDateHref || nextPreviewDateHref ? (
+        {todayPreviewDateHref || previousPreviewDateHref || nextPreviewDateHref ? (
           <p>
             {previousPreviewDateHref ? <a href={previousPreviewDateHref}>查看前一天</a> : null}
-            {previousPreviewDateHref && nextPreviewDateHref ? ' ' : null}
+            {previousPreviewDateHref && (todayPreviewDateHref || nextPreviewDateHref) ? ' ' : null}
+            {todayPreviewDateHref ? <a href={todayPreviewDateHref}>回到今天</a> : null}
+            {todayPreviewDateHref && nextPreviewDateHref ? ' ' : null}
             {nextPreviewDateHref ? <a href={nextPreviewDateHref}>查看后一天</a> : null}
           </p>
         ) : null}
