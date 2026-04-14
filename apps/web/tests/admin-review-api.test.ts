@@ -204,6 +204,20 @@ test('listFeaturedContent sends authenticated request and maps admin config', as
           ordered_slugs: ['clinical-medicine'],
         },
       },
+      preview: {
+        schools: [
+          {
+            slug: 'southeast-university',
+            name: '东南大学',
+          },
+        ],
+        majors: [
+          {
+            slug: 'clinical-medicine',
+            name: '临床医学',
+          },
+        ],
+      },
     }),
   });
 
@@ -240,6 +254,20 @@ test('listFeaturedContent sends authenticated request and maps admin config', as
     frequencyDays: 3,
     windowSize: 4,
     orderedSlugs: ['clinical-medicine'],
+  });
+  expect(payload.preview).toEqual({
+    schools: [
+      {
+        slug: 'southeast-university',
+        name: '东南大学',
+      },
+    ],
+    majors: [
+      {
+        slug: 'clinical-medicine',
+        name: '临床医学',
+      },
+    ],
   });
 });
 

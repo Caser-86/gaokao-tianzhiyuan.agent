@@ -11,6 +11,11 @@ export type AdminFeaturedMajor = {
   isFeatured: boolean;
 };
 
+export type AdminFeaturedPreviewItem = {
+  slug: string;
+  name: string;
+};
+
 export type AdminRotationRule = {
   enabled: boolean;
   frequencyDays: number;
@@ -24,6 +29,10 @@ export type AdminFeaturedContent = {
   rotation: {
     schools: AdminRotationRule;
     majors: AdminRotationRule;
+  };
+  preview: {
+    schools: AdminFeaturedPreviewItem[];
+    majors: AdminFeaturedPreviewItem[];
   };
 };
 
@@ -94,6 +103,16 @@ export async function listFeaturedContent(): Promise<AdminFeaturedContent> {
         ordered_slugs: string[];
       };
     };
+    preview?: {
+      schools?: Array<{
+        slug: string;
+        name: string;
+      }>;
+      majors?: Array<{
+        slug: string;
+        name: string;
+      }>;
+    };
   }>(response);
 
   return {
@@ -111,6 +130,10 @@ export async function listFeaturedContent(): Promise<AdminFeaturedContent> {
     rotation: {
       schools: mapRotationRule(payload.rotation?.schools),
       majors: mapRotationRule(payload.rotation?.majors),
+    },
+    preview: {
+      schools: payload.preview?.schools ?? [],
+      majors: payload.preview?.majors ?? [],
     },
   };
 }

@@ -3,6 +3,7 @@ import DashboardShell, {
 } from '../../../components/admin/dashboard-shell';
 import {
   type AdminFeaturedMajor,
+  type AdminFeaturedPreviewItem,
   type AdminFeaturedSchool,
   type AdminRotationRule,
   listFeaturedContent,
@@ -30,6 +31,8 @@ export default async function AdminPage() {
   let queueError: string | undefined;
   let featuredSchools: AdminFeaturedSchool[] = [];
   let featuredMajors: AdminFeaturedMajor[] = [];
+  let featuredSchoolPreview: AdminFeaturedPreviewItem[] = [];
+  let featuredMajorPreview: AdminFeaturedPreviewItem[] = [];
   let featuredContentError: string | undefined;
   let schoolRotation = defaultRotationRule();
   let majorRotation = defaultRotationRule();
@@ -46,6 +49,8 @@ export default async function AdminPage() {
     featuredMajors = featuredContent.majors;
     schoolRotation = featuredContent.rotation.schools;
     majorRotation = featuredContent.rotation.majors;
+    featuredSchoolPreview = featuredContent.preview.schools;
+    featuredMajorPreview = featuredContent.preview.majors;
   } catch {
     featuredContentError = '展示配置加载失败，请稍后重试';
   }
@@ -58,6 +63,8 @@ export default async function AdminPage() {
       featuredMajors={featuredMajors}
       schoolRotation={schoolRotation}
       majorRotation={majorRotation}
+      featuredSchoolPreview={featuredSchoolPreview}
+      featuredMajorPreview={featuredMajorPreview}
       queueError={queueError}
       featuredContentError={featuredContentError}
       approveAction={approveReviewQueueAction}

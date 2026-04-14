@@ -1,5 +1,6 @@
 import type {
   AdminFeaturedMajor,
+  AdminFeaturedPreviewItem,
   AdminFeaturedSchool,
   AdminRotationRule,
 } from '../../lib/admin-featured-content-api';
@@ -25,6 +26,8 @@ type DashboardShellProps = {
   featuredMajors: AdminFeaturedMajor[];
   schoolRotation: AdminRotationRule;
   majorRotation: AdminRotationRule;
+  featuredSchoolPreview: AdminFeaturedPreviewItem[];
+  featuredMajorPreview: AdminFeaturedPreviewItem[];
   queueError?: string;
   featuredContentError?: string;
   approveAction: (formData: FormData) => Promise<void>;
@@ -44,6 +47,8 @@ export default function DashboardShell({
   featuredMajors,
   schoolRotation,
   majorRotation,
+  featuredSchoolPreview,
+  featuredMajorPreview,
   queueError,
   featuredContentError,
   approveAction,
@@ -204,6 +209,40 @@ export default function DashboardShell({
             </label>
             <button type="submit">保存轮换规则</button>
           </form>
+        )}
+      </section>
+
+      <section aria-labelledby="featured-school-preview-heading">
+        <h2 id="featured-school-preview-heading">今日展示学校</h2>
+
+        {featuredContentError ? null : featuredSchoolPreview.length === 0 ? (
+          <p>当前没有可展示学校</p>
+        ) : (
+          <ul>
+            {featuredSchoolPreview.map((school) => (
+              <li key={school.slug}>
+                <span>{school.name}</span>
+                <span>{school.slug}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section aria-labelledby="featured-major-preview-heading">
+        <h2 id="featured-major-preview-heading">今日展示专业</h2>
+
+        {featuredContentError ? null : featuredMajorPreview.length === 0 ? (
+          <p>当前没有可展示专业</p>
+        ) : (
+          <ul>
+            {featuredMajorPreview.map((major) => (
+              <li key={major.slug}>
+                <span>{major.name}</span>
+                <span>{major.slug}</span>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
     </main>
