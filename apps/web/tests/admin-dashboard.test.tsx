@@ -114,6 +114,8 @@ test('renders admin dashboard heading, selected-date preview, next preview, and 
       selectedPreviewDateValue="2026-04-20"
       selectedDatePreview={selectedDatePreview}
       selectedDateError={undefined}
+      previousPreviewDateHref="/admin?preview_date=2026-04-19"
+      nextPreviewDateHref="/admin?preview_date=2026-04-21"
       approveAction={async () => undefined}
       rejectAction={async () => undefined}
       updateFeaturedSchoolAction={async () => undefined}
@@ -155,6 +157,14 @@ test('renders admin dashboard heading, selected-date preview, next preview, and 
   expect(within(nextMajorPreviewRegion).getByText('computer-science')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '指定日期预览' })).toBeInTheDocument();
   expect(screen.getByDisplayValue('2026-04-20')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: '查看前一天' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-19',
+  );
+  expect(screen.getByRole('link', { name: '查看后一天' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-21',
+  );
   expect(within(selectedSchoolPreviewRegion).getByText('东南大学')).toBeInTheDocument();
   expect(within(selectedSchoolPreviewRegion).getByText('southeast-university')).toBeInTheDocument();
   expect(within(selectedMajorPreviewRegion).getByText('临床医学')).toBeInTheDocument();
@@ -186,6 +196,8 @@ test('renders helper text when no selected preview date is provided', () => {
       selectedPreviewDateValue=""
       selectedDatePreview={null}
       selectedDateError={undefined}
+      previousPreviewDateHref={undefined}
+      nextPreviewDateHref={undefined}
       approveAction={async () => undefined}
       rejectAction={async () => undefined}
       updateFeaturedSchoolAction={async () => undefined}
@@ -196,6 +208,8 @@ test('renders helper text when no selected preview date is provided', () => {
   );
 
   expect(screen.getByText('选择一个日期查看当天轮换结果')).toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: '查看前一天' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: '查看后一天' })).not.toBeInTheDocument();
 });
 
 test('renders selected-date validation error and empty state when needed', () => {
@@ -215,6 +229,8 @@ test('renders selected-date validation error and empty state when needed', () =>
       selectedPreviewDateValue="2026-99-99"
       selectedDatePreview={null}
       selectedDateError="预览日期格式无效"
+      previousPreviewDateHref={undefined}
+      nextPreviewDateHref={undefined}
       approveAction={async () => undefined}
       rejectAction={async () => undefined}
       updateFeaturedSchoolAction={async () => undefined}
@@ -231,6 +247,8 @@ test('renders selected-date validation error and empty state when needed', () =>
   expect(screen.getByText('当前没有下一轮展示专业')).toBeInTheDocument();
   expect(screen.getByText('当前没有未来轮换预览')).toBeInTheDocument();
   expect(screen.getByText('预览日期格式无效')).toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: '查看前一天' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: '查看后一天' })).not.toBeInTheDocument();
 });
 
 test('renders error state when queue loading fails', () => {
@@ -250,6 +268,8 @@ test('renders error state when queue loading fails', () => {
       selectedPreviewDateValue=""
       selectedDatePreview={null}
       selectedDateError={undefined}
+      previousPreviewDateHref={undefined}
+      nextPreviewDateHref={undefined}
       queueError="审核队列加载失败，请稍后重试"
       approveAction={async () => undefined}
       rejectAction={async () => undefined}
@@ -261,4 +281,6 @@ test('renders error state when queue loading fails', () => {
   );
 
   expect(screen.getByText('审核队列加载失败，请稍后重试')).toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: '查看前一天' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: '查看后一天' })).not.toBeInTheDocument();
 });

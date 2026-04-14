@@ -33,9 +33,27 @@ type AdminPageProps = {
   }>;
 };
 
+const shiftIsoDate = (value: string, offsetDays: number): string | null => {
+  const parsed = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  parsed.setUTCDate(parsed.getUTCDate() + offsetDays);
+  return parsed.toISOString().slice(0, 10);
+};
+
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const previewDate = resolvedSearchParams?.preview_date?.trim() || undefined;
+  const previousPreviewDate = previewDate ? shiftIsoDate(previewDate, -1) : null;
+  const nextPreviewDate = previewDate ? shiftIsoDate(previewDate, 1) : null;
+  const previousPreviewDateHref = previousPreviewDate
+    ? `/admin?preview_date=${previousPreviewDate}`
+    : undefined;
+  const nextPreviewDateHref = nextPreviewDate
+    ? `/admin?preview_date=${nextPreviewDate}`
+    : undefined;
 
   let queueItems: AdminReviewItem[] = [];
   let queueError: string | undefined;
@@ -91,6 +109,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       selectedPreviewDateValue={previewDate ?? ''}
       selectedDatePreview={selectedDatePreview}
       selectedDateError={selectedDateError}
+      previousPreviewDateHref={previousPreviewDateHref}
+      nextPreviewDateHref={nextPreviewDateHref}
       queueError={queueError}
       featuredContentError={featuredContentError}
       approveAction={approveReviewQueueAction}

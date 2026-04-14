@@ -35,6 +35,8 @@ type DashboardShellProps = {
   selectedPreviewDateValue: string;
   selectedDatePreview: AdminFeaturedPreviewDay | null;
   selectedDateError?: string;
+  previousPreviewDateHref?: string;
+  nextPreviewDateHref?: string;
   queueError?: string;
   featuredContentError?: string;
   approveAction: (formData: FormData) => Promise<void>;
@@ -79,6 +81,8 @@ export default function DashboardShell({
   selectedPreviewDateValue,
   selectedDatePreview,
   selectedDateError,
+  previousPreviewDateHref,
+  nextPreviewDateHref,
   queueError,
   featuredContentError,
   approveAction,
@@ -296,6 +300,14 @@ export default function DashboardShell({
           </label>
           <button type="submit">查看该日轮换</button>
         </form>
+
+        {previousPreviewDateHref || nextPreviewDateHref ? (
+          <p>
+            {previousPreviewDateHref ? <a href={previousPreviewDateHref}>查看前一天</a> : null}
+            {previousPreviewDateHref && nextPreviewDateHref ? ' ' : null}
+            {nextPreviewDateHref ? <a href={nextPreviewDateHref}>查看后一天</a> : null}
+          </p>
+        ) : null}
 
         {showSelectedDateHelper ? <p>选择一个日期查看当天轮换结果</p> : null}
         {selectedDateError ? <p>{selectedDateError}</p> : null}
