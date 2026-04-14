@@ -7,12 +7,14 @@ const {
   listRankingReferencesMock,
   listContentSummariesMock,
   listContentSectionsMock,
+  listRelatedContentMock,
 } = vi.hoisted(() => ({
   listReviewQueueMock: vi.fn(),
   listFeaturedContentMock: vi.fn(),
   listRankingReferencesMock: vi.fn(),
   listContentSummariesMock: vi.fn(),
   listContentSectionsMock: vi.fn(),
+  listRelatedContentMock: vi.fn(),
 }));
 
 vi.mock('../lib/admin-review-api', () => ({
@@ -35,6 +37,10 @@ vi.mock('../lib/admin-content-sections-api', () => ({
   listContentSections: listContentSectionsMock,
 }));
 
+vi.mock('../lib/admin-related-content-api', () => ({
+  listRelatedContent: listRelatedContentMock,
+}));
+
 vi.mock('../app/(admin)/admin/actions', () => ({
   approveReviewQueueAction: async () => undefined,
   rejectReviewQueueAction: async () => undefined,
@@ -48,6 +54,8 @@ vi.mock('../app/(admin)/admin/actions', () => ({
   updateMajorSummaryAction: async () => undefined,
   updateSchoolSectionsAction: async () => undefined,
   updateMajorSectionsAction: async () => undefined,
+  updateSchoolRelatedContentAction: async () => undefined,
+  updateMajorRelatedContentAction: async () => undefined,
 }));
 
 import AdminPage from '../app/(admin)/admin/page';
@@ -58,7 +66,12 @@ beforeEach(() => {
   listRankingReferencesMock.mockReset();
   listContentSummariesMock.mockReset();
   listContentSectionsMock.mockReset();
+  listRelatedContentMock.mockReset();
   listContentSectionsMock.mockResolvedValue({
+    schools: [],
+    majors: [],
+  });
+  listRelatedContentMock.mockResolvedValue({
     schools: [],
     majors: [],
   });

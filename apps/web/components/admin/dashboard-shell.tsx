@@ -6,6 +6,10 @@ import type {
   AdminContentSectionsEntity,
 } from '../../lib/admin-content-sections-api';
 import type {
+  AdminRelatedMajorEntity,
+  AdminRelatedSchoolEntity,
+} from '../../lib/admin-related-content-api';
+import type {
   AdminFeaturedMajor,
   AdminFeaturedPreviewDay,
   AdminFeaturedPreviewItem,
@@ -44,6 +48,8 @@ type DashboardShellProps = {
   summaryMajors?: AdminContentSummaryEntity[];
   sectionSchools?: AdminContentSectionsEntity[];
   sectionMajors?: AdminContentSectionsEntity[];
+  relatedSchools?: AdminRelatedSchoolEntity[];
+  relatedMajors?: AdminRelatedMajorEntity[];
   rankingReferenceSchools?: AdminRankingReferenceEntity[];
   rankingReferenceMajors?: AdminRankingReferenceEntity[];
   highlightedScheduleDate?: string;
@@ -67,6 +73,7 @@ type DashboardShellProps = {
   rankingReferenceError?: string;
   contentSummaryError?: string;
   contentSectionError?: string;
+  relatedContentError?: string;
   queueError?: string;
   featuredContentError?: string;
   approveAction: (formData: FormData) => Promise<void>;
@@ -77,6 +84,8 @@ type DashboardShellProps = {
   updateMajorSummaryAction?: (formData: FormData) => Promise<void>;
   updateSchoolSectionsAction?: (formData: FormData) => Promise<void>;
   updateMajorSectionsAction?: (formData: FormData) => Promise<void>;
+  updateSchoolRelatedContentAction?: (formData: FormData) => Promise<void>;
+  updateMajorRelatedContentAction?: (formData: FormData) => Promise<void>;
   updateSchoolRankingReferencesAction?: (formData: FormData) => Promise<void>;
   updateMajorRankingReferencesAction?: (formData: FormData) => Promise<void>;
   updateSchoolRotationAction: (formData: FormData) => Promise<void>;
@@ -250,6 +259,31 @@ function ContentSectionsForm({
   );
 }
 
+function RelatedContentForm({
+  entity,
+  fieldName,
+  relatedSlugs,
+  action,
+}: {
+  entity: { slug: string; name: string };
+  fieldName: 'relatedMajors' | 'relatedSchools';
+  relatedSlugs: string[];
+  action: (formData: FormData) => Promise<void>;
+}) {
+  return (
+    <form action={action}>
+      <input type="hidden" name="slug" value={entity.slug} />
+      <h3>{entity.name}</h3>
+      <p>{entity.slug}</p>
+      <label>
+        关联 slug
+        <textarea name={fieldName} defaultValue={relatedSlugs.join('\n')} />
+      </label>
+      <button type="submit">保存相关推荐</button>
+    </form>
+  );
+}
+
 export default function DashboardShell({
   title,
   queueItems,
@@ -266,6 +300,8 @@ export default function DashboardShell({
   summaryMajors = [],
   sectionSchools = [],
   sectionMajors = [],
+  relatedSchools = [],
+  relatedMajors = [],
   rankingReferenceSchools = [],
   rankingReferenceMajors = [],
   highlightedScheduleDate,
@@ -289,6 +325,7 @@ export default function DashboardShell({
   rankingReferenceError,
   contentSummaryError,
   contentSectionError,
+  relatedContentError,
   queueError,
   featuredContentError,
   approveAction,
@@ -299,6 +336,8 @@ export default function DashboardShell({
   updateMajorSummaryAction = noopAction,
   updateSchoolSectionsAction = noopAction,
   updateMajorSectionsAction = noopAction,
+  updateSchoolRelatedContentAction = noopAction,
+  updateMajorRelatedContentAction = noopAction,
   updateSchoolRankingReferencesAction = noopAction,
   updateMajorRankingReferencesAction = noopAction,
   updateSchoolRotationAction,
@@ -664,6 +703,50 @@ export default function DashboardShell({
             {sectionMajors.map((major) => (
               <div key={major.slug}>
                 <ContentSectionsForm entity={major} action={updateMajorSectionsAction} />
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      <section aria-labelledby="school-related-content-heading">
+        <h2 id="school-related-content-heading">学校相关推荐</h2>
+
+        {relatedContentError ? <p>{relatedContentError}</p> : null}
+
+        {!relatedContentError ? (
+          <div>
+            {relatedSchools.length === 0 ? <p>当前没有可编辑的学校相关推荐</p> : null}
+            {relatedSchools.map((school) => (
+              <div key={school.slug}>
+                <RelatedContentForm
+                  entity={school}
+                  fieldName="relatedMajors"
+                  relatedSlugs={school.relatedMajors}
+                  action={updateSchoolRelatedContentAction}
+                />
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      <section aria-labelledby="major-related-content-heading">
+        <h2 id="major-related-content-heading">专业相关推荐</h2>
+
+        {relatedContentError ? <p>{relatedContentError}</p> : null}
+
+        {!relatedContentError ? (
+          <div>
+            {relatedMajors.length === 0 ? <p>当前没有可编辑的专业相关推荐</p> : null}
+            {relatedMajors.map((major) => (
+              <div key={major.slug}>
+                <RelatedContentForm
+                  entity={major}
+                  fieldName="relatedSchools"
+                  relatedSlugs={major.relatedSchools}
+                  action={updateMajorRelatedContentAction}
+                />
               </div>
             ))}
           </div>

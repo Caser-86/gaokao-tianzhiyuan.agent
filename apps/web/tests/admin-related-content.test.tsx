@@ -7,12 +7,14 @@ const {
   listRankingReferencesMock,
   listContentSummariesMock,
   listContentSectionsMock,
+  listRelatedContentMock,
 } = vi.hoisted(() => ({
   listReviewQueueMock: vi.fn(),
   listFeaturedContentMock: vi.fn(),
   listRankingReferencesMock: vi.fn(),
   listContentSummariesMock: vi.fn(),
   listContentSectionsMock: vi.fn(),
+  listRelatedContentMock: vi.fn(),
 }));
 
 vi.mock('../lib/admin-review-api', () => ({
@@ -33,6 +35,10 @@ vi.mock('../lib/admin-content-summary-api', () => ({
 
 vi.mock('../lib/admin-content-sections-api', () => ({
   listContentSections: listContentSectionsMock,
+}));
+
+vi.mock('../lib/admin-related-content-api', () => ({
+  listRelatedContent: listRelatedContentMock,
 }));
 
 vi.mock('../app/(admin)/admin/actions', () => ({
@@ -60,9 +66,10 @@ beforeEach(() => {
   listRankingReferencesMock.mockReset();
   listContentSummariesMock.mockReset();
   listContentSectionsMock.mockReset();
+  listRelatedContentMock.mockReset();
 });
 
-test('renders school and major content section editors in admin', async () => {
+test('renders school and major related content editors in admin', async () => {
   listReviewQueueMock.mockResolvedValue([]);
   listFeaturedContentMock.mockResolvedValue({
     schools: [],
@@ -98,43 +105,32 @@ test('renders school and major content section editors in admin', async () => {
     majors: [],
   });
   listContentSectionsMock.mockResolvedValue({
+    schools: [],
+    majors: [],
+  });
+  listRelatedContentMock.mockResolvedValue({
     schools: [
       {
         slug: 'southeast-university',
         name: '东南大学',
-        sections: [
-          {
-            type: 'highlights',
-            title: '学校亮点',
-            items: ['资源密集'],
-          },
-        ],
+        relatedMajors: ['clinical-medicine', 'architecture'],
       },
     ],
     majors: [
       {
         slug: 'clinical-medicine',
         name: '临床医学',
-        sections: [
-          {
-            type: 'fit_for',
-            title: '适合人群',
-            items: ['接受长周期培养'],
-          },
-        ],
+        relatedSchools: ['southeast-university'],
       },
     ],
   });
 
   render(await AdminPage({}));
 
-  expect(screen.getByRole('heading', { name: '学校正文编辑' })).toBeInTheDocument();
-  expect(screen.getByRole('heading', { name: '专业正文编辑' })).toBeInTheDocument();
-  expect(screen.getByDisplayValue('学校亮点')).toBeInTheDocument();
-  expect(screen.getByDisplayValue('highlights')).toBeInTheDocument();
-  expect(screen.getByDisplayValue('资源密集')).toBeInTheDocument();
-  expect(screen.getByDisplayValue('适合人群')).toBeInTheDocument();
-  expect(screen.getByDisplayValue('fit_for')).toBeInTheDocument();
-  expect(screen.getByDisplayValue('接受长周期培养')).toBeInTheDocument();
-  expect(screen.getAllByRole('button', { name: '保存正文' })).toHaveLength(2);
+  expect(screen.getByRole('heading', { name: '学校相关推荐' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: '专业相关推荐' })).toBeInTheDocument();
+  const relatedSlugInputs = screen.getAllByRole('textbox', { name: '关联 slug' });
+  expect(relatedSlugInputs[0]).toHaveValue('clinical-medicine\narchitecture');
+  expect(relatedSlugInputs[1]).toHaveValue('southeast-university');
+  expect(screen.getAllByRole('button', { name: '保存相关推荐' })).toHaveLength(2);
 });

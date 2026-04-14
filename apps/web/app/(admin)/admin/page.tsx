@@ -10,6 +10,11 @@ import {
   listContentSections,
 } from '../../../lib/admin-content-sections-api';
 import {
+  type AdminRelatedMajorEntity,
+  type AdminRelatedSchoolEntity,
+  listRelatedContent,
+} from '../../../lib/admin-related-content-api';
+import {
   type AdminFeaturedMajor,
   type AdminFeaturedPreviewDay,
   type AdminFeaturedPreviewItem,
@@ -28,9 +33,11 @@ import {
   updateFeaturedMajorAction,
   updateFeaturedSchoolAction,
   updateMajorSectionsAction,
+  updateMajorRelatedContentAction,
   updateMajorSummaryAction,
   updateMajorRankingReferencesAction,
   updateMajorRotationAction,
+  updateSchoolRelatedContentAction,
   updateSchoolSectionsAction,
   updateSchoolSummaryAction,
   updateSchoolRankingReferencesAction,
@@ -248,6 +255,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   let sectionSchools: AdminContentSectionsEntity[] = [];
   let sectionMajors: AdminContentSectionsEntity[] = [];
   let contentSectionError: string | undefined;
+  let relatedSchools: AdminRelatedSchoolEntity[] = [];
+  let relatedMajors: AdminRelatedMajorEntity[] = [];
+  let relatedContentError: string | undefined;
   let schoolRotation = defaultRotationRule();
   let majorRotation = defaultRotationRule();
 
@@ -298,6 +308,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     contentSectionError = '正文内容加载失败，请稍后重试';
   }
 
+  try {
+    const relatedContent = await listRelatedContent();
+    relatedSchools = relatedContent.schools;
+    relatedMajors = relatedContent.majors;
+  } catch {
+    relatedContentError = '相关推荐加载失败，请稍后重试';
+  }
+
   return (
     <DashboardShell
       title="内容运营后台"
@@ -317,6 +335,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       summaryMajors={summaryMajors}
       sectionSchools={sectionSchools}
       sectionMajors={sectionMajors}
+      relatedSchools={relatedSchools}
+      relatedMajors={relatedMajors}
       highlightedScheduleDate={highlightedScheduleDate}
       selectedPreviewDateValue={previewDate ?? ''}
       selectedDatePreview={selectedDatePreview}
@@ -338,6 +358,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       rankingReferenceError={rankingReferenceError}
       contentSummaryError={contentSummaryError}
       contentSectionError={contentSectionError}
+      relatedContentError={relatedContentError}
       queueError={queueError}
       featuredContentError={featuredContentError}
       approveAction={approveReviewQueueAction}
@@ -348,6 +369,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       updateMajorSummaryAction={updateMajorSummaryAction}
       updateSchoolSectionsAction={updateSchoolSectionsAction}
       updateMajorSectionsAction={updateMajorSectionsAction}
+      updateSchoolRelatedContentAction={updateSchoolRelatedContentAction}
+      updateMajorRelatedContentAction={updateMajorRelatedContentAction}
       updateSchoolRankingReferencesAction={updateSchoolRankingReferencesAction}
       updateMajorRankingReferencesAction={updateMajorRankingReferencesAction}
       updateSchoolRotationAction={updateSchoolRotationAction}
