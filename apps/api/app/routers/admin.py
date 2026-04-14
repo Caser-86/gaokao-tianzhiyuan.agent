@@ -14,8 +14,10 @@ from ..services.featured_content import (
     update_featured_school,
 )
 from ..services.catalog import (
+    list_admin_content_sections,
     list_admin_content_summaries,
     list_admin_ranking_references,
+    update_content_sections,
     update_content_summary,
     update_ranking_references,
 )
@@ -167,6 +169,33 @@ class ContentSummaryUpdateRequest(SQLModel):
     summary: str
 
 
+class ContentSectionResponse(SQLModel):
+    type: str
+    title: str
+    items: list[str]
+
+
+class ContentSectionEntityResponse(SQLModel):
+    slug: str
+    name: str
+    sections: list[ContentSectionResponse]
+
+
+class ContentSectionListResponse(SQLModel):
+    schools: list[ContentSectionEntityResponse]
+    majors: list[ContentSectionEntityResponse]
+
+
+class ContentSectionRequest(SQLModel):
+    type: str
+    title: str
+    items: list[str]
+
+
+class ContentSectionUpdateRequest(SQLModel):
+    sections: list[ContentSectionRequest]
+
+
 def serialize_review_queue_item(item: ReviewQueue) -> ReviewQueueItemResponse:
     created_at = item.created_at
     if created_at.tzinfo is None:
@@ -266,6 +295,36 @@ def normalize_content_summary(summary: str) -> str:
     return normalized
 
 
+def normalize_content_sections(
+    sections: list[ContentSectionRequest],
+) -> list[dict[str, str | list[str]]]:
+    normalized: list[dict[str, str | list[str]]] = []
+
+    for section in sections:
+        type_value = section.type.strip()
+        title_value = section.title.strip()
+        items = [item.strip() for item in section.items if item.strip()]
+
+        if not type_value and not title_value and not items:
+            continue
+
+        if not type_value or not title_value or not items:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="content section row is invalid",
+            )
+
+        normalized.append(
+            {
+                "type": type_value,
+                "title": title_value,
+                "items": items,
+            }
+        )
+
+    return normalized
+
+
 @router.get("/review-queue", response_model=ReviewQueueListResponse)
 def list_review_queue(
     _authorized: None = Depends(require_admin),
@@ -301,6 +360,17 @@ def get_content_summaries(
     return ContentSummaryListResponse(
         schools=[ContentSummaryEntityResponse(**item) for item in payload["schools"]],
         majors=[ContentSummaryEntityResponse(**item) for item in payload["majors"]],
+    )
+
+
+@router.get("/content-sections", response_model=ContentSectionListResponse)
+def get_content_sections(
+    _authorized: None = Depends(require_admin),
+) -> ContentSectionListResponse:
+    payload = list_admin_content_sections()
+    return ContentSectionListResponse(
+        schools=[ContentSectionEntityResponse(**item) for item in payload["schools"]],
+        majors=[ContentSectionEntityResponse(**item) for item in payload["majors"]],
     )
 
 
@@ -408,6 +478,54 @@ def update_major_content_summary(
         ) from exc
 
     return ContentSummaryEntityResponse(**updated)
+
+
+@router.post(
+    "/content-sections/schools/{slug}",
+    response_model=ContentSectionEntityResponse,
+)
+def update_school_content_sections(
+    slug: str,
+    payload: ContentSectionUpdateRequest,
+    _authorized: None = Depends(require_admin),
+) -> ContentSectionEntityResponse:
+    try:
+        updated = update_content_sections(
+            "schools",
+            slug,
+            normalize_content_sections(payload.sections),
+        )
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="content section entity not found",
+        ) from exc
+
+    return ContentSectionEntityResponse(**updated)
+
+
+@router.post(
+    "/content-sections/majors/{slug}",
+    response_model=ContentSectionEntityResponse,
+)
+def update_major_content_sections(
+    slug: str,
+    payload: ContentSectionUpdateRequest,
+    _authorized: None = Depends(require_admin),
+) -> ContentSectionEntityResponse:
+    try:
+        updated = update_content_sections(
+            "majors",
+            slug,
+            normalize_content_sections(payload.sections),
+        )
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="content section entity not found",
+        ) from exc
+
+    return ContentSectionEntityResponse(**updated)
 
 
 @router.get("/featured-content", response_model=FeaturedContentResponse)
