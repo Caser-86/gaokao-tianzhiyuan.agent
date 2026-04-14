@@ -7,6 +7,7 @@ from ..config import settings
 from ..db import get_session
 from ..models.ingestion import ReviewQueue
 from ..services.featured_content import (
+    build_featured_content_preview,
     list_featured_content,
     update_featured_major,
     update_rotation_rule,
@@ -80,10 +81,21 @@ class FeaturedContentRotationResponse(SQLModel):
     majors: FeaturedRotationRuleResponse
 
 
+class FeaturedPreviewItemResponse(SQLModel):
+    slug: str
+    name: str
+
+
+class FeaturedContentPreviewResponse(SQLModel):
+    schools: list[FeaturedPreviewItemResponse]
+    majors: list[FeaturedPreviewItemResponse]
+
+
 class FeaturedContentResponse(SQLModel):
     schools: list[FeaturedSchoolConfigResponse]
     majors: list[FeaturedMajorConfigResponse]
     rotation: FeaturedContentRotationResponse
+    preview: FeaturedContentPreviewResponse
 
 
 def serialize_review_queue_item(item: ReviewQueue) -> ReviewQueueItemResponse:
@@ -163,6 +175,7 @@ def get_featured_content(
     _authorized: None = Depends(require_admin),
 ) -> FeaturedContentResponse:
     payload = list_featured_content()
+    preview = build_featured_content_preview()
     return FeaturedContentResponse(
         schools=[
             FeaturedSchoolConfigResponse(**school)
@@ -175,6 +188,16 @@ def get_featured_content(
         rotation=FeaturedContentRotationResponse(
             schools=FeaturedRotationRuleResponse(**payload["rotation"]["schools"]),
             majors=FeaturedRotationRuleResponse(**payload["rotation"]["majors"]),
+        ),
+        preview=FeaturedContentPreviewResponse(
+            schools=[
+                FeaturedPreviewItemResponse(**school)
+                for school in preview["schools"]
+            ],
+            majors=[
+                FeaturedPreviewItemResponse(**major)
+                for major in preview["majors"]
+            ],
         ),
     )
 

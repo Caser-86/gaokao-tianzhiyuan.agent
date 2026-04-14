@@ -255,6 +255,34 @@ def test_featured_content_endpoint_returns_school_and_major_configuration(
     }
 
 
+def test_featured_content_endpoint_returns_today_preview(
+    admin_client,
+    featured_content_file,
+) -> None:
+    client, _engine = admin_client
+
+    response = client.get(
+        "/api/admin/featured-content",
+        headers={"x-admin-token": settings.admin_token},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["preview"] == {
+        "schools": [
+            {
+                "slug": "southeast-university",
+                "name": "东南大学",
+            }
+        ],
+        "majors": [
+            {
+                "slug": "clinical-medicine",
+                "name": "临床医学",
+            }
+        ],
+    }
+
+
 def test_update_featured_school_persists_is_featured_and_image_url(
     admin_client,
     featured_content_file,

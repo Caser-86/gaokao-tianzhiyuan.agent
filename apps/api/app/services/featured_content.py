@@ -201,6 +201,16 @@ def _current_rotation_window(
     return [ordered[(rotation_step + offset) % len(ordered)] for offset in range(window_size)]
 
 
+def _preview_items(entries: list[dict[str, Any]]) -> list[dict[str, str]]:
+    return [
+        {
+            "slug": item["slug"],
+            "name": item["name"],
+        }
+        for item in entries
+    ]
+
+
 def list_current_featured_schools() -> list[dict[str, Any]]:
     payload = list_featured_content()
     return _current_rotation_window(payload["schools"], payload["rotation"]["schools"])
@@ -209,3 +219,10 @@ def list_current_featured_schools() -> list[dict[str, Any]]:
 def list_current_featured_majors() -> list[dict[str, Any]]:
     payload = list_featured_content()
     return _current_rotation_window(payload["majors"], payload["rotation"]["majors"])
+
+
+def build_featured_content_preview() -> dict[str, list[dict[str, str]]]:
+    return {
+        "schools": _preview_items(list_current_featured_schools()),
+        "majors": _preview_items(list_current_featured_majors()),
+    }
