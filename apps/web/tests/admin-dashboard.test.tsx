@@ -456,31 +456,26 @@ test('renders content gap overview shortcuts for high-priority missing content',
   expect(
     within(overviewRegion).getByText('今日待补 5 项，下一轮待补 5 项，总待补 10 项'),
   ).toBeInTheDocument();
-  expect(
-    within(overviewRegion).getByRole('link', { name: '学校图片：今日 1，下一轮 1，待补 2' }),
-  ).toHaveAttribute('href', '#missing-school-images-heading');
-  expect(
-    within(overviewRegion).getByRole('link', { name: '学校摘要：今日 1，下一轮 0，待补 1' }),
-  ).toHaveAttribute('href', '#missing-school-summary-heading');
-  expect(
-    within(overviewRegion).getByRole('link', { name: '专业摘要：今日 1，下一轮 0，待补 1' }),
-  ).toHaveAttribute('href', '#missing-major-summary-heading');
-  expect(
-    within(overviewRegion).getByRole('link', { name: '学校正文：今日 0，下一轮 1，待补 1' }),
-  ).toHaveAttribute('href', '#missing-school-sections-heading');
-  expect(
-    within(overviewRegion).getByRole('link', { name: '专业正文：今日 0，下一轮 1，待补 1' }),
-  ).toHaveAttribute('href', '#missing-major-sections-heading');
-  expect(
-    within(overviewRegion).getByRole('link', { name: '学校相关推荐：今日 1，下一轮 0，待补 1' }),
-  ).toHaveAttribute('href', '#missing-school-related-content-heading');
-  expect(
-    within(overviewRegion).getByRole('link', { name: '专业相关推荐：今日 1，下一轮 0，待补 1' }),
-  ).toHaveAttribute('href', '#missing-major-related-content-heading');
-  expect(
-    within(overviewRegion).getByRole('link', { name: '学校榜单：今日 0，下一轮 1，待补 1' }),
-  ).toHaveAttribute('href', '#missing-school-ranking-reference-heading');
-  expect(
-    within(overviewRegion).getByRole('link', { name: '专业榜单：今日 0，下一轮 1，待补 1' }),
-  ).toHaveAttribute('href', '#missing-major-ranking-reference-heading');
+  const overviewLinks = within(overviewRegion).getAllByRole('link');
+
+  expect(overviewLinks.map((link) => link.textContent)).toEqual([
+    '今日优先 · 学校图片：今日 1，下一轮 1，待补 2',
+    '今日优先 · 学校摘要：今日 1，下一轮 0，待补 1',
+    '今日优先 · 专业摘要：今日 1，下一轮 0，待补 1',
+    '今日优先 · 学校相关推荐：今日 1，下一轮 0，待补 1',
+    '今日优先 · 专业相关推荐：今日 1，下一轮 0，待补 1',
+    '下一轮关注 · 学校榜单：今日 0，下一轮 1，待补 1',
+    '下一轮关注 · 专业榜单：今日 0，下一轮 1，待补 1',
+    '下一轮关注 · 学校正文：今日 0，下一轮 1，待补 1',
+    '下一轮关注 · 专业正文：今日 0，下一轮 1，待补 1',
+  ]);
+  expect(overviewLinks[0]).toHaveAttribute('href', '#missing-school-images-heading');
+  expect(overviewLinks[1]).toHaveAttribute('href', '#missing-school-summary-heading');
+  expect(overviewLinks[2]).toHaveAttribute('href', '#missing-major-summary-heading');
+  expect(overviewLinks[3]).toHaveAttribute('href', '#missing-school-related-content-heading');
+  expect(overviewLinks[4]).toHaveAttribute('href', '#missing-major-related-content-heading');
+  expect(overviewLinks[5]).toHaveAttribute('href', '#missing-school-ranking-reference-heading');
+  expect(overviewLinks[6]).toHaveAttribute('href', '#missing-major-ranking-reference-heading');
+  expect(overviewLinks[7]).toHaveAttribute('href', '#missing-school-sections-heading');
+  expect(overviewLinks[8]).toHaveAttribute('href', '#missing-major-sections-heading');
 });

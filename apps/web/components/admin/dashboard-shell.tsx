@@ -822,7 +822,23 @@ export default function DashboardShell({
       nextCount: nextMissingMajorRelatedCount,
       totalCount: missingMajorRelatedContent.length,
     },
-  ].filter((item) => item.totalCount > 0);
+  ]
+    .filter((item) => item.totalCount > 0)
+    .sort((left, right) => {
+      if (left.todayCount !== right.todayCount) {
+        return right.todayCount - left.todayCount;
+      }
+
+      if (left.nextCount !== right.nextCount) {
+        return right.nextCount - left.nextCount;
+      }
+
+      if (left.totalCount !== right.totalCount) {
+        return right.totalCount - left.totalCount;
+      }
+
+      return 0;
+    });
   const contentGapOverviewTodayCount = contentGapOverviewItems.reduce(
     (sum, item) => sum + item.todayCount,
     0,
@@ -952,7 +968,9 @@ export default function DashboardShell({
             <ul>
               {contentGapOverviewItems.map((item) => (
                 <li key={item.key}>
-                  <a href={item.href}>{`${item.label}：今日 ${item.todayCount}，下一轮 ${item.nextCount}，待补 ${item.totalCount}`}</a>
+                  <a href={item.href}>
+                    {`${item.todayCount > 0 ? '今日优先' : item.nextCount > 0 ? '下一轮关注' : '待补关注'} · ${item.label}：今日 ${item.todayCount}，下一轮 ${item.nextCount}，待补 ${item.totalCount}`}
+                  </a>
                 </li>
               ))}
             </ul>
