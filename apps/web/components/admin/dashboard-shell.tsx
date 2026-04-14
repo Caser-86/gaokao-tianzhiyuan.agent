@@ -366,21 +366,13 @@ export default function DashboardShell({
                 {day.schools.length === 0 ? (
                   <p>当天没有展示学校</p>
                 ) : (
-                  <ul>
-                    {day.schools.map((school) => (
-                      <li key={`${day.date}-${school.slug}`}>{school.slug}</li>
-                    ))}
-                  </ul>
+                  <PreviewList items={day.schools} />
                 )}
                 <p>专业</p>
                 {day.majors.length === 0 ? (
                   <p>当天没有展示专业</p>
                 ) : (
-                  <ul>
-                    {day.majors.map((major) => (
-                      <li key={`${day.date}-${major.slug}`}>{major.slug}</li>
-                    ))}
-                  </ul>
+                  <PreviewList items={day.majors} />
                 )}
               </article>
             ))}

@@ -183,6 +183,10 @@ test('renders admin dashboard heading, date preview shortcuts, and schedule high
   expect(within(scheduleRegion).getByText('周二')).toBeInTheDocument();
   expect(within(scheduleRegion).getByRole('heading', { name: '2026-04-15' })).toBeInTheDocument();
   expect(within(scheduleRegion).getByText('周三')).toBeInTheDocument();
+  expect(within(scheduleRegion).getByText('东南大学')).toBeInTheDocument();
+  expect(within(scheduleRegion).getByText('华西医学中心')).toBeInTheDocument();
+  expect(within(scheduleRegion).getByText('临床医学')).toBeInTheDocument();
+  expect(within(scheduleRegion).getByText('计算机科学与技术')).toBeInTheDocument();
   expect(within(scheduleRegion).getByRole('link', { name: '2026-04-14' })).toHaveAttribute(
     'href',
     '/admin?preview_date=2026-04-14',
