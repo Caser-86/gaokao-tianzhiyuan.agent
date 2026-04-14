@@ -601,31 +601,31 @@ test('renders selected-date gap overview when a preview date is selected', () =>
   ).toBeInTheDocument();
   expect(
     within(selectedGapRegion).getByRole('link', { name: '该日优先 · 学校图片：该日 1，下一轮 0，待补 1' }),
-  ).toHaveAttribute('href', '#missing-school-images-heading');
+  ).toHaveAttribute('href', '/admin?preview_date=2026-04-15#missing-school-images-heading');
   expect(
     within(selectedGapRegion).getByRole('link', { name: '该日优先 · 学校榜单：该日 1，下一轮 0，待补 1' }),
-  ).toHaveAttribute('href', '#missing-school-ranking-reference-heading');
+  ).toHaveAttribute('href', '/admin?preview_date=2026-04-15#missing-school-ranking-reference-heading');
   expect(
     within(selectedGapRegion).getByRole('link', { name: '该日优先 · 专业榜单：该日 1，下一轮 0，待补 1' }),
-  ).toHaveAttribute('href', '#missing-major-ranking-reference-heading');
+  ).toHaveAttribute('href', '/admin?preview_date=2026-04-15#missing-major-ranking-reference-heading');
   expect(
     within(selectedGapRegion).getByRole('link', { name: '该日优先 · 学校摘要：该日 1，下一轮 0，待补 1' }),
-  ).toHaveAttribute('href', '#missing-school-summary-heading');
+  ).toHaveAttribute('href', '/admin?preview_date=2026-04-15#missing-school-summary-heading');
   expect(
     within(selectedGapRegion).getByRole('link', { name: '该日优先 · 专业摘要：该日 1，下一轮 0，待补 1' }),
-  ).toHaveAttribute('href', '#missing-major-summary-heading');
+  ).toHaveAttribute('href', '/admin?preview_date=2026-04-15#missing-major-summary-heading');
   expect(
     within(selectedGapRegion).getByRole('link', { name: '该日优先 · 学校正文：该日 1，下一轮 0，待补 1' }),
-  ).toHaveAttribute('href', '#missing-school-sections-heading');
+  ).toHaveAttribute('href', '/admin?preview_date=2026-04-15#missing-school-sections-heading');
   expect(
     within(selectedGapRegion).getByRole('link', { name: '该日优先 · 专业正文：该日 1，下一轮 0，待补 1' }),
-  ).toHaveAttribute('href', '#missing-major-sections-heading');
+  ).toHaveAttribute('href', '/admin?preview_date=2026-04-15#missing-major-sections-heading');
   expect(
     within(selectedGapRegion).getByRole('link', { name: '该日优先 · 学校相关推荐：该日 1，下一轮 0，待补 1' }),
-  ).toHaveAttribute('href', '#missing-school-related-content-heading');
+  ).toHaveAttribute('href', '/admin?preview_date=2026-04-15#missing-school-related-content-heading');
   expect(
     within(selectedGapRegion).getByRole('link', { name: '该日优先 · 专业相关推荐：该日 1，下一轮 0，待补 1' }),
-  ).toHaveAttribute('href', '#missing-major-related-content-heading');
+  ).toHaveAttribute('href', '/admin?preview_date=2026-04-15#missing-major-related-content-heading');
 });
 
 test('renders content gap totals for each scheduled preview day', () => {

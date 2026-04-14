@@ -1155,6 +1155,17 @@ export default function DashboardShell({
 
     return `/admin?${searchParams.toString()}`;
   };
+  const withSelectedPreviewDate = (href: string): string => {
+    if (!selectedDatePreview) {
+      return href;
+    }
+
+    if (href.startsWith('#')) {
+      return `${buildPreviewDateHref(selectedDatePreview.date)}${href}`;
+    }
+
+    return href;
+  };
   const withNearestScheduledGapDate = (href: string): string => {
     if (!nearestScheduledGapDay) {
       return href;
@@ -1173,6 +1184,10 @@ export default function DashboardShell({
 
     return `${pathname}${query ? `?${query}` : ''}${hash ? `#${hash}` : ''}`;
   };
+  const selectedDateGapOverviewLinks = selectedDateGapOverviewItems.map((item) => ({
+    ...item,
+    href: withSelectedPreviewDate(item.href),
+  }));
   const scheduledPreviewDays = featuredSchedule.map((day) => {
     const scheduleDaySchoolSlugs = new Set(day.schools.map((school) => school.slug));
     const scheduleDayMajorSlugs = new Set(day.majors.map((major) => major.slug));
@@ -1238,7 +1253,7 @@ export default function DashboardShell({
             <>
               <p>{`该日待补 ${selectedDateGapOverviewSelectedCount} 项，下一轮待补 ${selectedDateGapOverviewNextCount} 项，总待补 ${selectedDateGapOverviewTotalCount} 项`}</p>
               <ul>
-                {selectedDateGapOverviewItems.map((item) => (
+                {selectedDateGapOverviewLinks.map((item) => (
                   <li key={item.key}>
                     <a href={item.href}>
                       {`${item.selectedDateCount > 0 ? '该日优先' : item.nextCount > 0 ? '下一轮关注' : '待补关注'} · ${item.label}：该日 ${item.selectedDateCount}，下一轮 ${item.nextCount}，待补 ${item.totalCount}`}
