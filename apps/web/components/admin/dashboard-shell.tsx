@@ -2607,7 +2607,10 @@ export default function DashboardShell({
                 <p>学校</p>
                 {day.gapCount > 0 ? (
                   <p>
-                    <a href={`${buildPreviewDateHref(day.date)}#selected-date-gap-overview-heading`}>
+                    <a
+                      href={`${buildPreviewDateHref(day.date)}#selected-date-gap-overview-heading`}
+                      aria-label={`处理该日缺口（${day.gapCount}）`}
+                    >
                       澶勭悊璇ユ棩缂哄彛
                     </a>
                   </p>

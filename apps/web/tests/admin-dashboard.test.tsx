@@ -1143,16 +1143,12 @@ test('adds per-day gap actions to scheduled preview cards by href', () => {
   ).toBeInTheDocument();
   expect(within(firstDayArticle as HTMLElement).getByText('优先关注')).toBeInTheDocument();
   expect(
-    (firstDayArticle as HTMLElement).querySelector(
-      'a[href="/admin?preview_date=2026-04-14#selected-date-gap-overview-heading"]',
-    ),
-  ).not.toBeNull();
+    within(firstDayArticle as HTMLElement).getByRole('link', { name: '处理该日缺口（2）' }),
+  ).toHaveAttribute('href', '/admin?preview_date=2026-04-14#selected-date-gap-overview-heading');
   expect(within(secondDayArticle as HTMLElement).getByText('少量待补')).toBeInTheDocument();
   expect(
-    (secondDayArticle as HTMLElement).querySelector(
-      'a[href="/admin?preview_date=2026-04-15#selected-date-gap-overview-heading"]',
-    ),
-  ).not.toBeNull();
+    within(secondDayArticle as HTMLElement).getByRole('link', { name: '处理该日缺口（1）' }),
+  ).toHaveAttribute('href', '/admin?preview_date=2026-04-15#selected-date-gap-overview-heading');
   expect(within(thirdDayArticle as HTMLElement).getByText('内容已齐备')).toBeInTheDocument();
   expect(
     (thirdDayArticle as HTMLElement).querySelector(
