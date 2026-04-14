@@ -1,0 +1,143 @@
+import { render, screen } from '@testing-library/react';
+import { beforeEach, expect, test, vi } from 'vitest';
+
+import DashboardShell from '../components/admin/dashboard-shell';
+
+const { listReviewQueueMock, listFeaturedContentMock } = vi.hoisted(() => ({
+  listReviewQueueMock: vi.fn(),
+  listFeaturedContentMock: vi.fn(),
+}));
+
+vi.mock('../lib/admin-review-api', () => ({
+  listReviewQueue: listReviewQueueMock,
+}));
+
+vi.mock('../lib/admin-featured-content-api', () => ({
+  listFeaturedContent: listFeaturedContentMock,
+}));
+
+vi.mock('../app/(admin)/admin/actions', () => ({
+  approveReviewQueueAction: async () => undefined,
+  rejectReviewQueueAction: async () => undefined,
+  updateFeaturedSchoolAction: async () => undefined,
+  updateFeaturedMajorAction: async () => undefined,
+  updateSchoolRotationAction: async () => undefined,
+  updateMajorRotationAction: async () => undefined,
+}));
+
+import AdminPage from '../app/(admin)/admin/page';
+
+const schoolRotation = {
+  enabled: true,
+  frequencyDays: 1,
+  windowSize: 2,
+  orderedSlugs: ['southeast-university', 'west-china-medical-center'],
+};
+
+const majorRotation = {
+  enabled: false,
+  frequencyDays: 3,
+  windowSize: 1,
+  orderedSlugs: ['clinical-medicine'],
+};
+
+beforeEach(() => {
+  listReviewQueueMock.mockReset();
+  listFeaturedContentMock.mockReset();
+});
+
+test('filters the featured school configuration down to missing-image schools only', () => {
+  render(
+    <DashboardShell
+      title="内容运营后台"
+      queueItems={[]}
+      featuredSchools={[
+        {
+          slug: 'southeast-university',
+          name: '东南大学',
+          isFeatured: true,
+          heroImageUrl: 'https://cdn.example.com/southeast.jpg',
+        },
+        {
+          slug: 'west-china-medical-center',
+          name: '华西医学中心',
+          isFeatured: true,
+          heroImageUrl: '',
+        },
+      ]}
+      featuredMajors={[]}
+      schoolRotation={schoolRotation}
+      majorRotation={majorRotation}
+      featuredSchoolPreview={[]}
+      featuredMajorPreview={[]}
+      nextFeaturedSchoolPreview={[]}
+      nextFeaturedMajorPreview={[]}
+      featuredSchedule={[]}
+      selectedPreviewDateValue=""
+      selectedDatePreview={null}
+      showMissingImageSchoolsOnly
+      showMissingImageSchoolsOnlyHref="/admin?missing_school_images=1"
+      showAllFeaturedSchoolsHref="/admin"
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
+    />,
+  );
+
+  expect(screen.getByRole('link', { name: '查看全部学校' })).toHaveAttribute('href', '/admin');
+  expect(screen.queryByRole('link', { name: '仅看待补图片学校' })).not.toBeInTheDocument();
+  expect(document.getElementById('featured-school-west-china-medical-center')).not.toBeNull();
+  expect(document.getElementById('featured-school-southeast-university')).toBeNull();
+});
+
+test('preserves the selected preview date when linking into the missing-image school filter', async () => {
+  listReviewQueueMock.mockResolvedValue([]);
+  listFeaturedContentMock.mockResolvedValue({
+    schools: [
+      {
+        slug: 'southeast-university',
+        name: '内容学校',
+        isFeatured: true,
+        heroImageUrl: 'https://cdn.example.com/southeast.jpg',
+      },
+      {
+        slug: 'west-china-medical-center',
+        name: '内容候补学校',
+        isFeatured: true,
+        heroImageUrl: '',
+      },
+    ],
+    majors: [],
+    rotation: {
+      schools: schoolRotation,
+      majors: majorRotation,
+    },
+    preview: {
+      today: { schools: [], majors: [] },
+      next: { schools: [], majors: [] },
+      schedule: [],
+      selectedDate: null,
+      selectedDateError: null,
+    },
+  });
+
+  render(
+    await AdminPage({
+      searchParams: Promise.resolve({
+        preview_date: '2026-04-15',
+      }),
+    }),
+  );
+
+  expect(listFeaturedContentMock).toHaveBeenCalledWith('2026-04-15');
+  const filterLink = screen.getByRole('link', { name: '仅看待补图片学校' });
+  const filterUrl = new URL(filterLink.getAttribute('href') ?? '', 'https://example.com');
+
+  expect(filterUrl.pathname).toBe('/admin');
+  expect(filterUrl.searchParams.get('preview_date')).toBe('2026-04-15');
+  expect(filterUrl.searchParams.get('missing_school_images')).toBe('1');
+  expect(screen.queryByRole('link', { name: '查看全部学校' })).not.toBeInTheDocument();
+});

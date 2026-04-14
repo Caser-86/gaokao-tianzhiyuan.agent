@@ -39,6 +39,9 @@ type DashboardShellProps = {
   todayPreviewDateHref?: string;
   previousPreviewDateHref?: string;
   nextPreviewDateHref?: string;
+  showMissingImageSchoolsOnly?: boolean;
+  showMissingImageSchoolsOnlyHref?: string;
+  showAllFeaturedSchoolsHref?: string;
   queueError?: string;
   featuredContentError?: string;
   approveAction: (formData: FormData) => Promise<void>;
@@ -92,6 +95,9 @@ export default function DashboardShell({
   todayPreviewDateHref,
   previousPreviewDateHref,
   nextPreviewDateHref,
+  showMissingImageSchoolsOnly = false,
+  showMissingImageSchoolsOnlyHref,
+  showAllFeaturedSchoolsHref,
   queueError,
   featuredContentError,
   approveAction,
@@ -117,6 +123,9 @@ export default function DashboardShell({
     .filter((school) => !school.heroImageUrl)
     .map(({ slug, name }) => ({ slug, name }));
   const schoolsWithImagesCount = featuredSchools.length - schoolsMissingImages.length;
+  const displayedFeaturedSchools = showMissingImageSchoolsOnly
+    ? sortedFeaturedSchools.filter((school) => !school.heroImageUrl)
+    : sortedFeaturedSchools;
 
   return (
     <main>
@@ -168,12 +177,23 @@ export default function DashboardShell({
       <section aria-labelledby="featured-schools-heading">
         <h2 id="featured-schools-heading">学校展示配置</h2>
         <p>{`已配置图片 ${schoolsWithImagesCount} 所，待补图片 ${schoolsMissingImages.length} 所`}</p>
+        {showMissingImageSchoolsOnlyHref || showAllFeaturedSchoolsHref ? (
+          <p>
+            {!showMissingImageSchoolsOnly && showMissingImageSchoolsOnlyHref ? (
+              <a href={showMissingImageSchoolsOnlyHref}>仅看待补图片学校</a>
+            ) : null}
+            {showMissingImageSchoolsOnly && showAllFeaturedSchoolsHref ? (
+              <a href={showAllFeaturedSchoolsHref}>查看全部学校</a>
+            ) : null}
+          </p>
+        ) : null}
 
         {featuredContentError ? <p>{featuredContentError}</p> : null}
 
         {!featuredContentError ? (
           <div>
-            {sortedFeaturedSchools.map((school) => (
+            {displayedFeaturedSchools.length === 0 ? <p>当前没有待补图片学校配置</p> : null}
+            {displayedFeaturedSchools.map((school) => (
               <div key={school.slug} id={`featured-school-${school.slug}`}>
                 <form action={updateFeaturedSchoolAction}>
                   <input type="hidden" name="slug" value={school.slug} />

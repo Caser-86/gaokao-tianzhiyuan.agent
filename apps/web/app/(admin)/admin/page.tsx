@@ -30,6 +30,7 @@ const defaultRotationRule = (): AdminRotationRule => ({
 type AdminPageProps = {
   searchParams?: Promise<{
     preview_date?: string;
+    missing_school_images?: string;
   }>;
 };
 
@@ -45,9 +46,32 @@ const shiftIsoDate = (value: string, offsetDays: number): string | null => {
 
 const todayIsoDate = (): string => new Date().toISOString().slice(0, 10);
 
+const buildAdminHref = ({
+  previewDate,
+  showMissingImageSchoolsOnly,
+}: {
+  previewDate?: string;
+  showMissingImageSchoolsOnly?: boolean;
+}): string => {
+  const searchParams = new URLSearchParams();
+
+  if (previewDate) {
+    searchParams.set('preview_date', previewDate);
+  }
+
+  if (showMissingImageSchoolsOnly) {
+    searchParams.set('missing_school_images', '1');
+  }
+
+  const queryString = searchParams.toString();
+  return queryString ? `/admin?${queryString}` : '/admin';
+};
+
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const previewDate = resolvedSearchParams?.preview_date?.trim() || undefined;
+  const showMissingImageSchoolsOnly =
+    resolvedSearchParams?.missing_school_images?.trim() === '1';
   const normalizedPreviewDate = previewDate ? shiftIsoDate(previewDate, 0) : null;
   const todayPreviewDate = todayIsoDate();
   const highlightedScheduleDate =
@@ -56,13 +80,31 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const nextPreviewDate = previewDate ? shiftIsoDate(previewDate, 1) : null;
   const todayPreviewDateHref =
     normalizedPreviewDate && normalizedPreviewDate !== todayPreviewDate
-      ? `/admin?preview_date=${todayPreviewDate}`
+      ? buildAdminHref({
+          previewDate: todayPreviewDate,
+          showMissingImageSchoolsOnly,
+        })
       : undefined;
   const previousPreviewDateHref = previousPreviewDate
-    ? `/admin?preview_date=${previousPreviewDate}`
+    ? buildAdminHref({
+        previewDate: previousPreviewDate,
+        showMissingImageSchoolsOnly,
+      })
     : undefined;
   const nextPreviewDateHref = nextPreviewDate
-    ? `/admin?preview_date=${nextPreviewDate}`
+    ? buildAdminHref({
+        previewDate: nextPreviewDate,
+        showMissingImageSchoolsOnly,
+      })
+    : undefined;
+  const showMissingImageSchoolsOnlyHref = !showMissingImageSchoolsOnly
+    ? buildAdminHref({
+        previewDate,
+        showMissingImageSchoolsOnly: true,
+      })
+    : undefined;
+  const showAllFeaturedSchoolsHref = showMissingImageSchoolsOnly
+    ? buildAdminHref({ previewDate })
     : undefined;
 
   let queueItems: AdminReviewItem[] = [];
@@ -123,6 +165,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       todayPreviewDateHref={todayPreviewDateHref}
       previousPreviewDateHref={previousPreviewDateHref}
       nextPreviewDateHref={nextPreviewDateHref}
+      showMissingImageSchoolsOnly={showMissingImageSchoolsOnly}
+      showMissingImageSchoolsOnlyHref={showMissingImageSchoolsOnlyHref}
+      showAllFeaturedSchoolsHref={showAllFeaturedSchoolsHref}
       queueError={queueError}
       featuredContentError={featuredContentError}
       approveAction={approveReviewQueueAction}
