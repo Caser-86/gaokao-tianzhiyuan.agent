@@ -13,6 +13,11 @@ import {
   updateSchoolSummary,
 } from '../../../lib/admin-content-summary-api';
 import {
+  type AdminContentSection,
+  updateMajorSections,
+  updateSchoolSections,
+} from '../../../lib/admin-content-sections-api';
+import {
   type AdminRankingReference,
   updateMajorRankingReferences,
   updateSchoolRankingReferences,
@@ -58,6 +63,32 @@ const parseRequiredSummary = (rawValue: FormDataEntryValue | null): string => {
     throw new Error('summary is required');
   }
   return summary;
+};
+
+const parseContentSectionRows = (formData: FormData): AdminContentSection[] => {
+  const rowCount = parsePositiveNumber(formData.get('rowCount'), 'rowCount');
+  const sections: AdminContentSection[] = [];
+
+  for (let index = 0; index < rowCount; index += 1) {
+    const type = String(formData.get(`section_type_${index}`) ?? '').trim();
+    const title = String(formData.get(`section_title_${index}`) ?? '').trim();
+    const items = String(formData.get(`section_items_${index}`) ?? '')
+      .split(/\r?\n/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    if (!type && !title && items.length === 0) {
+      continue;
+    }
+
+    if (!type || !title || items.length === 0) {
+      throw new Error('content section row is invalid');
+    }
+
+    sections.push({ type, title, items });
+  }
+
+  return sections;
 };
 
 const parseRankingReferenceRows = (formData: FormData): AdminRankingReference[] => {
@@ -224,6 +255,34 @@ export async function updateMajorSummaryAction(formData: FormData): Promise<void
     const summary = parseRequiredSummary(formData.get('summary'));
 
     await updateMajorSummary(slug, summary);
+    revalidatePath('/admin');
+    revalidatePath('/');
+    revalidatePath(`/majors/${slug}`);
+  } catch {
+    return;
+  }
+}
+
+export async function updateSchoolSectionsAction(formData: FormData): Promise<void> {
+  try {
+    const slug = parseRequiredSlug(formData.get('slug'));
+    const sections = parseContentSectionRows(formData);
+
+    await updateSchoolSections(slug, sections);
+    revalidatePath('/admin');
+    revalidatePath('/');
+    revalidatePath(`/schools/${slug}`);
+  } catch {
+    return;
+  }
+}
+
+export async function updateMajorSectionsAction(formData: FormData): Promise<void> {
+  try {
+    const slug = parseRequiredSlug(formData.get('slug'));
+    const sections = parseContentSectionRows(formData);
+
+    await updateMajorSections(slug, sections);
     revalidatePath('/admin');
     revalidatePath('/');
     revalidatePath(`/majors/${slug}`);
