@@ -48,6 +48,20 @@ const majorPreview = [
   },
 ];
 
+const nextSchoolPreview = [
+  {
+    slug: 'west-china-medical-center',
+    name: '华西医学中心',
+  },
+];
+
+const nextMajorPreview = [
+  {
+    slug: 'computer-science',
+    name: '计算机科学与技术',
+  },
+];
+
 const sevenDaySchedule = [
   {
     date: '2026-04-14',
@@ -58,22 +72,12 @@ const sevenDaySchedule = [
   {
     date: '2026-04-15',
     weekday: '周三',
-    schools: [
-      {
-        slug: 'west-china-medical-center',
-        name: '华西医学中心',
-      },
-    ],
-    majors: [
-      {
-        slug: 'computer-science',
-        name: '计算机科学与技术',
-      },
-    ],
+    schools: nextSchoolPreview,
+    majors: nextMajorPreview,
   },
 ];
 
-test('renders admin dashboard heading and review queue items', () => {
+test('renders admin dashboard heading, next preview, and review queue items', () => {
   render(
     <DashboardShell
       title="内容运营后台"
@@ -97,6 +101,8 @@ test('renders admin dashboard heading and review queue items', () => {
       majorRotation={majorRotation}
       featuredSchoolPreview={schoolPreview}
       featuredMajorPreview={majorPreview}
+      nextFeaturedSchoolPreview={nextSchoolPreview}
+      nextFeaturedMajorPreview={nextMajorPreview}
       featuredSchedule={sevenDaySchedule}
       approveAction={async () => undefined}
       rejectAction={async () => undefined}
@@ -121,19 +127,25 @@ test('renders admin dashboard heading and review queue items', () => {
   );
   expect(screen.getByRole('heading', { name: '专业轮换规则' })).toBeInTheDocument();
   expect(screen.getByLabelText('专业轮换顺序')).toHaveValue('clinical-medicine');
+
   const schoolPreviewRegion = screen.getByRole('region', { name: '今日展示学校' });
   const majorPreviewRegion = screen.getByRole('region', { name: '今日展示专业' });
+  const nextSchoolPreviewRegion = screen.getByRole('region', { name: '下一轮展示学校' });
+  const nextMajorPreviewRegion = screen.getByRole('region', { name: '下一轮展示专业' });
+
   expect(within(schoolPreviewRegion).getByText('东南大学')).toBeInTheDocument();
   expect(within(schoolPreviewRegion).getByText('southeast-university')).toBeInTheDocument();
   expect(within(majorPreviewRegion).getByText('临床医学')).toBeInTheDocument();
   expect(within(majorPreviewRegion).getByText('clinical-medicine')).toBeInTheDocument();
+  expect(within(nextSchoolPreviewRegion).getByText('华西医学中心')).toBeInTheDocument();
+  expect(within(nextSchoolPreviewRegion).getByText('west-china-medical-center')).toBeInTheDocument();
+  expect(within(nextMajorPreviewRegion).getByText('计算机科学与技术')).toBeInTheDocument();
+  expect(within(nextMajorPreviewRegion).getByText('computer-science')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '未来 7 天轮换预览' })).toBeInTheDocument();
   expect(screen.getByText('2026-04-14')).toBeInTheDocument();
   expect(screen.getByText('周二')).toBeInTheDocument();
   expect(screen.getByText('2026-04-15')).toBeInTheDocument();
   expect(screen.getByText('周三')).toBeInTheDocument();
-  expect(screen.getByText('west-china-medical-center')).toBeInTheDocument();
-  expect(screen.getByText('computer-science')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '通过' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '驳回' })).toBeInTheDocument();
 });
@@ -149,6 +161,8 @@ test('renders empty state when there are no pending items', () => {
       majorRotation={majorRotation}
       featuredSchoolPreview={[]}
       featuredMajorPreview={[]}
+      nextFeaturedSchoolPreview={[]}
+      nextFeaturedMajorPreview={[]}
       featuredSchedule={[]}
       approveAction={async () => undefined}
       rejectAction={async () => undefined}
@@ -162,6 +176,8 @@ test('renders empty state when there are no pending items', () => {
   expect(screen.getByText('当前没有待审核内容')).toBeInTheDocument();
   expect(screen.getByText('当前没有可展示学校')).toBeInTheDocument();
   expect(screen.getByText('当前没有可展示专业')).toBeInTheDocument();
+  expect(screen.getByText('当前没有下一轮展示学校')).toBeInTheDocument();
+  expect(screen.getByText('当前没有下一轮展示专业')).toBeInTheDocument();
   expect(screen.getByText('当前没有未来轮换预览')).toBeInTheDocument();
 });
 
@@ -176,6 +192,8 @@ test('renders error state when queue loading fails', () => {
       majorRotation={majorRotation}
       featuredSchoolPreview={[]}
       featuredMajorPreview={[]}
+      nextFeaturedSchoolPreview={[]}
+      nextFeaturedMajorPreview={[]}
       featuredSchedule={[]}
       queueError="审核队列加载失败，请稍后重试"
       approveAction={async () => undefined}

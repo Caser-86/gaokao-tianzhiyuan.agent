@@ -34,6 +34,8 @@ export default async function AdminPage() {
   let featuredMajors: AdminFeaturedMajor[] = [];
   let featuredSchoolPreview: AdminFeaturedPreviewItem[] = [];
   let featuredMajorPreview: AdminFeaturedPreviewItem[] = [];
+  let nextFeaturedSchoolPreview: AdminFeaturedPreviewItem[] = [];
+  let nextFeaturedMajorPreview: AdminFeaturedPreviewItem[] = [];
   let featuredSchedule: AdminFeaturedPreviewDay[] = [];
   let featuredContentError: string | undefined;
   let schoolRotation = defaultRotationRule();
@@ -53,6 +55,8 @@ export default async function AdminPage() {
     majorRotation = featuredContent.rotation.majors;
     featuredSchoolPreview = featuredContent.preview.today.schools;
     featuredMajorPreview = featuredContent.preview.today.majors;
+    nextFeaturedSchoolPreview = featuredContent.preview.next.schools;
+    nextFeaturedMajorPreview = featuredContent.preview.next.majors;
     featuredSchedule = featuredContent.preview.schedule;
   } catch {
     featuredContentError = '展示配置加载失败，请稍后重试';
@@ -68,6 +72,8 @@ export default async function AdminPage() {
       majorRotation={majorRotation}
       featuredSchoolPreview={featuredSchoolPreview}
       featuredMajorPreview={featuredMajorPreview}
+      nextFeaturedSchoolPreview={nextFeaturedSchoolPreview}
+      nextFeaturedMajorPreview={nextFeaturedMajorPreview}
       featuredSchedule={featuredSchedule}
       queueError={queueError}
       featuredContentError={featuredContentError}

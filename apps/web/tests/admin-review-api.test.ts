@@ -219,6 +219,20 @@ test('listFeaturedContent sends authenticated request and maps admin config', as
             },
           ],
         },
+        next: {
+          schools: [
+            {
+              slug: 'west-china-medical-center',
+              name: '华西医学中心',
+            },
+          ],
+          majors: [
+            {
+              slug: 'computer-science',
+              name: '计算机科学与技术',
+            },
+          ],
+        },
         schedule: [
           {
             date: '2026-04-14',
@@ -303,6 +317,20 @@ test('listFeaturedContent sends authenticated request and maps admin config', as
         {
           slug: 'clinical-medicine',
           name: '临床医学',
+        },
+      ],
+    },
+    next: {
+      schools: [
+        {
+          slug: 'west-china-medical-center',
+          name: '华西医学中心',
+        },
+      ],
+      majors: [
+        {
+          slug: 'computer-science',
+          name: '计算机科学与技术',
         },
       ],
     },

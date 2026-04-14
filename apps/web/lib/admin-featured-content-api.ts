@@ -42,6 +42,10 @@ export type AdminFeaturedContent = {
       schools: AdminFeaturedPreviewItem[];
       majors: AdminFeaturedPreviewItem[];
     };
+    next: {
+      schools: AdminFeaturedPreviewItem[];
+      majors: AdminFeaturedPreviewItem[];
+    };
     schedule: AdminFeaturedPreviewDay[];
   };
 };
@@ -131,6 +135,16 @@ export async function listFeaturedContent(): Promise<AdminFeaturedContent> {
           name: string;
         }>;
       };
+      next?: {
+        schools?: Array<{
+          slug: string;
+          name: string;
+        }>;
+        majors?: Array<{
+          slug: string;
+          name: string;
+        }>;
+      };
       schedule?: Array<{
         date: string;
         weekday: string;
@@ -166,6 +180,10 @@ export async function listFeaturedContent(): Promise<AdminFeaturedContent> {
       today: {
         schools: mapPreviewItems(payload.preview?.today?.schools),
         majors: mapPreviewItems(payload.preview?.today?.majors),
+      },
+      next: {
+        schools: mapPreviewItems(payload.preview?.next?.schools),
+        majors: mapPreviewItems(payload.preview?.next?.majors),
       },
       schedule:
         payload.preview?.schedule?.map((day) => ({

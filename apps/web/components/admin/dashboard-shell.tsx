@@ -29,6 +29,8 @@ type DashboardShellProps = {
   majorRotation: AdminRotationRule;
   featuredSchoolPreview: AdminFeaturedPreviewItem[];
   featuredMajorPreview: AdminFeaturedPreviewItem[];
+  nextFeaturedSchoolPreview: AdminFeaturedPreviewItem[];
+  nextFeaturedMajorPreview: AdminFeaturedPreviewItem[];
   featuredSchedule: AdminFeaturedPreviewDay[];
   queueError?: string;
   featuredContentError?: string;
@@ -51,6 +53,8 @@ export default function DashboardShell({
   majorRotation,
   featuredSchoolPreview,
   featuredMajorPreview,
+  nextFeaturedSchoolPreview,
+  nextFeaturedMajorPreview,
   featuredSchedule,
   queueError,
   featuredContentError,
@@ -240,6 +244,40 @@ export default function DashboardShell({
         ) : (
           <ul>
             {featuredMajorPreview.map((major) => (
+              <li key={major.slug}>
+                <span>{major.name}</span>
+                <span>{major.slug}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section aria-labelledby="next-featured-school-preview-heading">
+        <h2 id="next-featured-school-preview-heading">下一轮展示学校</h2>
+
+        {featuredContentError ? null : nextFeaturedSchoolPreview.length === 0 ? (
+          <p>当前没有下一轮展示学校</p>
+        ) : (
+          <ul>
+            {nextFeaturedSchoolPreview.map((school) => (
+              <li key={school.slug}>
+                <span>{school.name}</span>
+                <span>{school.slug}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section aria-labelledby="next-featured-major-preview-heading">
+        <h2 id="next-featured-major-preview-heading">下一轮展示专业</h2>
+
+        {featuredContentError ? null : nextFeaturedMajorPreview.length === 0 ? (
+          <p>当前没有下一轮展示专业</p>
+        ) : (
+          <ul>
+            {nextFeaturedMajorPreview.map((major) => (
               <li key={major.slug}>
                 <span>{major.name}</span>
                 <span>{major.slug}</span>
