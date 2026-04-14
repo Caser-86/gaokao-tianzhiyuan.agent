@@ -1166,78 +1166,114 @@ export default function DashboardShell({
 
     return href;
   };
+  const countScheduledGapItemsByKey = (
+    itemKey: string,
+    schoolSlugs: Set<string>,
+    majorSlugs: Set<string>,
+  ): number => {
+    switch (itemKey) {
+      case 'school-images':
+        return countMatchingSlugs(schoolsMissingImages, schoolSlugs);
+      case 'school-rankings':
+        return countMatchingSlugs(missingSchoolRankingReferences, schoolSlugs);
+      case 'major-rankings':
+        return countMatchingSlugs(missingMajorRankingReferences, majorSlugs);
+      case 'school-summaries':
+        return countMatchingSlugs(missingSchoolSummaries, schoolSlugs);
+      case 'major-summaries':
+        return countMatchingSlugs(missingMajorSummaries, majorSlugs);
+      case 'school-sections':
+        return countMatchingSlugs(missingSchoolSections, schoolSlugs);
+      case 'major-sections':
+        return countMatchingSlugs(missingMajorSections, majorSlugs);
+      case 'school-related':
+        return countMatchingSlugs(missingSchoolRelatedContent, schoolSlugs);
+      case 'major-related':
+        return countMatchingSlugs(missingMajorRelatedContent, majorSlugs);
+      default:
+        return 0;
+    }
+  };
+  const buildGapTargetHash = (
+    itemKey: string,
+    schoolSlugs: Set<string>,
+    majorSlugs: Set<string>,
+  ): string | undefined => {
+    switch (itemKey) {
+      case 'school-images':
+        return schoolsMissingImages.find((school) => schoolSlugs.has(school.slug))?.slug
+          ? `#featured-school-${schoolsMissingImages.find((school) => schoolSlugs.has(school.slug))?.slug}`
+          : undefined;
+      case 'school-rankings':
+        return missingSchoolRankingReferences.find((school) => schoolSlugs.has(school.slug))?.slug
+          ? `#school-ranking-reference-${missingSchoolRankingReferences.find((school) =>
+              schoolSlugs.has(school.slug),
+            )?.slug}`
+          : undefined;
+      case 'major-rankings':
+        return missingMajorRankingReferences.find((major) => majorSlugs.has(major.slug))?.slug
+          ? `#major-ranking-reference-${missingMajorRankingReferences.find((major) =>
+              majorSlugs.has(major.slug),
+            )?.slug}`
+          : undefined;
+      case 'school-summaries':
+        return missingSchoolSummaries.find((school) => schoolSlugs.has(school.slug))?.slug
+          ? `#school-summary-${missingSchoolSummaries.find((school) => schoolSlugs.has(school.slug))?.slug}`
+          : undefined;
+      case 'major-summaries':
+        return missingMajorSummaries.find((major) => majorSlugs.has(major.slug))?.slug
+          ? `#major-summary-${missingMajorSummaries.find((major) => majorSlugs.has(major.slug))?.slug}`
+          : undefined;
+      case 'school-sections':
+        return missingSchoolSections.find((school) => schoolSlugs.has(school.slug))?.slug
+          ? `#school-sections-${missingSchoolSections.find((school) => schoolSlugs.has(school.slug))?.slug}`
+          : undefined;
+      case 'major-sections':
+        return missingMajorSections.find((major) => majorSlugs.has(major.slug))?.slug
+          ? `#major-sections-${missingMajorSections.find((major) => majorSlugs.has(major.slug))?.slug}`
+          : undefined;
+      case 'school-related':
+        return missingSchoolRelatedContent.find((school) => schoolSlugs.has(school.slug))?.slug
+          ? `#school-related-content-${missingSchoolRelatedContent.find((school) =>
+              schoolSlugs.has(school.slug),
+            )?.slug}`
+          : undefined;
+      case 'major-related':
+        return missingMajorRelatedContent.find((major) => majorSlugs.has(major.slug))?.slug
+          ? `#major-related-content-${missingMajorRelatedContent.find((major) =>
+              majorSlugs.has(major.slug),
+            )?.slug}`
+          : undefined;
+      default:
+        return undefined;
+    }
+  };
+  const getNearestScheduledGapDayByItem = (itemKey: string) =>
+    scheduledPreviewDays.find((day) => {
+      const schoolSlugs = new Set(day.schools.map((school) => school.slug));
+      const majorSlugs = new Set(day.majors.map((major) => major.slug));
+
+      return countScheduledGapItemsByKey(itemKey, schoolSlugs, majorSlugs) > 0;
+    }) ?? null;
   const withNearestScheduledGapDate = (itemKey: string, href: string): string => {
-    if (!nearestScheduledGapDay) {
+    const nearestGapDayForItem = getNearestScheduledGapDayByItem(itemKey);
+
+    if (!nearestGapDayForItem) {
       return href;
     }
 
-    const nearestSchoolSlugs = new Set(nearestScheduledGapDay.schools.map((school) => school.slug));
-    const nearestMajorSlugs = new Set(nearestScheduledGapDay.majors.map((major) => major.slug));
-    const deepLinkByKey: Record<string, string | undefined> = {
-      'school-images': schoolsMissingImages.find((school) => nearestSchoolSlugs.has(school.slug))?.slug
-        ? `#featured-school-${schoolsMissingImages.find((school) => nearestSchoolSlugs.has(school.slug))?.slug}`
-        : undefined,
-      'school-rankings': missingSchoolRankingReferences.find((school) =>
-        nearestSchoolSlugs.has(school.slug),
-      )?.slug
-        ? `#school-ranking-reference-${missingSchoolRankingReferences.find((school) =>
-            nearestSchoolSlugs.has(school.slug),
-          )?.slug}`
-        : undefined,
-      'major-rankings': missingMajorRankingReferences.find((major) => nearestMajorSlugs.has(major.slug))
-        ?.slug
-        ? `#major-ranking-reference-${missingMajorRankingReferences.find((major) =>
-            nearestMajorSlugs.has(major.slug),
-          )?.slug}`
-        : undefined,
-      'school-summaries': missingSchoolSummaries.find((school) => nearestSchoolSlugs.has(school.slug))
-        ?.slug
-        ? `#school-summary-${missingSchoolSummaries.find((school) =>
-            nearestSchoolSlugs.has(school.slug),
-          )?.slug}`
-        : undefined,
-      'major-summaries': missingMajorSummaries.find((major) => nearestMajorSlugs.has(major.slug))
-        ?.slug
-        ? `#major-summary-${missingMajorSummaries.find((major) =>
-            nearestMajorSlugs.has(major.slug),
-          )?.slug}`
-        : undefined,
-      'school-sections': missingSchoolSections.find((school) => nearestSchoolSlugs.has(school.slug))
-        ?.slug
-        ? `#school-sections-${missingSchoolSections.find((school) =>
-            nearestSchoolSlugs.has(school.slug),
-          )?.slug}`
-        : undefined,
-      'major-sections': missingMajorSections.find((major) => nearestMajorSlugs.has(major.slug))
-        ?.slug
-        ? `#major-sections-${missingMajorSections.find((major) =>
-            nearestMajorSlugs.has(major.slug),
-          )?.slug}`
-        : undefined,
-      'school-related': missingSchoolRelatedContent.find((school) =>
-        nearestSchoolSlugs.has(school.slug),
-      )?.slug
-        ? `#school-related-content-${missingSchoolRelatedContent.find((school) =>
-            nearestSchoolSlugs.has(school.slug),
-          )?.slug}`
-        : undefined,
-      'major-related': missingMajorRelatedContent.find((major) => nearestMajorSlugs.has(major.slug))
-        ?.slug
-        ? `#major-related-content-${missingMajorRelatedContent.find((major) =>
-            nearestMajorSlugs.has(major.slug),
-          )?.slug}`
-        : undefined,
-    };
-    const targetHash = deepLinkByKey[itemKey] ?? '';
+    const nearestSchoolSlugs = new Set(nearestGapDayForItem.schools.map((school) => school.slug));
+    const nearestMajorSlugs = new Set(nearestGapDayForItem.majors.map((major) => major.slug));
+    const targetHash = buildGapTargetHash(itemKey, nearestSchoolSlugs, nearestMajorSlugs) ?? '';
 
     if (href.startsWith('#')) {
-      return `${buildPreviewDateHref(nearestScheduledGapDay.date)}${targetHash || href}`;
+      return `${buildPreviewDateHref(nearestGapDayForItem.date)}${targetHash || href}`;
     }
 
     const [pathAndSearch] = href.split('#');
     const [pathname, search = ''] = pathAndSearch.split('?');
     const searchParams = new URLSearchParams(search);
-    searchParams.set('preview_date', nearestScheduledGapDay.date);
+    searchParams.set('preview_date', nearestGapDayForItem.date);
 
     const query = searchParams.toString();
 
@@ -1525,14 +1561,18 @@ export default function DashboardShell({
               </p>
             ) : null}
             <ul>
-              {contentGapOverviewItems.map((item) => (
-                <li key={item.key}>
-                  <a href={withNearestScheduledGapDate(item.key, item.href)}>
-                    {`${item.todayCount > 0 ? '今日优先' : item.nextCount > 0 ? '下一轮关注' : '待补关注'} · ${item.label}：今日 ${item.todayCount}，下一轮 ${item.nextCount}，待补 ${item.totalCount}`}
-                    {nearestScheduledGapDay ? `，最近待补 ${nearestScheduledGapDay.date}` : ''}
-                  </a>
-                </li>
-              ))}
+              {contentGapOverviewItems.map((item) => {
+                const nearestGapDayForItem = getNearestScheduledGapDayByItem(item.key);
+
+                return (
+                  <li key={item.key}>
+                    <a href={withNearestScheduledGapDate(item.key, item.href)}>
+                      {`${item.todayCount > 0 ? '今日优先' : item.nextCount > 0 ? '下一轮关注' : '待补关注'} · ${item.label}：今日 ${item.todayCount}，下一轮 ${item.nextCount}，待补 ${item.totalCount}`}
+                      {nearestGapDayForItem ? `，最近待补 ${nearestGapDayForItem.date}` : ''}
+                    </a>
+                  </li>
+                );
+              })}
             </ul>
           </>
         )}

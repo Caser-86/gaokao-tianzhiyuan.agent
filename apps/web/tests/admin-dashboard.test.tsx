@@ -1062,6 +1062,102 @@ test('adds the nearest scheduled gap date to content gap item links', () => {
   );
 });
 
+test('tracks the nearest scheduled gap date per content gap category', () => {
+  render(
+    <DashboardShell
+      title="鍐呭杩愯惀鍚庡彴"
+      queueItems={[]}
+      featuredSchools={[
+        {
+          slug: 'southeast-university',
+          name: 'Southeast University',
+          isFeatured: true,
+          heroImageUrl: '',
+        },
+        {
+          slug: 'wuhan-university',
+          name: 'Wuhan University',
+          isFeatured: true,
+          heroImageUrl: 'https://cdn.example.com/wuhan.jpg',
+        },
+      ]}
+      featuredMajors={[]}
+      rankingReferenceSchools={[
+        {
+          slug: 'wuhan-university',
+          name: 'Wuhan University',
+          rankingReferences: [],
+        },
+      ]}
+      schoolRotation={schoolRotation}
+      majorRotation={majorRotation}
+      featuredSchoolPreview={[]}
+      featuredMajorPreview={[]}
+      nextFeaturedSchoolPreview={[]}
+      nextFeaturedMajorPreview={[]}
+      featuredSchedule={[
+        {
+          date: '2026-04-15',
+          weekday: '鍛ㄤ笁',
+          schools: [{ slug: 'southeast-university', name: 'Southeast University' }],
+          majors: [],
+        },
+        {
+          date: '2026-04-16',
+          weekday: '鍛ㄥ洓',
+          schools: [{ slug: 'wuhan-university', name: 'Wuhan University' }],
+          majors: [],
+        },
+      ]}
+      showScheduledMissingImageSchoolsOnlyHref="/admin?scheduled_missing_school_images=1"
+      showScheduledMissingSchoolRankingsOnlyHref="/admin?scheduled_missing_school_rankings=1"
+      selectedPreviewDateValue=""
+      selectedDatePreview={null}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
+    />,
+  );
+
+  const overviewRegion = document.querySelector(
+    'section[aria-labelledby="content-gap-overview-heading"]',
+  );
+
+  expect(overviewRegion).not.toBeNull();
+  const overviewLinks = Array.from((overviewRegion as HTMLElement).querySelectorAll('a'));
+  expect(
+    overviewLinks.some(
+      (link) =>
+        link.getAttribute('href') ===
+        '/admin?scheduled_missing_school_images=1&preview_date=2026-04-15#featured-school-southeast-university',
+    ),
+  ).toBe(true);
+  expect(
+    overviewLinks.some(
+      (link) =>
+        link.getAttribute('href') ===
+        '/admin?scheduled_missing_school_rankings=1&preview_date=2026-04-16#school-ranking-reference-wuhan-university',
+    ),
+  ).toBe(true);
+  expect(
+    overviewLinks.some(
+      (link) =>
+        link.textContent?.includes('学校图片') &&
+        link.textContent?.includes('最近待补 2026-04-15'),
+    ),
+  ).toBe(true);
+  expect(
+    overviewLinks.some(
+      (link) =>
+        link.textContent?.includes('学校榜单') &&
+        link.textContent?.includes('最近待补 2026-04-16'),
+    ),
+  ).toBe(true);
+});
+
 test('adds per-day gap actions to scheduled preview cards by href', () => {
   render(
     <DashboardShell
