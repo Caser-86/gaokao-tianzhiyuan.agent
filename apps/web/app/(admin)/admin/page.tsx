@@ -1,5 +1,10 @@
 import DashboardShell from '../../../components/admin/dashboard-shell';
-import { listFeaturedContent } from '../../../lib/admin-featured-content-api';
+import type { AdminReviewItem } from '../../../components/admin/dashboard-shell';
+import {
+  type AdminFeaturedMajor,
+  type AdminFeaturedSchool,
+  listFeaturedContent,
+} from '../../../lib/admin-featured-content-api';
 import { listReviewQueue } from '../../../lib/admin-review-api';
 
 import {
@@ -10,10 +15,10 @@ import {
 } from './actions';
 
 export default async function AdminPage() {
-  let queueItems = [];
+  let queueItems: AdminReviewItem[] = [];
   let queueError: string | undefined;
-  let featuredSchools = [];
-  let featuredMajors = [];
+  let featuredSchools: AdminFeaturedSchool[] = [];
+  let featuredMajors: AdminFeaturedMajor[] = [];
   let featuredContentError: string | undefined;
 
   try {
