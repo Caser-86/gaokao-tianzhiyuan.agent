@@ -271,6 +271,20 @@ export default function DashboardShell({
     sortedRankingReferenceSchools.length - missingSchoolRankingReferences.length;
   const configuredMajorRankingReferenceCount =
     sortedRankingReferenceMajors.length - missingMajorRankingReferences.length;
+  const todayMissingSchoolRankingCount = missingSchoolRankingReferences.filter((school) =>
+    todayPreviewSchoolSlugs.has(school.slug),
+  ).length;
+  const nextMissingSchoolRankingCount = missingSchoolRankingReferences.filter((school) =>
+    nextPreviewSchoolSlugs.has(school.slug),
+  ).length;
+  const todayPreviewMajorSlugs = new Set(featuredMajorPreview.map((major) => major.slug));
+  const nextPreviewMajorSlugs = new Set(nextFeaturedMajorPreview.map((major) => major.slug));
+  const todayMissingMajorRankingCount = missingMajorRankingReferences.filter((major) =>
+    todayPreviewMajorSlugs.has(major.slug),
+  ).length;
+  const nextMissingMajorRankingCount = missingMajorRankingReferences.filter((major) =>
+    nextPreviewMajorSlugs.has(major.slug),
+  ).length;
 
   const schoolFilterLinks = (
     <p>
@@ -503,15 +517,24 @@ export default function DashboardShell({
         {rankingReferenceError ? null : missingSchoolRankingReferences.length === 0 ? (
           <p>当前没有待补学校榜单</p>
         ) : (
-          <ul>
-            {missingSchoolRankingReferences.map((school) => (
-              <li key={school.slug}>
-                <a href={`#school-ranking-reference-${school.slug}`}>{school.name}</a>
-                <span>{school.slug}</span>
-                {featuredSchoolSlugs.has(school.slug) ? <span>当前展示</span> : null}
-              </li>
-            ))}
-          </ul>
+          <>
+            <p>{`今日待补 ${todayMissingSchoolRankingCount} 所，下一轮待补 ${nextMissingSchoolRankingCount} 所`}</p>
+            <ul>
+              {missingSchoolRankingReferences.map((school) => (
+                <li key={school.slug}>
+                  <a href={`#school-ranking-reference-${school.slug}`}>{school.name}</a>
+                  <span>{school.slug}</span>
+                  {featuredSchoolSlugs.has(school.slug) ? <span>当前展示</span> : null}
+                  {todayPreviewSchoolSlugs.has(school.slug) ? (
+                    <a href="#featured-school-preview-heading">今日展示</a>
+                  ) : null}
+                  {nextPreviewSchoolSlugs.has(school.slug) ? (
+                    <a href="#next-featured-school-preview-heading">下一轮展示</a>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </section>
 
@@ -543,15 +566,24 @@ export default function DashboardShell({
         {rankingReferenceError ? null : missingMajorRankingReferences.length === 0 ? (
           <p>当前没有待补专业榜单</p>
         ) : (
-          <ul>
-            {missingMajorRankingReferences.map((major) => (
-              <li key={major.slug}>
-                <a href={`#major-ranking-reference-${major.slug}`}>{major.name}</a>
-                <span>{major.slug}</span>
-                {featuredMajorSlugs.has(major.slug) ? <span>当前展示</span> : null}
-              </li>
-            ))}
-          </ul>
+          <>
+            <p>{`今日待补 ${todayMissingMajorRankingCount} 个，下一轮待补 ${nextMissingMajorRankingCount} 个`}</p>
+            <ul>
+              {missingMajorRankingReferences.map((major) => (
+                <li key={major.slug}>
+                  <a href={`#major-ranking-reference-${major.slug}`}>{major.name}</a>
+                  <span>{major.slug}</span>
+                  {featuredMajorSlugs.has(major.slug) ? <span>当前展示</span> : null}
+                  {todayPreviewMajorSlugs.has(major.slug) ? (
+                    <a href="#featured-major-preview-heading">今日展示</a>
+                  ) : null}
+                  {nextPreviewMajorSlugs.has(major.slug) ? (
+                    <a href="#next-featured-major-preview-heading">下一轮展示</a>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </section>
 

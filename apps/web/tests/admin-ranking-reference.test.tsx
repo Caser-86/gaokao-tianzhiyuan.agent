@@ -149,8 +149,18 @@ test('surfaces missing ranking-reference coverage and prioritizes missing featur
         windowSize: 1,
         orderedSlugs: [],
       }}
-      featuredSchoolPreview={[]}
-      featuredMajorPreview={[]}
+      featuredSchoolPreview={[
+        {
+          slug: 'southeast-university',
+          name: '东南大学',
+        },
+      ]}
+      featuredMajorPreview={[
+        {
+          slug: 'clinical-medicine',
+          name: '临床医学',
+        },
+      ]}
       nextFeaturedSchoolPreview={[]}
       nextFeaturedMajorPreview={[]}
       featuredSchedule={[]}
@@ -221,12 +231,22 @@ test('surfaces missing ranking-reference coverage and prioritizes missing featur
     'href',
     '#school-ranking-reference-southeast-university',
   );
+  expect(within(missingSchoolRegion).getByText('今日待补 1 所，下一轮待补 0 所')).toBeInTheDocument();
   expect(within(missingSchoolRegion).getByText('当前展示')).toBeInTheDocument();
+  expect(within(missingSchoolRegion).getByRole('link', { name: '今日展示' })).toHaveAttribute(
+    'href',
+    '#featured-school-preview-heading',
+  );
   expect(within(missingMajorRegion).getByRole('link', { name: '临床医学' })).toHaveAttribute(
     'href',
     '#major-ranking-reference-clinical-medicine',
   );
+  expect(within(missingMajorRegion).getByText('今日待补 1 个，下一轮待补 0 个')).toBeInTheDocument();
   expect(within(missingMajorRegion).getByText('当前展示')).toBeInTheDocument();
+  expect(within(missingMajorRegion).getByRole('link', { name: '今日展示' })).toHaveAttribute(
+    'href',
+    '#featured-major-preview-heading',
+  );
 
   expect(
     within(schoolRankingRegion)
