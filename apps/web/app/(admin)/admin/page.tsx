@@ -58,6 +58,8 @@ type AdminPageProps = {
     scheduled_missing_school_images?: string;
     missing_school_rankings?: string;
     missing_major_rankings?: string;
+    missing_school_related?: string;
+    missing_major_related?: string;
   }>;
 };
 
@@ -79,12 +81,16 @@ const buildAdminHref = ({
   showScheduledMissingImageSchoolsOnly,
   showMissingSchoolRankingsOnly,
   showMissingMajorRankingsOnly,
+  showMissingSchoolRelatedOnly,
+  showMissingMajorRelatedOnly,
 }: {
   previewDate?: string;
   showMissingImageSchoolsOnly?: boolean;
   showScheduledMissingImageSchoolsOnly?: boolean;
   showMissingSchoolRankingsOnly?: boolean;
   showMissingMajorRankingsOnly?: boolean;
+  showMissingSchoolRelatedOnly?: boolean;
+  showMissingMajorRelatedOnly?: boolean;
 }): string => {
   const searchParams = new URLSearchParams();
 
@@ -108,6 +114,14 @@ const buildAdminHref = ({
     searchParams.set('missing_major_rankings', showMissingMajorRankingsOnly ? '1' : '0');
   }
 
+  if (showMissingSchoolRelatedOnly !== undefined) {
+    searchParams.set('missing_school_related', showMissingSchoolRelatedOnly ? '1' : '0');
+  }
+
+  if (showMissingMajorRelatedOnly !== undefined) {
+    searchParams.set('missing_major_related', showMissingMajorRelatedOnly ? '1' : '0');
+  }
+
   const queryString = searchParams.toString();
   return queryString ? `/admin?${queryString}` : '/admin';
 };
@@ -123,6 +137,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     resolvedSearchParams?.missing_school_rankings?.trim() === '1';
   const showMissingMajorRankingsOnly =
     resolvedSearchParams?.missing_major_rankings?.trim() === '1';
+  const showMissingSchoolRelatedOnly =
+    resolvedSearchParams?.missing_school_related?.trim() === '1';
+  const showMissingMajorRelatedOnly =
+    resolvedSearchParams?.missing_major_related?.trim() === '1';
   const rankingSchoolFilterState =
     resolvedSearchParams?.missing_school_rankings !== undefined
       ? showMissingSchoolRankingsOnly
@@ -130,6 +148,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const rankingMajorFilterState =
     resolvedSearchParams?.missing_major_rankings !== undefined
       ? showMissingMajorRankingsOnly
+      : undefined;
+  const relatedSchoolFilterState =
+    resolvedSearchParams?.missing_school_related !== undefined
+      ? showMissingSchoolRelatedOnly
+      : undefined;
+  const relatedMajorFilterState =
+    resolvedSearchParams?.missing_major_related !== undefined
+      ? showMissingMajorRelatedOnly
       : undefined;
   const normalizedPreviewDate = previewDate ? shiftIsoDate(previewDate, 0) : null;
   const todayPreviewDate = todayIsoDate();
@@ -145,6 +171,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           showScheduledMissingImageSchoolsOnly,
           showMissingSchoolRankingsOnly: rankingSchoolFilterState,
           showMissingMajorRankingsOnly: rankingMajorFilterState,
+          showMissingSchoolRelatedOnly: relatedSchoolFilterState,
+          showMissingMajorRelatedOnly: relatedMajorFilterState,
         })
       : undefined;
   const previousPreviewDateHref = previousPreviewDate
@@ -154,6 +182,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         showScheduledMissingImageSchoolsOnly,
         showMissingSchoolRankingsOnly: rankingSchoolFilterState,
         showMissingMajorRankingsOnly: rankingMajorFilterState,
+        showMissingSchoolRelatedOnly: relatedSchoolFilterState,
+        showMissingMajorRelatedOnly: relatedMajorFilterState,
       })
     : undefined;
   const nextPreviewDateHref = nextPreviewDate
@@ -163,6 +193,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         showScheduledMissingImageSchoolsOnly,
         showMissingSchoolRankingsOnly: rankingSchoolFilterState,
         showMissingMajorRankingsOnly: rankingMajorFilterState,
+        showMissingSchoolRelatedOnly: relatedSchoolFilterState,
+        showMissingMajorRelatedOnly: relatedMajorFilterState,
       })
     : undefined;
   const showMissingImageSchoolsOnlyHref =
@@ -172,6 +204,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           showMissingImageSchoolsOnly: true,
           showMissingSchoolRankingsOnly: rankingSchoolFilterState,
           showMissingMajorRankingsOnly: rankingMajorFilterState,
+          showMissingSchoolRelatedOnly: relatedSchoolFilterState,
+          showMissingMajorRelatedOnly: relatedMajorFilterState,
         })
       : showScheduledMissingImageSchoolsOnly
         ? buildAdminHref({
@@ -179,6 +213,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             showMissingImageSchoolsOnly: true,
             showMissingSchoolRankingsOnly: rankingSchoolFilterState,
             showMissingMajorRankingsOnly: rankingMajorFilterState,
+            showMissingSchoolRelatedOnly: relatedSchoolFilterState,
+            showMissingMajorRelatedOnly: relatedMajorFilterState,
           })
         : undefined;
   const showScheduledMissingImageSchoolsOnlyHref = !showScheduledMissingImageSchoolsOnly
@@ -187,6 +223,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         showScheduledMissingImageSchoolsOnly: true,
         showMissingSchoolRankingsOnly: rankingSchoolFilterState,
         showMissingMajorRankingsOnly: rankingMajorFilterState,
+        showMissingSchoolRelatedOnly: relatedSchoolFilterState,
+        showMissingMajorRelatedOnly: relatedMajorFilterState,
       })
     : undefined;
   const showMissingSchoolRankingsOnlyHref = !showMissingSchoolRankingsOnly
@@ -196,6 +234,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         showScheduledMissingImageSchoolsOnly,
         showMissingSchoolRankingsOnly: true,
         showMissingMajorRankingsOnly: rankingMajorFilterState,
+        showMissingSchoolRelatedOnly: relatedSchoolFilterState,
+        showMissingMajorRelatedOnly: relatedMajorFilterState,
       })
     : undefined;
   const showAllSchoolRankingReferencesHref = showMissingSchoolRankingsOnly
@@ -205,6 +245,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         showScheduledMissingImageSchoolsOnly,
         showMissingSchoolRankingsOnly: false,
         showMissingMajorRankingsOnly: rankingMajorFilterState,
+        showMissingSchoolRelatedOnly: relatedSchoolFilterState,
+        showMissingMajorRelatedOnly: relatedMajorFilterState,
       })
     : undefined;
   const showMissingMajorRankingsOnlyHref = !showMissingMajorRankingsOnly
@@ -214,6 +256,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         showScheduledMissingImageSchoolsOnly,
         showMissingSchoolRankingsOnly: rankingSchoolFilterState,
         showMissingMajorRankingsOnly: true,
+        showMissingSchoolRelatedOnly: relatedSchoolFilterState,
+        showMissingMajorRelatedOnly: relatedMajorFilterState,
       })
     : undefined;
   const showAllMajorRankingReferencesHref = showMissingMajorRankingsOnly
@@ -223,6 +267,52 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         showScheduledMissingImageSchoolsOnly,
         showMissingSchoolRankingsOnly: rankingSchoolFilterState,
         showMissingMajorRankingsOnly: false,
+        showMissingSchoolRelatedOnly: relatedSchoolFilterState,
+        showMissingMajorRelatedOnly: relatedMajorFilterState,
+      })
+    : undefined;
+  const showMissingSchoolRelatedOnlyHref = !showMissingSchoolRelatedOnly
+    ? buildAdminHref({
+        previewDate,
+        showMissingImageSchoolsOnly,
+        showScheduledMissingImageSchoolsOnly,
+        showMissingSchoolRankingsOnly: rankingSchoolFilterState,
+        showMissingMajorRankingsOnly: rankingMajorFilterState,
+        showMissingSchoolRelatedOnly: true,
+        showMissingMajorRelatedOnly: relatedMajorFilterState,
+      })
+    : undefined;
+  const showAllSchoolRelatedContentHref = showMissingSchoolRelatedOnly
+    ? buildAdminHref({
+        previewDate,
+        showMissingImageSchoolsOnly,
+        showScheduledMissingImageSchoolsOnly,
+        showMissingSchoolRankingsOnly: rankingSchoolFilterState,
+        showMissingMajorRankingsOnly: rankingMajorFilterState,
+        showMissingSchoolRelatedOnly: false,
+        showMissingMajorRelatedOnly: relatedMajorFilterState,
+      })
+    : undefined;
+  const showMissingMajorRelatedOnlyHref = !showMissingMajorRelatedOnly
+    ? buildAdminHref({
+        previewDate,
+        showMissingImageSchoolsOnly,
+        showScheduledMissingImageSchoolsOnly,
+        showMissingSchoolRankingsOnly: rankingSchoolFilterState,
+        showMissingMajorRankingsOnly: rankingMajorFilterState,
+        showMissingSchoolRelatedOnly: relatedSchoolFilterState,
+        showMissingMajorRelatedOnly: true,
+      })
+    : undefined;
+  const showAllMajorRelatedContentHref = showMissingMajorRelatedOnly
+    ? buildAdminHref({
+        previewDate,
+        showMissingImageSchoolsOnly,
+        showScheduledMissingImageSchoolsOnly,
+        showMissingSchoolRankingsOnly: rankingSchoolFilterState,
+        showMissingMajorRankingsOnly: rankingMajorFilterState,
+        showMissingSchoolRelatedOnly: relatedSchoolFilterState,
+        showMissingMajorRelatedOnly: false,
       })
     : undefined;
   const showAllFeaturedSchoolsHref =
@@ -231,6 +321,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           previewDate,
           showMissingSchoolRankingsOnly: rankingSchoolFilterState,
           showMissingMajorRankingsOnly: rankingMajorFilterState,
+          showMissingSchoolRelatedOnly: relatedSchoolFilterState,
+          showMissingMajorRelatedOnly: relatedMajorFilterState,
         })
       : undefined;
 
@@ -355,6 +447,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       showMissingMajorRankingsOnly={showMissingMajorRankingsOnly}
       showMissingMajorRankingsOnlyHref={showMissingMajorRankingsOnlyHref}
       showAllMajorRankingReferencesHref={showAllMajorRankingReferencesHref}
+      showMissingSchoolRelatedOnly={showMissingSchoolRelatedOnly}
+      showMissingSchoolRelatedOnlyHref={showMissingSchoolRelatedOnlyHref}
+      showAllSchoolRelatedContentHref={showAllSchoolRelatedContentHref}
+      showMissingMajorRelatedOnly={showMissingMajorRelatedOnly}
+      showMissingMajorRelatedOnlyHref={showMissingMajorRelatedOnlyHref}
+      showAllMajorRelatedContentHref={showAllMajorRelatedContentHref}
       rankingReferenceError={rankingReferenceError}
       contentSummaryError={contentSummaryError}
       contentSectionError={contentSectionError}

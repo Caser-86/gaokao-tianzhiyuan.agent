@@ -70,6 +70,12 @@ type DashboardShellProps = {
   showMissingMajorRankingsOnly?: boolean;
   showMissingMajorRankingsOnlyHref?: string;
   showAllMajorRankingReferencesHref?: string;
+  showMissingSchoolRelatedOnly?: boolean;
+  showMissingSchoolRelatedOnlyHref?: string;
+  showAllSchoolRelatedContentHref?: string;
+  showMissingMajorRelatedOnly?: boolean;
+  showMissingMajorRelatedOnlyHref?: string;
+  showAllMajorRelatedContentHref?: string;
   rankingReferenceError?: string;
   contentSummaryError?: string;
   contentSectionError?: string;
@@ -322,6 +328,12 @@ export default function DashboardShell({
   showMissingMajorRankingsOnly = false,
   showMissingMajorRankingsOnlyHref,
   showAllMajorRankingReferencesHref,
+  showMissingSchoolRelatedOnly = false,
+  showMissingSchoolRelatedOnlyHref,
+  showAllSchoolRelatedContentHref,
+  showMissingMajorRelatedOnly = false,
+  showMissingMajorRelatedOnlyHref,
+  showAllMajorRelatedContentHref,
   rankingReferenceError,
   contentSummaryError,
   contentSectionError,
@@ -531,6 +543,12 @@ export default function DashboardShell({
   const nextMissingMajorRelatedCount = missingMajorRelatedContent.filter((major) =>
     nextPreviewMajorSlugs.has(major.slug),
   ).length;
+  const displayedRelatedSchools = showMissingSchoolRelatedOnly
+    ? missingSchoolRelatedContent
+    : sortedRelatedSchools;
+  const displayedRelatedMajors = showMissingMajorRelatedOnly
+    ? missingMajorRelatedContent
+    : sortedRelatedMajors;
 
   const schoolFilterLinks = (
     <p>
@@ -570,6 +588,37 @@ export default function DashboardShell({
       ) : null}
     </p>
   );
+  const buildPreviewDateHref = (previewDate: string): string => {
+    const searchParams = new URLSearchParams({
+      preview_date: previewDate,
+    });
+
+    if (showMissingImageSchoolsOnly) {
+      searchParams.set('missing_school_images', '1');
+    }
+
+    if (showScheduledMissingImageSchoolsOnly) {
+      searchParams.set('scheduled_missing_school_images', '1');
+    }
+
+    if (showMissingSchoolRankingsOnly) {
+      searchParams.set('missing_school_rankings', '1');
+    }
+
+    if (showMissingMajorRankingsOnly) {
+      searchParams.set('missing_major_rankings', '1');
+    }
+
+    if (showMissingSchoolRelatedOnly) {
+      searchParams.set('missing_school_related', '1');
+    }
+
+    if (showMissingMajorRelatedOnly) {
+      searchParams.set('missing_major_related', '1');
+    }
+
+    return `/admin?${searchParams.toString()}`;
+  };
 
   return (
     <main>
@@ -814,8 +863,20 @@ export default function DashboardShell({
         {!relatedContentError ? (
           <div>
             <p>{`已配置学校相关推荐 ${configuredSchoolRelatedContentCount} 所，待补学校相关推荐 ${missingSchoolRelatedContent.length} 所`}</p>
-            {relatedSchools.length === 0 ? <p>当前没有可编辑的学校相关推荐</p> : null}
-            {sortedRelatedSchools.map((school) => (
+            {showMissingSchoolRelatedOnlyHref || showAllSchoolRelatedContentHref ? (
+              <p>
+                {!showMissingSchoolRelatedOnly && showMissingSchoolRelatedOnlyHref ? (
+                  <a href={showMissingSchoolRelatedOnlyHref}>{`仅看待补学校相关推荐（${missingSchoolRelatedContent.length}）`}</a>
+                ) : null}
+                {showMissingSchoolRelatedOnly && showAllSchoolRelatedContentHref ? (
+                  <a href={showAllSchoolRelatedContentHref}>查看全部学校相关推荐</a>
+                ) : null}
+              </p>
+            ) : null}
+            {displayedRelatedSchools.length === 0 ? (
+              <p>{showMissingSchoolRelatedOnly ? '当前没有待补学校相关推荐' : '当前没有可编辑的学校相关推荐'}</p>
+            ) : null}
+            {displayedRelatedSchools.map((school) => (
               <div key={school.slug} id={`school-related-content-${school.slug}`}>
                 <RelatedContentForm
                   entity={school}
@@ -870,8 +931,20 @@ export default function DashboardShell({
         {!relatedContentError ? (
           <div>
             <p>{`已配置专业相关推荐 ${configuredMajorRelatedContentCount} 个，待补专业相关推荐 ${missingMajorRelatedContent.length} 个`}</p>
-            {relatedMajors.length === 0 ? <p>当前没有可编辑的专业相关推荐</p> : null}
-            {sortedRelatedMajors.map((major) => (
+            {showMissingMajorRelatedOnlyHref || showAllMajorRelatedContentHref ? (
+              <p>
+                {!showMissingMajorRelatedOnly && showMissingMajorRelatedOnlyHref ? (
+                  <a href={showMissingMajorRelatedOnlyHref}>{`仅看待补专业相关推荐（${missingMajorRelatedContent.length}）`}</a>
+                ) : null}
+                {showMissingMajorRelatedOnly && showAllMajorRelatedContentHref ? (
+                  <a href={showAllMajorRelatedContentHref}>查看全部专业相关推荐</a>
+                ) : null}
+              </p>
+            ) : null}
+            {displayedRelatedMajors.length === 0 ? (
+              <p>{showMissingMajorRelatedOnly ? '当前没有待补专业相关推荐' : '当前没有可编辑的专业相关推荐'}</p>
+            ) : null}
+            {displayedRelatedMajors.map((major) => (
               <div key={major.slug} id={`major-related-content-${major.slug}`}>
                 <RelatedContentForm
                   entity={major}
@@ -1162,6 +1235,18 @@ export default function DashboardShell({
           ) : null}
           {showScheduledMissingImageSchoolsOnly ? (
             <input type="hidden" name="scheduled_missing_school_images" value="1" />
+          ) : null}
+          {showMissingSchoolRankingsOnly ? (
+            <input type="hidden" name="missing_school_rankings" value="1" />
+          ) : null}
+          {showMissingMajorRankingsOnly ? (
+            <input type="hidden" name="missing_major_rankings" value="1" />
+          ) : null}
+          {showMissingSchoolRelatedOnly ? (
+            <input type="hidden" name="missing_school_related" value="1" />
+          ) : null}
+          {showMissingMajorRelatedOnly ? (
+            <input type="hidden" name="missing_major_related" value="1" />
           ) : null}
           <button type="submit">查看该日轮换</button>
         </form>

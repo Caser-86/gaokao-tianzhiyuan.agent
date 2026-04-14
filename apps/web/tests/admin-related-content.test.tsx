@@ -296,3 +296,139 @@ test('surfaces missing related-content coverage and prioritizes scheduled gaps',
     '#next-featured-major-preview-heading',
   ]);
 });
+
+test('filters related-content editors down to missing entries only and preserves date shortcuts', async () => {
+  listReviewQueueMock.mockResolvedValue([]);
+  listFeaturedContentMock.mockResolvedValue({
+    schools: [],
+    majors: [],
+    rotation: {
+      schools: {
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      },
+      majors: {
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      },
+    },
+    preview: {
+      today: { schools: [], majors: [] },
+      next: { schools: [], majors: [] },
+      schedule: [
+        {
+          date: '2026-04-17',
+          weekday: '鍛ㄤ簲',
+          schools: [],
+          majors: [],
+        },
+      ],
+      selectedDate: null,
+      selectedDateError: null,
+    },
+  });
+  listRankingReferencesMock.mockResolvedValue({
+    schools: [],
+    majors: [],
+  });
+  listContentSummariesMock.mockResolvedValue({
+    schools: [],
+    majors: [],
+  });
+  listContentSectionsMock.mockResolvedValue({
+    schools: [],
+    majors: [],
+  });
+  listRelatedContentMock.mockResolvedValue({
+    schools: [
+      {
+        slug: 'zhejiang-university',
+        name: '娴欐睙澶у',
+        relatedMajors: ['finance'],
+      },
+      {
+        slug: 'southeast-university',
+        name: '涓滃崡澶у',
+        relatedMajors: [],
+      },
+    ],
+    majors: [
+      {
+        slug: 'finance',
+        name: '閲戣瀺瀛?',
+        relatedSchools: ['zhejiang-university'],
+      },
+      {
+        slug: 'clinical-medicine',
+        name: '涓村簥鍖诲',
+        relatedSchools: [],
+      },
+    ],
+  });
+
+  const { container } = render(
+    await AdminPage({
+      searchParams: Promise.resolve({
+        preview_date: '2026-04-18',
+        missing_school_related: '1',
+        missing_major_related: '1',
+      } as never),
+    }),
+  );
+
+  const schoolSection = container.querySelector('[data-testid="school-related-content-section"]');
+  const majorSection = container.querySelector('[data-testid="major-related-content-section"]');
+  const allHrefs = Array.from(container.querySelectorAll('a'), (link) => link.getAttribute('href') ?? '');
+
+  expect(
+    Array.from(schoolSection?.querySelectorAll('h3') ?? [], (heading) => heading.textContent),
+  ).toEqual(['涓滃崡澶у']);
+  expect(
+    Array.from(majorSection?.querySelectorAll('h3') ?? [], (heading) => heading.textContent),
+  ).toEqual(['涓村簥鍖诲']);
+
+  expect(
+    allHrefs.some(
+      (href) =>
+        href.includes('preview_date=2026-04-18') &&
+        href.includes('missing_school_related=0') &&
+        href.includes('missing_major_related=1'),
+    ),
+  ).toBe(true);
+  expect(
+    allHrefs.some(
+      (href) =>
+        href.includes('preview_date=2026-04-18') &&
+        href.includes('missing_school_related=1') &&
+        href.includes('missing_major_related=0'),
+    ),
+  ).toBe(true);
+  expect(
+    allHrefs.some(
+      (href) =>
+        href.includes('preview_date=2026-04-17') &&
+        href.includes('missing_school_related=1') &&
+        href.includes('missing_major_related=1'),
+    ),
+  ).toBe(true);
+  expect(
+    allHrefs.some(
+      (href) =>
+        href.includes('preview_date=2026-04-14') &&
+        href.includes('missing_school_related=1') &&
+        href.includes('missing_major_related=1'),
+    ),
+  ).toBe(true);
+  expect(
+    allHrefs.some(
+      (href) =>
+        href.includes('preview_date=2026-04-19') &&
+        href.includes('missing_school_related=1') &&
+        href.includes('missing_major_related=1'),
+    ),
+  ).toBe(true);
+});
