@@ -46,6 +46,21 @@ class DirectSkillInvokeRequest(BaseModel):
         return normalized
 
 
+class WeChatChannelRequest(BaseModel):
+    openid: str
+    message: str
+    message_type: str = "text"
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("openid", "message")
+    @classmethod
+    def validate_non_empty(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("must not be empty")
+        return normalized
+
+
 @router.get("/health")
 def chat_health() -> dict[str, str]:
     return {"status": "ok"}
@@ -83,6 +98,24 @@ def invoke_chat_skill(skill_id: str, payload: DirectSkillInvokeRequest) -> dict[
             session_id=payload.session_id,
             skill_id=skill_id,
             metadata=payload.metadata,
+        )
+    except ChatSkillNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="chat skill not found") from exc
+    except ChatSkillUnavailableError as exc:
+        raise HTTPException(status_code=409, detail="chat skill unavailable") from exc
+
+
+@router.post("/channels/wechat")
+def create_wechat_chat_message(payload: WeChatChannelRequest) -> dict[str, Any]:
+    try:
+        return conversation_service.handle_message(
+            channel="wechat",
+            user_id=payload.openid,
+            message=payload.message,
+            metadata={
+                **payload.metadata,
+                "message_type": payload.message_type,
+            },
         )
     except ChatSkillNotFoundError as exc:
         raise HTTPException(status_code=404, detail="chat skill not found") from exc

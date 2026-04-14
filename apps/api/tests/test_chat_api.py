@@ -212,3 +212,35 @@ def test_chat_skill_invoke_returns_409_for_unsupported_channel(monkeypatch) -> N
 
     assert response.status_code == 409
     assert response.json() == {"detail": "chat skill unavailable"}
+
+
+def test_wechat_chat_adapter_normalizes_payload_and_reuses_chat_flow() -> None:
+    response = client.post(
+        "/api/chat/channels/wechat",
+        json={
+            "openid": "wx-adapter-1",
+            "message": "帮我看看江苏适合冲哪些985",
+            "message_type": "text",
+            "metadata": {"source": "official_account"},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["channel"] == "wechat"
+    assert payload["user_id"] == "wx-adapter-1"
+    assert payload["matched_skill"]["skill_id"] == "zhangxuefeng"
+    assert payload["output"]["content"]["intent"] == "school_recommendation"
+
+
+def test_wechat_chat_adapter_requires_openid_and_message() -> None:
+    response = client.post(
+        "/api/chat/channels/wechat",
+        json={
+            "openid": "",
+            "message": "",
+            "message_type": "text",
+        },
+    )
+
+    assert response.status_code == 422
