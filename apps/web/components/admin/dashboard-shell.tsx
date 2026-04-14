@@ -1,4 +1,7 @@
 import type {
+  AdminContentSummaryEntity,
+} from '../../lib/admin-content-summary-api';
+import type {
   AdminFeaturedMajor,
   AdminFeaturedPreviewDay,
   AdminFeaturedPreviewItem,
@@ -33,6 +36,8 @@ type DashboardShellProps = {
   nextFeaturedSchoolPreview: AdminFeaturedPreviewItem[];
   nextFeaturedMajorPreview: AdminFeaturedPreviewItem[];
   featuredSchedule: AdminFeaturedPreviewDay[];
+  summarySchools?: AdminContentSummaryEntity[];
+  summaryMajors?: AdminContentSummaryEntity[];
   rankingReferenceSchools?: AdminRankingReferenceEntity[];
   rankingReferenceMajors?: AdminRankingReferenceEntity[];
   highlightedScheduleDate?: string;
@@ -54,12 +59,15 @@ type DashboardShellProps = {
   showMissingMajorRankingsOnlyHref?: string;
   showAllMajorRankingReferencesHref?: string;
   rankingReferenceError?: string;
+  contentSummaryError?: string;
   queueError?: string;
   featuredContentError?: string;
   approveAction: (formData: FormData) => Promise<void>;
   rejectAction: (formData: FormData) => Promise<void>;
   updateFeaturedSchoolAction: (formData: FormData) => Promise<void>;
   updateFeaturedMajorAction: (formData: FormData) => Promise<void>;
+  updateSchoolSummaryAction?: (formData: FormData) => Promise<void>;
+  updateMajorSummaryAction?: (formData: FormData) => Promise<void>;
   updateSchoolRankingReferencesAction?: (formData: FormData) => Promise<void>;
   updateMajorRankingReferencesAction?: (formData: FormData) => Promise<void>;
   updateSchoolRotationAction: (formData: FormData) => Promise<void>;
@@ -165,6 +173,27 @@ function RankingReferenceForm({
   );
 }
 
+function ContentSummaryForm({
+  entity,
+  action,
+}: {
+  entity: AdminContentSummaryEntity;
+  action: (formData: FormData) => Promise<void>;
+}) {
+  return (
+    <form action={action}>
+      <input type="hidden" name="slug" value={entity.slug} />
+      <h3>{entity.name}</h3>
+      <p>{entity.slug}</p>
+      <label>
+        摘要
+        <textarea name="summary" defaultValue={entity.summary} />
+      </label>
+      <button type="submit">保存摘要</button>
+    </form>
+  );
+}
+
 export default function DashboardShell({
   title,
   queueItems,
@@ -177,6 +206,8 @@ export default function DashboardShell({
   nextFeaturedSchoolPreview,
   nextFeaturedMajorPreview,
   featuredSchedule,
+  summarySchools = [],
+  summaryMajors = [],
   rankingReferenceSchools = [],
   rankingReferenceMajors = [],
   highlightedScheduleDate,
@@ -198,12 +229,15 @@ export default function DashboardShell({
   showMissingMajorRankingsOnlyHref,
   showAllMajorRankingReferencesHref,
   rankingReferenceError,
+  contentSummaryError,
   queueError,
   featuredContentError,
   approveAction,
   rejectAction,
   updateFeaturedSchoolAction,
   updateFeaturedMajorAction,
+  updateSchoolSummaryAction = noopAction,
+  updateMajorSummaryAction = noopAction,
   updateSchoolRankingReferencesAction = noopAction,
   updateMajorRankingReferencesAction = noopAction,
   updateSchoolRotationAction,
@@ -505,6 +539,40 @@ export default function DashboardShell({
             ))}
           </div>
         )}
+      </section>
+
+      <section aria-labelledby="school-content-summary-heading">
+        <h2 id="school-content-summary-heading">学校摘要编辑</h2>
+
+        {contentSummaryError ? <p>{contentSummaryError}</p> : null}
+
+        {!contentSummaryError ? (
+          <div>
+            {summarySchools.length === 0 ? <p>当前没有可编辑的学校摘要</p> : null}
+            {summarySchools.map((school) => (
+              <div key={school.slug}>
+                <ContentSummaryForm entity={school} action={updateSchoolSummaryAction} />
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      <section aria-labelledby="major-content-summary-heading">
+        <h2 id="major-content-summary-heading">专业摘要编辑</h2>
+
+        {contentSummaryError ? <p>{contentSummaryError}</p> : null}
+
+        {!contentSummaryError ? (
+          <div>
+            {summaryMajors.length === 0 ? <p>当前没有可编辑的专业摘要</p> : null}
+            {summaryMajors.map((major) => (
+              <div key={major.slug}>
+                <ContentSummaryForm entity={major} action={updateMajorSummaryAction} />
+              </div>
+            ))}
+          </div>
+        ) : null}
       </section>
 
       <section aria-labelledby="school-ranking-reference-heading">

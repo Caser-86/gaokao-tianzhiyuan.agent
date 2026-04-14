@@ -9,6 +9,10 @@ import {
   updateSchoolRotationRule,
 } from '../../../lib/admin-featured-content-api';
 import {
+  updateMajorSummary,
+  updateSchoolSummary,
+} from '../../../lib/admin-content-summary-api';
+import {
   type AdminRankingReference,
   updateMajorRankingReferences,
   updateSchoolRankingReferences,
@@ -47,6 +51,14 @@ const parseOrderedSlugs = (rawValue: FormDataEntryValue | null): string[] =>
     .split(/\r?\n/)
     .map((item) => item.trim())
     .filter(Boolean);
+
+const parseRequiredSummary = (rawValue: FormDataEntryValue | null): string => {
+  const summary = String(rawValue ?? '').trim();
+  if (!summary) {
+    throw new Error('summary is required');
+  }
+  return summary;
+};
 
 const parseRankingReferenceRows = (formData: FormData): AdminRankingReference[] => {
   const rowCount = parsePositiveNumber(formData.get('rowCount'), 'rowCount');
@@ -184,6 +196,34 @@ export async function updateMajorRankingReferencesAction(formData: FormData): Pr
     const rankingReferences = parseRankingReferenceRows(formData);
 
     await updateMajorRankingReferences(slug, rankingReferences);
+    revalidatePath('/admin');
+    revalidatePath('/');
+    revalidatePath(`/majors/${slug}`);
+  } catch {
+    return;
+  }
+}
+
+export async function updateSchoolSummaryAction(formData: FormData): Promise<void> {
+  try {
+    const slug = parseRequiredSlug(formData.get('slug'));
+    const summary = parseRequiredSummary(formData.get('summary'));
+
+    await updateSchoolSummary(slug, summary);
+    revalidatePath('/admin');
+    revalidatePath('/');
+    revalidatePath(`/schools/${slug}`);
+  } catch {
+    return;
+  }
+}
+
+export async function updateMajorSummaryAction(formData: FormData): Promise<void> {
+  try {
+    const slug = parseRequiredSlug(formData.get('slug'));
+    const summary = parseRequiredSummary(formData.get('summary'));
+
+    await updateMajorSummary(slug, summary);
     revalidatePath('/admin');
     revalidatePath('/');
     revalidatePath(`/majors/${slug}`);

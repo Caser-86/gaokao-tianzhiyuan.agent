@@ -3,10 +3,16 @@ import { beforeEach, expect, test, vi } from 'vitest';
 
 import DashboardShell from '../components/admin/dashboard-shell';
 
-const { listReviewQueueMock, listFeaturedContentMock, listRankingReferencesMock } = vi.hoisted(() => ({
+const {
+  listReviewQueueMock,
+  listFeaturedContentMock,
+  listRankingReferencesMock,
+  listContentSummariesMock,
+} = vi.hoisted(() => ({
   listReviewQueueMock: vi.fn(),
   listFeaturedContentMock: vi.fn(),
   listRankingReferencesMock: vi.fn(),
+  listContentSummariesMock: vi.fn(),
 }));
 
 vi.mock('../lib/admin-review-api', () => ({
@@ -21,11 +27,17 @@ vi.mock('../lib/admin-ranking-reference-api', () => ({
   listRankingReferences: listRankingReferencesMock,
 }));
 
+vi.mock('../lib/admin-content-summary-api', () => ({
+  listContentSummaries: listContentSummariesMock,
+}));
+
 vi.mock('../app/(admin)/admin/actions', () => ({
   approveReviewQueueAction: async () => undefined,
   rejectReviewQueueAction: async () => undefined,
   updateFeaturedSchoolAction: async () => undefined,
   updateFeaturedMajorAction: async () => undefined,
+  updateSchoolSummaryAction: async () => undefined,
+  updateMajorSummaryAction: async () => undefined,
   updateSchoolRankingReferencesAction: async () => undefined,
   updateMajorRankingReferencesAction: async () => undefined,
   updateSchoolRotationAction: async () => undefined,
@@ -52,7 +64,12 @@ beforeEach(() => {
   listReviewQueueMock.mockReset();
   listFeaturedContentMock.mockReset();
   listRankingReferencesMock.mockReset();
+  listContentSummariesMock.mockReset();
   listRankingReferencesMock.mockResolvedValue({
+    schools: [],
+    majors: [],
+  });
+  listContentSummariesMock.mockResolvedValue({
     schools: [],
     majors: [],
   });
