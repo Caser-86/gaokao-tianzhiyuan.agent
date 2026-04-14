@@ -157,10 +157,12 @@ test('renders admin dashboard heading, date preview shortcuts, and schedule high
   expect(screen.getByLabelText('专业轮换顺序')).toHaveValue('clinical-medicine');
   expect(within(schoolPreviewRegion).getByText('东南大学')).toBeInTheDocument();
   expect(within(schoolPreviewRegion).getByText('southeast-university')).toBeInTheDocument();
+  expect(within(schoolPreviewRegion).getByText('已配置图片')).toBeInTheDocument();
   expect(within(majorPreviewRegion).getByText('临床医学')).toBeInTheDocument();
   expect(within(majorPreviewRegion).getByText('clinical-medicine')).toBeInTheDocument();
   expect(within(nextSchoolPreviewRegion).getByText('华西医学中心')).toBeInTheDocument();
   expect(within(nextSchoolPreviewRegion).getByText('west-china-medical-center')).toBeInTheDocument();
+  expect(within(nextSchoolPreviewRegion).getByText('未配置图片')).toBeInTheDocument();
   expect(within(nextMajorPreviewRegion).getByText('计算机科学与技术')).toBeInTheDocument();
   expect(within(nextMajorPreviewRegion).getByText('computer-science')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '指定日期预览' })).toBeInTheDocument();
@@ -179,6 +181,7 @@ test('renders admin dashboard heading, date preview shortcuts, and schedule high
   );
   expect(within(selectedSchoolPreviewRegion).getByText('东南大学')).toBeInTheDocument();
   expect(within(selectedSchoolPreviewRegion).getByText('southeast-university')).toBeInTheDocument();
+  expect(within(selectedSchoolPreviewRegion).getByText('已配置图片')).toBeInTheDocument();
   expect(within(selectedMajorPreviewRegion).getByText('临床医学')).toBeInTheDocument();
   expect(within(selectedMajorPreviewRegion).getByText('clinical-medicine')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '未来 7 天轮换预览' })).toBeInTheDocument();
@@ -188,6 +191,8 @@ test('renders admin dashboard heading, date preview shortcuts, and schedule high
   expect(within(scheduleRegion).getByText('周三')).toBeInTheDocument();
   expect(within(scheduleRegion).getByText('东南大学')).toBeInTheDocument();
   expect(within(scheduleRegion).getByText('华西医学中心')).toBeInTheDocument();
+  expect(within(scheduleRegion).getByText('已配置图片')).toBeInTheDocument();
+  expect(within(scheduleRegion).getByText('未配置图片')).toBeInTheDocument();
   expect(within(scheduleRegion).getByText('临床医学')).toBeInTheDocument();
   expect(within(scheduleRegion).getByText('计算机科学与技术')).toBeInTheDocument();
   expect(within(scheduleRegion).getByRole('link', { name: '2026-04-14' })).toHaveAttribute(

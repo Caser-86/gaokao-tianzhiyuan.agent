@@ -212,6 +212,7 @@ test('renders queue items, date preview shortcuts, and schedule highlight return
 
   expect(within(selectedSchoolPreview).getByText('东南大学')).toBeInTheDocument();
   expect(within(selectedSchoolPreview).getByText('southeast-university')).toBeInTheDocument();
+  expect(within(selectedSchoolPreview).getByText('已配置图片')).toBeInTheDocument();
   expect(within(selectedMajorPreview).getByText('临床医学')).toBeInTheDocument();
   expect(within(selectedMajorPreview).getByText('clinical-medicine')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '未来 7 天轮换预览' })).toBeInTheDocument();
@@ -221,6 +222,8 @@ test('renders queue items, date preview shortcuts, and schedule highlight return
   expect(within(scheduleRegion).getByText('周三')).toBeInTheDocument();
   expect(within(scheduleRegion).getByText('东南大学')).toBeInTheDocument();
   expect(within(scheduleRegion).getByText('华西医学中心')).toBeInTheDocument();
+  expect(within(scheduleRegion).getByText('已配置图片')).toBeInTheDocument();
+  expect(within(scheduleRegion).getByText('未配置图片')).toBeInTheDocument();
   expect(within(scheduleRegion).getByText('临床医学')).toBeInTheDocument();
   expect(within(scheduleRegion).getByText('计算机科学与技术')).toBeInTheDocument();
   expect(within(scheduleRegion).getByRole('link', { name: '2026-04-14' })).toHaveAttribute(

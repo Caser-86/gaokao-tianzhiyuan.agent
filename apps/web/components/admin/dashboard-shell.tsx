@@ -53,8 +53,10 @@ const cards = ['待审核内容', '最近发布', '抓取状态'];
 
 function PreviewList({
   items,
+  imageAvailabilityBySlug,
 }: {
   items: AdminFeaturedPreviewItem[];
+  imageAvailabilityBySlug?: Record<string, boolean>;
 }) {
   return (
     <ul>
@@ -62,6 +64,9 @@ function PreviewList({
         <li key={item.slug}>
           <span>{item.name}</span>
           <span>{item.slug}</span>
+          {imageAvailabilityBySlug ? (
+            <span>{imageAvailabilityBySlug[item.slug] ? '已配置图片' : '未配置图片'}</span>
+          ) : null}
         </li>
       ))}
     </ul>
@@ -98,6 +103,9 @@ export default function DashboardShell({
 }: DashboardShellProps) {
   const showSelectedDateHelper =
     !selectedPreviewDateValue && !selectedDatePreview && !selectedDateError;
+  const schoolImageAvailabilityBySlug = Object.fromEntries(
+    featuredSchools.map((school) => [school.slug, Boolean(school.heroImageUrl)]),
+  );
 
   return (
     <main>
@@ -269,7 +277,10 @@ export default function DashboardShell({
         {featuredContentError ? null : featuredSchoolPreview.length === 0 ? (
           <p>当前没有可展示学校</p>
         ) : (
-          <PreviewList items={featuredSchoolPreview} />
+          <PreviewList
+            items={featuredSchoolPreview}
+            imageAvailabilityBySlug={schoolImageAvailabilityBySlug}
+          />
         )}
       </section>
 
@@ -289,7 +300,10 @@ export default function DashboardShell({
         {featuredContentError ? null : nextFeaturedSchoolPreview.length === 0 ? (
           <p>当前没有下一轮展示学校</p>
         ) : (
-          <PreviewList items={nextFeaturedSchoolPreview} />
+          <PreviewList
+            items={nextFeaturedSchoolPreview}
+            imageAvailabilityBySlug={schoolImageAvailabilityBySlug}
+          />
         )}
       </section>
 
@@ -337,7 +351,10 @@ export default function DashboardShell({
               {selectedDatePreview.schools.length === 0 ? (
                 <p>该日没有展示学校</p>
               ) : (
-                <PreviewList items={selectedDatePreview.schools} />
+                <PreviewList
+                  items={selectedDatePreview.schools}
+                  imageAvailabilityBySlug={schoolImageAvailabilityBySlug}
+                />
               )}
             </section>
 
@@ -375,7 +392,10 @@ export default function DashboardShell({
                 {day.schools.length === 0 ? (
                   <p>当天没有展示学校</p>
                 ) : (
-                  <PreviewList items={day.schools} />
+                  <PreviewList
+                    items={day.schools}
+                    imageAvailabilityBySlug={schoolImageAvailabilityBySlug}
+                  />
                 )}
                 <p>专业</p>
                 {day.majors.length === 0 ? (
