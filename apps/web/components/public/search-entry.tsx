@@ -1,16 +1,28 @@
 'use client';
 
+import Link from 'next/link';
+
 import { trackPlatformEvent } from '../../lib/platform-events';
 
 type SearchEntryProps = {
   apiBaseUrl: string;
+  userId?: string;
   title: string;
   description: string;
   quickPrompts: string[];
 };
 
+const buildChatHref = (prompt: string, userId?: string) => {
+  const params = new URLSearchParams({ prompt });
+  if (userId) {
+    params.set('user_id', userId);
+  }
+  return `/chat?${params.toString()}`;
+};
+
 export default function SearchEntry({
   apiBaseUrl,
+  userId,
   title,
   description,
   quickPrompts,
@@ -23,20 +35,23 @@ export default function SearchEntry({
 
       <div className="chip-row">
         {quickPrompts.map((prompt) => (
-          <button
+          <Link
             key={prompt}
-            type="button"
             className="chip"
+            href={buildChatHref(prompt, userId)}
             onClick={() => {
-              void trackPlatformEvent({
-                eventName: 'quick_prompt_clicked',
-                step: 'homepage_masthead',
-                metadata: { prompt },
-              }, apiBaseUrl);
+              void trackPlatformEvent(
+                {
+                  eventName: 'quick_prompt_clicked',
+                  step: 'homepage_masthead',
+                  metadata: { prompt },
+                },
+                apiBaseUrl,
+              );
             }}
           >
             {prompt}
-          </button>
+          </Link>
         ))}
       </div>
 

@@ -40,6 +40,7 @@ export default async function HomePage({ searchParams }: HomePageProps = {}) {
       <main className="page-shell">
         <SearchEntry
           apiBaseUrl={apiBaseUrl}
+          userId={userId}
           title={searchEntry.title}
           description={searchEntry.description}
           quickPrompts={searchEntry.quickPrompts}
