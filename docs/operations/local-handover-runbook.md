@@ -179,6 +179,24 @@ Invoke-RestMethod `
 If the relay has no balance or is disabled, the request should still return a
 valid fallback payload instead of a 500 crash.
 
+### One-command live smoke
+
+After the API and Web services are already running:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/smoke-local-stack.ps1
+```
+
+Useful options:
+
+- `-ApiBaseUrl http://127.0.0.1:8000`
+- `-WebBaseUrl http://127.0.0.1:3000`
+- `-AdminToken <your admin token>`
+- `-SkipAdminCheck`
+- `-SkipChatProbe`
+- `-SkipWechatProbe`
+- `-DryRun`
+
 ## Verification Commands
 
 Run these before calling the current branch ready for handoff:

@@ -122,6 +122,14 @@ git clone https://github.com/alchaincyf/zhangxuefeng-skill.git vendor/zhangxuefe
 powershell -ExecutionPolicy Bypass -File scripts/verify-project.ps1
 ```
 
+### Live smoke
+
+After the API and Web services are already running:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/smoke-local-stack.ps1
+```
+
 ### API
 
 ```powershell
