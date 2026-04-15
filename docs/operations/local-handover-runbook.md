@@ -184,6 +184,10 @@ valid fallback payload instead of a 500 crash.
 Run these before calling the current branch ready for handoff:
 
 ```powershell
+powershell -ExecutionPolicy Bypass -File scripts/verify-project.ps1
+```
+
+```powershell
 cd apps/api
 python -m pytest -q
 ```

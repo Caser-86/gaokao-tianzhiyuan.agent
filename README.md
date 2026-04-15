@@ -116,6 +116,12 @@ git clone https://github.com/alchaincyf/zhangxuefeng-skill.git vendor/zhangxuefe
 
 ## 验证命令
 
+### One-command
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/verify-project.ps1
+```
+
 ### API
 
 ```powershell
