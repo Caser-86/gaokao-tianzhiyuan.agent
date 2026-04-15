@@ -1,9 +1,13 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import Link from "next/link";
+import { FormEvent, useEffect, useRef, useState } from "react";
 
-import { type ChatMessageResponse, sendChatMessage } from '../../lib/chat-api';
+import { type ChatMessageResponse, sendChatMessage } from "../../lib/chat-api";
+import {
+  getChatRiskFlagCopy,
+  isUnknownChatRiskFlag,
+} from "../../lib/chat-risk-flags";
 
 type ChatWorkspaceProps = {
   apiBaseUrl: string;
@@ -12,15 +16,17 @@ type ChatWorkspaceProps = {
 };
 
 const resolveSuggestionHref = (
-  suggestion: NonNullable<ChatMessageResponse['output']['content']['suggestions']>[number],
+  suggestion: NonNullable<
+    ChatMessageResponse["output"]["content"]["suggestions"]
+  >[number],
 ) => {
   if (!suggestion.slug) {
     return null;
   }
-  if (suggestion.type === 'school') {
+  if (suggestion.type === "school") {
     return `/schools/${suggestion.slug}`;
   }
-  if (suggestion.type === 'major') {
+  if (suggestion.type === "major") {
     return `/majors/${suggestion.slug}`;
   }
   return null;
@@ -31,7 +37,7 @@ export default function ChatWorkspace({
   userId,
   initialPrompt,
 }: ChatWorkspaceProps) {
-  const [draft, setDraft] = useState(initialPrompt ?? '');
+  const [draft, setDraft] = useState(initialPrompt ?? "");
   const [response, setResponse] = useState<ChatMessageResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,7 +62,9 @@ export default function ChatWorkspace({
       );
       setResponse(nextResponse);
     } catch {
-      setError('当前对话暂时不可用，请稍后重试。');
+      setError(
+        "\u5f53\u524d\u5bf9\u8bdd\u6682\u65f6\u4e0d\u53ef\u7528\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -78,9 +86,11 @@ export default function ChatWorkspace({
 
   return (
     <section className="panel">
-      <h1 className="panel-title">高考问答入口</h1>
-      <p style={{ margin: '0 0 16px', color: 'var(--muted)', lineHeight: 1.7 }}>
-        输入你的问题，系统会直接调用现有高考对话接口返回结构化分析结果。
+      <h1 className="panel-title">{"\u9ad8\u8003\u95ee\u7b54\u5165\u53e3"}</h1>
+      <p style={{ margin: "0 0 16px", color: "var(--muted)", lineHeight: 1.7 }}>
+        {
+          "\u8f93\u5165\u4f60\u7684\u95ee\u9898\uff0c\u7cfb\u7edf\u4f1a\u76f4\u63a5\u8c03\u7528\u73b0\u6709\u9ad8\u8003\u5bf9\u8bdd\u63a5\u53e3\u8fd4\u56de\u7ed3\u6784\u5316\u5206\u6790\u7ed3\u679c\u3002"
+        }
       </p>
 
       <form
@@ -91,9 +101,9 @@ export default function ChatWorkspace({
       >
         <label
           htmlFor="chat-question"
-          style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}
+          style={{ display: "block", marginBottom: 8, fontWeight: 600 }}
         >
-          输入你的问题
+          {"\u8f93\u5165\u4f60\u7684\u95ee\u9898"}
         </label>
         <textarea
           id="chat-question"
@@ -103,53 +113,83 @@ export default function ChatWorkspace({
           }}
           rows={5}
           style={{
-            width: '100%',
-            resize: 'vertical',
+            width: "100%",
+            resize: "vertical",
             borderRadius: 18,
-            border: '1px solid var(--line)',
+            border: "1px solid var(--line)",
             padding: 14,
-            background: 'rgba(255, 255, 255, 0.82)',
-            font: 'inherit',
+            background: "rgba(255, 255, 255, 0.82)",
+            font: "inherit",
             lineHeight: 1.7,
           }}
         />
         <div className="link-row">
           <button type="submit" className="cta" disabled={isSubmitting}>
-            {isSubmitting ? '发送中...' : '发送问题'}
+            {isSubmitting
+              ? "\u53d1\u9001\u4e2d..."
+              : "\u53d1\u9001\u95ee\u9898"}
           </button>
         </div>
       </form>
 
       <section className="panel" style={{ marginTop: 20 }}>
-        <h2 className="panel-title">分析结果</h2>
+        <h2 className="panel-title">{"\u5206\u6790\u7ed3\u679c"}</h2>
         {error ? <p>{error}</p> : null}
-        {!error && !content ? <p>提交问题后，这里会显示分析结论和追问建议。</p> : null}
+        {!error && !content ? (
+          <p>
+            {
+              "\u63d0\u4ea4\u95ee\u9898\u540e\uff0c\u8fd9\u91cc\u4f1a\u663e\u793a\u5206\u6790\u7ed3\u8bba\u548c\u8ffd\u95ee\u5efa\u8bae\u3002"
+            }
+          </p>
+        ) : null}
         {content ? (
           <div className="feature-list">
             <div>
-              <strong>{content.rendered_reply ?? content.summary ?? '已收到分析结果'}</strong>
+              <strong>
+                {content.rendered_reply ??
+                  content.summary ??
+                  "\u5df2\u6536\u5230\u5206\u6790\u7ed3\u679c"}
+              </strong>
             </div>
-            {content.analysis ? <p style={{ margin: '8px 0 0' }}>{content.analysis}</p> : null}
+            {content.analysis ? (
+              <p style={{ margin: "8px 0 0" }}>{content.analysis}</p>
+            ) : null}
             {content.risk_flags?.length ? (
               <section>
-                <h3 style={{ margin: '16px 0 8px' }}>风险提醒</h3>
-                <div className="meta">
-                  {content.risk_flags.map((riskFlag) => (
-                    <span key={riskFlag}>{riskFlag}</span>
-                  ))}
+                <h3 style={{ margin: "16px 0 8px" }}>
+                  {"\u98ce\u9669\u63d0\u9192"}
+                </h3>
+                <div className="catalog-list">
+                  {content.risk_flags.map((riskFlag) => {
+                    const riskCopy = getChatRiskFlagCopy(riskFlag);
+
+                    return (
+                      <article key={riskFlag} className="catalog-card">
+                        <strong>{riskCopy.title}</strong>
+                        <p>{riskCopy.description}</p>
+                        {isUnknownChatRiskFlag(riskFlag) ? (
+                          <div className="meta">
+                            <span>{riskCopy.rawKey}</span>
+                          </div>
+                        ) : null}
+                      </article>
+                    );
+                  })}
                 </div>
               </section>
             ) : null}
             {content.suggestions?.length ? (
               <section>
-                <h3 style={{ margin: '16px 0 8px' }}>推荐内容</h3>
+                <h3 style={{ margin: "16px 0 8px" }}>
+                  {"\u63a8\u8350\u5185\u5bb9"}
+                </h3>
                 <div className="catalog-list">
                   {content.suggestions.map((suggestion) => {
                     const href = resolveSuggestionHref(suggestion);
 
                     return (
                       <article
-                        key={`${suggestion.type ?? 'suggestion'}-${suggestion.title}`}
+                        key={`${suggestion.type ?? "suggestion"}-${suggestion.title}`}
                         className="catalog-card"
                       >
                         {href ? (
@@ -160,9 +200,9 @@ export default function ChatWorkspace({
                           <strong>{suggestion.title}</strong>
                         )}
                         {suggestion.reason ? <p>{suggestion.reason}</p> : null}
-                        {typeof suggestion.confidence === 'number' ? (
+                        {typeof suggestion.confidence === "number" ? (
                           <div className="meta">
-                            <span>{`置信度 ${(suggestion.confidence * 100).toFixed(0)}%`}</span>
+                            <span>{`\u7f6e\u4fe1\u5ea6 ${(suggestion.confidence * 100).toFixed(0)}%`}</span>
                           </div>
                         ) : null}
                       </article>
@@ -172,7 +212,7 @@ export default function ChatWorkspace({
               </section>
             ) : null}
             {content.follow_up_questions?.length ? (
-              <ul style={{ margin: '12px 0 0', paddingLeft: 20 }}>
+              <ul style={{ margin: "12px 0 0", paddingLeft: 20 }}>
                 {content.follow_up_questions.map((question) => (
                   <li key={question}>{question}</li>
                 ))}
@@ -180,11 +220,13 @@ export default function ChatWorkspace({
             ) : null}
             {content.actions?.length ? (
               <section>
-                <h3 style={{ margin: '16px 0 8px' }}>下一步动作</h3>
+                <h3 style={{ margin: "16px 0 8px" }}>
+                  {"\u4e0b\u4e00\u6b65\u52a8\u4f5c"}
+                </h3>
                 <div className="link-row">
                   {content.actions.map((action) => (
                     <Link
-                      key={`${action.type ?? 'action'}-${action.label}`}
+                      key={`${action.type ?? "action"}-${action.label}`}
                       href={action.target}
                       className="cta secondary"
                     >
