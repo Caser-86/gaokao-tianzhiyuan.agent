@@ -13,6 +13,12 @@ class Settings(BaseSettings):
     environment: str = "development"
     admin_token: str = DEFAULT_ADMIN_TOKEN
     database_url: str = "sqlite:///./gaokao-agent.db"
+    llm_provider: str = ""
+    llm_base_url: str = ""
+    llm_api_key: str = ""
+    llm_model: str = ""
+    llm_timeout_seconds: int = 30
+    zhangxuefeng_skill_path: str = ""
 
     @model_validator(mode="after")
     def validate_admin_token(self) -> "Settings":
