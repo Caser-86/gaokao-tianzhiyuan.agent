@@ -6,7 +6,11 @@ SAFE_DEFAULT_ADMIN_TOKEN_ENVIRONMENTS = {"development", "test"}
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="GAOKAO_AGENT_")
+    model_config = SettingsConfigDict(
+        env_prefix="GAOKAO_AGENT_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+    )
 
     app_name: str = "gaokao-agent-api"
     api_prefix: str = "/api"
