@@ -110,7 +110,19 @@ Fallback reasons exposed in `debug.notes` include:
 
 ## Startup Order
 
-### 1. Start the API
+### 1. Preferred one-command startup
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/start-local-stack.ps1
+```
+
+Optional:
+
+- add `-RunSmoke` to run the existing live smoke checks right after startup
+- logs are written to `.tmp/`
+- the script prints `Stop-Process` commands for the spawned API and Web processes
+
+### 2. Manual API startup
 
 ```powershell
 cd apps/api
@@ -124,7 +136,7 @@ Invoke-RestMethod http://127.0.0.1:8000/health
 Invoke-RestMethod http://127.0.0.1:8000/api/chat/health
 ```
 
-### 2. Start the Web app
+### 3. Manual Web startup
 
 ```powershell
 cd apps/web

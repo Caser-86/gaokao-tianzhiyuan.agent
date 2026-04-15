@@ -122,6 +122,20 @@ git clone https://github.com/alchaincyf/zhangxuefeng-skill.git vendor/zhangxuefe
 powershell -ExecutionPolicy Bypass -File scripts/verify-project.ps1
 ```
 
+### Start local stack
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/start-local-stack.ps1
+```
+
+Run startup plus live smoke in one command:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/start-local-stack.ps1 -RunSmoke
+```
+
+Logs are written to `.tmp/`.
+
 ### Live smoke
 
 After the API and Web services are already running:
