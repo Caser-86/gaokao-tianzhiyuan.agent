@@ -111,3 +111,23 @@ When smart analysis is blocked by policy, the API still returns a normal fallbac
 
 - `smart_analysis_disabled_globally`
 - `smart_analysis_entitlement_required`
+
+### Admin-managed smart analysis
+
+Smart-analysis policy now has two layers:
+
+- a global runtime mode stored in SQLite
+- a per-user `smart_analysis` entitlement stored in SQLite
+
+Bootstrap behavior:
+
+- if no runtime DB row exists yet, the API falls back to `GAOKAO_AGENT_SMART_ANALYSIS_MODE`
+
+Admin operations:
+
+- `GET /api/admin/smart-analysis/settings`
+- `PUT /api/admin/smart-analysis/settings`
+- `GET /api/admin/smart-analysis/users/{user_id}`
+- `PUT /api/admin/smart-analysis/users/{user_id}`
+
+During the transition period, request `metadata.entitlements` is still accepted, but persisted DB state is preferred when available.

@@ -1,5 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
-import { beforeEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 const {
   listReviewQueueMock,
@@ -9,6 +9,8 @@ const {
   listContentSummariesMock,
   listContentSectionsMock,
   listRelatedContentMock,
+  listSmartAnalysisSettingsMock,
+  getSmartAnalysisUserMock,
 } = vi.hoisted(() => ({
   listReviewQueueMock: vi.fn(),
   listFeaturedContentMock: vi.fn(),
@@ -17,6 +19,8 @@ const {
   listContentSummariesMock: vi.fn(),
   listContentSectionsMock: vi.fn(),
   listRelatedContentMock: vi.fn(),
+  listSmartAnalysisSettingsMock: vi.fn(),
+  getSmartAnalysisUserMock: vi.fn(),
 }));
 
 vi.mock('../lib/admin-review-api', () => ({
@@ -44,6 +48,11 @@ vi.mock('../lib/admin-related-content-api', () => ({
   listRelatedContent: listRelatedContentMock,
 }));
 
+vi.mock('../lib/admin-smart-analysis-api', () => ({
+  getSmartAnalysisSettings: listSmartAnalysisSettingsMock,
+  getSmartAnalysisUser: getSmartAnalysisUserMock,
+}));
+
 vi.mock('../app/(admin)/admin/actions', () => ({
   approveReviewQueueAction: async () => undefined,
   rejectReviewQueueAction: async () => undefined,
@@ -60,11 +69,15 @@ vi.mock('../app/(admin)/admin/actions', () => ({
   updateMajorRankingReferencesAction: async () => undefined,
   updateSchoolRotationAction: async () => undefined,
   updateMajorRotationAction: async () => undefined,
+  updateSmartAnalysisModeAction: async () => undefined,
+  updateSmartAnalysisUserAction: async () => undefined,
 }));
 
 import AdminPage from '../app/(admin)/admin/page';
 
 beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-04-14T12:00:00Z'));
   listReviewQueueMock.mockReset();
   listFeaturedContentMock.mockReset();
   suggestFeaturedSchoolImageMock.mockReset();
@@ -72,6 +85,8 @@ beforeEach(() => {
   listContentSummariesMock.mockReset();
   listContentSectionsMock.mockReset();
   listRelatedContentMock.mockReset();
+  listSmartAnalysisSettingsMock.mockReset();
+  getSmartAnalysisUserMock.mockReset();
   listRankingReferencesMock.mockResolvedValue({
     schools: [],
     majors: [],
@@ -88,6 +103,13 @@ beforeEach(() => {
     schools: [],
     majors: [],
   });
+  listSmartAnalysisSettingsMock.mockResolvedValue({
+    mode: 'off',
+  });
+  getSmartAnalysisUserMock.mockResolvedValue({
+    userId: '',
+    entitlements: [],
+  });
   suggestFeaturedSchoolImageMock.mockResolvedValue({
     slug: 'southeast-university',
     name: '东南大学',
@@ -96,6 +118,57 @@ beforeEach(() => {
     suggestedImageUrl: 'https://www.seu.edu.cn/assets/hero.jpg',
     message: null,
   });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+test('renders smart analysis admin controls from admin api clients', async () => {
+  listReviewQueueMock.mockResolvedValue([]);
+  listFeaturedContentMock.mockResolvedValue({
+    schools: [],
+    majors: [],
+    rotation: {
+      schools: {
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      },
+      majors: {
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      },
+    },
+    preview: {
+      today: { schools: [], majors: [] },
+      next: { schools: [], majors: [] },
+      schedule: [],
+      selectedDate: null,
+      selectedDateError: null,
+    },
+  });
+  listSmartAnalysisSettingsMock.mockResolvedValue({ mode: 'gated' });
+  getSmartAnalysisUserMock.mockResolvedValue({
+    userId: 'wx-openid-123',
+    entitlements: [{ name: 'smart_analysis', enabled: true }],
+  });
+
+  render(
+    await AdminPage({
+      searchParams: Promise.resolve({
+        smart_analysis_user_id: 'wx-openid-123',
+      }),
+    }),
+  );
+
+  expect(screen.getByRole('heading', { name: '智能分析权限运营' })).toBeInTheDocument();
+  expect(screen.getByDisplayValue('gated')).toBeInTheDocument();
+  expect(screen.getByLabelText('用户 ID')).toHaveValue('wx-openid-123');
+  expect(screen.getByText('当前已开通智能分析')).toBeInTheDocument();
 });
 
 test('renders queue items, date preview shortcuts, and schedule highlight returned by the admin api client', async () => {
@@ -442,6 +515,10 @@ test('preserves suggested school image context across admin preview links', asyn
   expect(screen.getByRole('link', { name: '查看全部日期' })).toHaveAttribute(
     'href',
     '/admin?preview_date=2026-04-20&suggested_school_image_slug=southeast-university',
+  );
+  expect(screen.getByRole('link', { name: '清除候选图' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-20&scheduled_gap_days=1',
   );
 });
 

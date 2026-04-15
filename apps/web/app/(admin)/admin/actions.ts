@@ -31,6 +31,11 @@ import {
   approveReviewQueueItem,
   rejectReviewQueueItem,
 } from '../../../lib/admin-review-api';
+import {
+  type AdminSmartAnalysisMode,
+  updateSmartAnalysisSettings,
+  updateSmartAnalysisUser,
+} from '../../../lib/admin-smart-analysis-api';
 
 const parseQueueId = (rawValue: FormDataEntryValue | null): number => {
   const value = typeof rawValue === 'string' ? Number.parseInt(rawValue, 10) : Number.NaN;
@@ -68,6 +73,33 @@ const parseRequiredSummary = (rawValue: FormDataEntryValue | null): string => {
     throw new Error('summary is required');
   }
   return summary;
+};
+
+const parseSmartAnalysisMode = (rawValue: FormDataEntryValue | null): AdminSmartAnalysisMode => {
+  const mode = String(rawValue ?? '').trim();
+  if (mode === 'off' || mode === 'gated' || mode === 'on') {
+    return mode;
+  }
+  throw new Error('smart analysis mode is invalid');
+};
+
+const parseRequiredUserId = (rawValue: FormDataEntryValue | null): string => {
+  const userId = String(rawValue ?? '').trim();
+  if (!userId) {
+    throw new Error('userId is required');
+  }
+  return userId;
+};
+
+const parseBooleanFlag = (rawValue: FormDataEntryValue | null, fieldName: string): boolean => {
+  const value = String(rawValue ?? '').trim().toLowerCase();
+  if (value === 'true') {
+    return true;
+  }
+  if (value === 'false') {
+    return false;
+  }
+  throw new Error(`${fieldName} must be true or false`);
 };
 
 const parseSlugLines = (rawValue: FormDataEntryValue | null): string[] =>
@@ -188,6 +220,29 @@ export async function updateFeaturedMajorAction(formData: FormData): Promise<voi
     await updateFeaturedMajor(slug, isFeatured);
     revalidatePath('/admin');
     revalidatePath('/');
+  } catch {
+    return;
+  }
+}
+
+export async function updateSmartAnalysisModeAction(formData: FormData): Promise<void> {
+  try {
+    const mode = parseSmartAnalysisMode(formData.get('mode'));
+
+    await updateSmartAnalysisSettings(mode);
+    revalidatePath('/admin');
+  } catch {
+    return;
+  }
+}
+
+export async function updateSmartAnalysisUserAction(formData: FormData): Promise<void> {
+  try {
+    const userId = parseRequiredUserId(formData.get('userId'));
+    const enabled = parseBooleanFlag(formData.get('enabled'), 'enabled');
+
+    await updateSmartAnalysisUser(userId, enabled);
+    revalidatePath('/admin');
   } catch {
     return;
   }

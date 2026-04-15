@@ -30,6 +30,11 @@ import {
 } from '../../../lib/admin-ranking-reference-api';
 import { listReviewQueue } from '../../../lib/admin-review-api';
 import {
+  type AdminSmartAnalysisMode,
+  getSmartAnalysisSettings,
+  getSmartAnalysisUser,
+} from '../../../lib/admin-smart-analysis-api';
+import {
   approveReviewQueueAction,
   rejectReviewQueueAction,
   updateFeaturedMajorAction,
@@ -41,6 +46,8 @@ import {
   updateMajorRotationAction,
   updateSchoolRelatedContentAction,
   updateSchoolSectionsAction,
+  updateSmartAnalysisModeAction,
+  updateSmartAnalysisUserAction,
   updateSchoolSummaryAction,
   updateSchoolRankingReferencesAction,
   updateSchoolRotationAction,
@@ -76,6 +83,7 @@ type AdminPageProps = {
     scheduled_missing_school_sections?: string;
     scheduled_missing_major_sections?: string;
     scheduled_gap_days?: string;
+    smart_analysis_user_id?: string;
   }>;
 };
 
@@ -293,12 +301,20 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     resolvedSearchParams?.scheduled_missing_major_sections?.trim() === '1';
   const showScheduledGapDaysOnly =
     resolvedSearchParams?.scheduled_gap_days?.trim() === '1';
+  const smartAnalysisUserId = resolvedSearchParams?.smart_analysis_user_id?.trim() || undefined;
   const buildAdminHref = (
     options: Omit<Parameters<typeof buildAdminHrefBase>[0], 'suggestedSchoolImageSlug'>,
   ): string =>
     buildAdminHrefBase({
       ...options,
       suggestedSchoolImageSlug,
+    });
+  const buildAdminHrefWithoutSuggestion = (
+    options: Omit<Parameters<typeof buildAdminHrefBase>[0], 'suggestedSchoolImageSlug'>,
+  ): string =>
+    buildAdminHrefBase({
+      ...options,
+      suggestedSchoolImageSlug: undefined,
     });
 
   const rankingSchoolFilterState =
@@ -826,6 +842,30 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           showScheduledMissingMajorRelatedOnly: scheduledRelatedMajorFilterState,
         })
       : undefined;
+  const clearSuggestedSchoolImageHref = suggestedSchoolImageSlug
+    ? buildAdminHrefWithoutSuggestion({
+        previewDate,
+        showMissingImageSchoolsOnly,
+        showScheduledMissingImageSchoolsOnly,
+        showMissingSchoolRankingsOnly: rankingSchoolFilterState,
+        showMissingMajorRankingsOnly: rankingMajorFilterState,
+        showScheduledMissingSchoolRankingsOnly: scheduledRankingSchoolFilterState,
+        showScheduledMissingMajorRankingsOnly: scheduledRankingMajorFilterState,
+        showMissingSchoolRelatedOnly: relatedSchoolFilterState,
+        showMissingMajorRelatedOnly: relatedMajorFilterState,
+        showScheduledMissingSchoolRelatedOnly: scheduledRelatedSchoolFilterState,
+        showScheduledMissingMajorRelatedOnly: scheduledRelatedMajorFilterState,
+        showMissingSchoolSummariesOnly: summarySchoolFilterState,
+        showMissingMajorSummariesOnly: summaryMajorFilterState,
+        showScheduledMissingSchoolSummariesOnly: scheduledSummarySchoolFilterState,
+        showScheduledMissingMajorSummariesOnly: scheduledSummaryMajorFilterState,
+        showMissingSchoolSectionsOnly: sectionSchoolFilterState,
+        showMissingMajorSectionsOnly: sectionMajorFilterState,
+        showScheduledMissingSchoolSectionsOnly: scheduledSectionSchoolFilterState,
+        showScheduledMissingMajorSectionsOnly: scheduledSectionMajorFilterState,
+        showScheduledGapDaysOnly,
+      })
+    : undefined;
 
   let queueItems: AdminReviewItem[] = [];
   let queueError: string | undefined;
@@ -854,6 +894,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   let schoolImageSuggestions: Record<string, AdminFeaturedSchoolImageSuggestion> = {};
   let schoolRotation = defaultRotationRule();
   let majorRotation = defaultRotationRule();
+  let smartAnalysisMode: AdminSmartAnalysisMode = 'off';
+  let smartAnalysisUserEnabled = false;
 
   try {
     queueItems = await listReviewQueue();
@@ -931,6 +973,24 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     relatedContentError = '相关推荐加载失败，请稍后重试';
   }
 
+  try {
+    const settings = await getSmartAnalysisSettings();
+    smartAnalysisMode = settings.mode;
+  } catch {
+    smartAnalysisMode = 'off';
+  }
+
+  if (smartAnalysisUserId) {
+    try {
+      const user = await getSmartAnalysisUser(smartAnalysisUserId);
+      smartAnalysisUserEnabled = user.entitlements.some(
+        (entitlement) => entitlement.name === 'smart_analysis' && entitlement.enabled,
+      );
+    } catch {
+      smartAnalysisUserEnabled = false;
+    }
+  }
+
   const suggestSchoolImageHrefBySlug = Object.fromEntries(
     featuredSchools.map((school) => [
       school.slug,
@@ -973,6 +1033,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       nextFeaturedSchoolPreview={nextFeaturedSchoolPreview}
       nextFeaturedMajorPreview={nextFeaturedMajorPreview}
       featuredSchedule={featuredSchedule}
+      smartAnalysisMode={smartAnalysisMode}
+      smartAnalysisUserId={smartAnalysisUserId}
+      smartAnalysisUserEnabled={smartAnalysisUserEnabled}
       rankingReferenceSchools={rankingReferenceSchools}
       rankingReferenceMajors={rankingReferenceMajors}
       summarySchools={summarySchools}
@@ -1003,6 +1066,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       selectedDateError={selectedDateError}
       schoolImageSuggestions={schoolImageSuggestions}
       suggestSchoolImageHrefBySlug={suggestSchoolImageHrefBySlug}
+      clearSuggestedSchoolImageHref={clearSuggestedSchoolImageHref}
       todayPreviewDateHref={todayPreviewDateHref}
       previousPreviewDateHref={previousPreviewDateHref}
       nextPreviewDateHref={nextPreviewDateHref}
@@ -1053,6 +1117,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       updateMajorRelatedContentAction={updateMajorRelatedContentAction}
       updateSchoolRankingReferencesAction={updateSchoolRankingReferencesAction}
       updateMajorRankingReferencesAction={updateMajorRankingReferencesAction}
+      updateSmartAnalysisModeAction={updateSmartAnalysisModeAction}
+      updateSmartAnalysisUserAction={updateSmartAnalysisUserAction}
       updateSchoolRotationAction={updateSchoolRotationAction}
       updateMajorRotationAction={updateMajorRotationAction}
     />

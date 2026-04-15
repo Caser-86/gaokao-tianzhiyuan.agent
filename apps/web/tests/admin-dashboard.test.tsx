@@ -241,6 +241,42 @@ test('renders admin dashboard heading, missing-image shortcuts, and schedule hig
   ).toBeInTheDocument();
 });
 
+test('renders smart analysis ops panel with mode and per-user controls', () => {
+  render(
+    <DashboardShell
+      title="内容运营后台"
+      queueItems={[]}
+      featuredSchools={[]}
+      featuredMajors={[]}
+      schoolRotation={schoolRotation}
+      majorRotation={majorRotation}
+      featuredSchoolPreview={[]}
+      featuredMajorPreview={[]}
+      nextFeaturedSchoolPreview={[]}
+      nextFeaturedMajorPreview={[]}
+      featuredSchedule={[]}
+      selectedPreviewDateValue=""
+      selectedDatePreview={null}
+      smartAnalysisMode="gated"
+      smartAnalysisUserId="wx-openid-123"
+      smartAnalysisUserEnabled={true}
+      updateSmartAnalysisModeAction={async () => undefined}
+      updateSmartAnalysisUserAction={async () => undefined}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
+    />,
+  );
+
+  expect(screen.getByRole('heading', { name: '智能分析权限运营' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '保存智能分析模式' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '开通智能分析' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '关闭智能分析' })).toBeInTheDocument();
+});
+
 test('renders helper text and highlights today when no selected preview date is provided', () => {
   render(
     <DashboardShell
@@ -324,6 +360,7 @@ test('renders school image suggestion controls and success state', () => {
       suggestSchoolImageHrefBySlug={{
         'southeast-university': '/admin?suggested_school_image_slug=southeast-university',
       }}
+      clearSuggestedSchoolImageHref="/admin"
     />,
   );
 
@@ -334,6 +371,7 @@ test('renders school image suggestion controls and success state', () => {
     'https://www.seu.edu.cn/',
   );
   expect(screen.getByRole('button', { name: '使用该图片' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: '清除候选图' })).toHaveAttribute('href', '/admin');
 });
 
 test('renders manual fallback links when school image suggestion fails', () => {
@@ -1542,7 +1580,7 @@ test('adds a top-priority gap shortcut to scheduled preview cards', () => {
   ).toHaveAttribute('href', '/admin?preview_date=2026-04-15#school-ranking-reference-wuhan-university');
 });
 
-/* test.skip('renders scheduled gap summary, urgency labels, and per-day gap actions', () => {
+test('renders scheduled gap summary, urgency labels, and per-day gap actions', () => {
   render(
     <DashboardShell
       title="内容运营后台"
@@ -1626,14 +1664,14 @@ test('adds a top-priority gap shortcut to scheduled preview cards', () => {
   expect(thirdDayArticle).not.toBeNull();
   expect(within(firstDayArticle as HTMLElement).getByText('优先关注')).toBeInTheDocument();
   expect(
-    within(firstDayArticle as HTMLElement).getByRole('link', { name: /selected-date-gap-overview-heading$/ }),
+    within(firstDayArticle as HTMLElement).getByRole('link', { name: '处理该日缺口（2）' }),
   ).toHaveAttribute('href', '/admin?preview_date=2026-04-14#selected-date-gap-overview-heading');
   expect(within(secondDayArticle as HTMLElement).getByText('少量待补')).toBeInTheDocument();
   expect(
-    within(secondDayArticle as HTMLElement).getByRole('link', { name: /selected-date-gap-overview-heading$/ }),
+    within(secondDayArticle as HTMLElement).getByRole('link', { name: '处理该日缺口（1）' }),
   ).toHaveAttribute('href', '/admin?preview_date=2026-04-15#selected-date-gap-overview-heading');
   expect(within(thirdDayArticle as HTMLElement).getByText('内容已齐备')).toBeInTheDocument();
   expect(
-    within(thirdDayArticle as HTMLElement).queryByRole('link', { name: /selected-date-gap-overview-heading$/ }),
+    within(thirdDayArticle as HTMLElement).queryByRole('link', { name: /处理该日缺口/ }),
   ).not.toBeInTheDocument();
-}); */
+});

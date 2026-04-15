@@ -18,6 +18,8 @@ import type {
   AdminRotationRule,
 } from '../../lib/admin-featured-content-api';
 import type { AdminRankingReferenceEntity } from '../../lib/admin-ranking-reference-api';
+import type { AdminSmartAnalysisMode } from '../../lib/admin-smart-analysis-api';
+import SmartAnalysisOpsPanel from './smart-analysis-ops-panel';
 
 export type AdminReviewItem = {
   id: number;
@@ -45,6 +47,9 @@ type DashboardShellProps = {
   nextFeaturedSchoolPreview: AdminFeaturedPreviewItem[];
   nextFeaturedMajorPreview: AdminFeaturedPreviewItem[];
   featuredSchedule: AdminFeaturedPreviewDay[];
+  smartAnalysisMode?: AdminSmartAnalysisMode;
+  smartAnalysisUserId?: string;
+  smartAnalysisUserEnabled?: boolean;
   summarySchools?: AdminContentSummaryEntity[];
   summaryMajors?: AdminContentSummaryEntity[];
   showScheduledMissingSchoolSummariesOnly?: boolean;
@@ -75,6 +80,7 @@ type DashboardShellProps = {
   selectedDateError?: string;
   schoolImageSuggestions?: Record<string, AdminFeaturedSchoolImageSuggestion>;
   suggestSchoolImageHrefBySlug?: Record<string, string>;
+  clearSuggestedSchoolImageHref?: string;
   todayPreviewDateHref?: string;
   previousPreviewDateHref?: string;
   nextPreviewDateHref?: string;
@@ -125,6 +131,8 @@ type DashboardShellProps = {
   updateMajorRelatedContentAction?: (formData: FormData) => Promise<void>;
   updateSchoolRankingReferencesAction?: (formData: FormData) => Promise<void>;
   updateMajorRankingReferencesAction?: (formData: FormData) => Promise<void>;
+  updateSmartAnalysisModeAction?: (formData: FormData) => Promise<void>;
+  updateSmartAnalysisUserAction?: (formData: FormData) => Promise<void>;
   updateSchoolRotationAction: (formData: FormData) => Promise<void>;
   updateMajorRotationAction: (formData: FormData) => Promise<void>;
 };
@@ -339,6 +347,9 @@ export default function DashboardShell({
   nextFeaturedSchoolPreview,
   nextFeaturedMajorPreview,
   featuredSchedule,
+  smartAnalysisMode = 'off',
+  smartAnalysisUserId,
+  smartAnalysisUserEnabled = false,
   summarySchools = [],
   summaryMajors = [],
   showScheduledMissingSchoolSummariesOnly = false,
@@ -369,6 +380,7 @@ export default function DashboardShell({
   selectedDateError,
   schoolImageSuggestions = {},
   suggestSchoolImageHrefBySlug = {},
+  clearSuggestedSchoolImageHref,
   todayPreviewDateHref,
   previousPreviewDateHref,
   nextPreviewDateHref,
@@ -419,6 +431,8 @@ export default function DashboardShell({
   updateMajorRelatedContentAction = noopAction,
   updateSchoolRankingReferencesAction = noopAction,
   updateMajorRankingReferencesAction = noopAction,
+  updateSmartAnalysisModeAction = noopAction,
+  updateSmartAnalysisUserAction = noopAction,
   updateSchoolRotationAction,
   updateMajorRotationAction,
 }: DashboardShellProps) {
@@ -1562,6 +1576,14 @@ export default function DashboardShell({
         ))}
       </section>
 
+      <SmartAnalysisOpsPanel
+        mode={smartAnalysisMode}
+        userId={smartAnalysisUserId}
+        userEnabled={smartAnalysisUserEnabled}
+        updateModeAction={updateSmartAnalysisModeAction}
+        updateUserAction={updateSmartAnalysisUserAction}
+      />
+
       <section aria-labelledby="content-gap-overview-heading">
         <h2 id="content-gap-overview-heading">内容缺口总览</h2>
         {contentGapOverviewItems.length === 0 ? (
@@ -1772,6 +1794,9 @@ export default function DashboardShell({
                       />
                       <button type="submit">{'\u4f7f\u7528\u8be5\u56fe\u7247'}</button>
                     </form>
+                    {clearSuggestedSchoolImageHref ? (
+                      <a href={clearSuggestedSchoolImageHref}>{'\u6e05\u9664\u5019\u9009\u56fe'}</a>
+                    ) : null}
                   </div>
                 ) : null}
 
