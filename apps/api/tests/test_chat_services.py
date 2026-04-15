@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from app.services.chat import ConversationService
 from app.services.llm import ProviderRequestError
 from app.services.skills import (
     ChatRequestContext,
@@ -123,7 +124,7 @@ def test_zhangxuefeng_skill_falls_back_to_rule_based_response_on_provider_failur
 
     assert result.intent == "school_recommendation"
     assert result.summary == "用户在咨询江苏地区 985 冲刺建议"
-    assert result.debug_notes == ["skill_provider_unavailable"]
+    assert result.debug_notes == ["provider_request_failed"]
 
 
 def test_zhangxuefeng_skill_returns_low_confidence_for_irrelevant_message(
@@ -146,3 +147,95 @@ def test_zhangxuefeng_skill_returns_low_confidence_for_irrelevant_message(
         confidence=0.0,
         reason="no gaokao keyword matched",
     )
+
+
+def test_zhangxuefeng_skill_returns_policy_fallback_when_smart_analysis_disabled(
+    tmp_path,
+) -> None:
+    skill_file = tmp_path / "SKILL.md"
+    skill_file.write_text("张雪峰测试提示词", encoding="utf-8")
+    provider = FakeProvider('{"intent":"major_recommendation","summary":"不应被调用"}')
+    skill = ZhangXueFengSkill(
+        provider=provider,
+        skill_prompt_path=str(skill_file),
+    )
+
+    result = skill.invoke(
+        ChatRequestContext(
+            channel="wechat",
+            user_id="wx-openid-1",
+            message="河南560分想学金融，靠谱吗？",
+            metadata={
+                "smart_analysis_allowed": False,
+                "smart_analysis_reason": "smart_analysis_disabled_globally",
+            },
+        )
+    )
+
+    assert result.debug_notes == ["smart_analysis_disabled_globally"]
+    assert result.summary != "不应被调用"
+
+
+def test_conversation_service_requires_smart_analysis_entitlement_when_gated(
+    tmp_path,
+) -> None:
+    skill_file = tmp_path / "SKILL.md"
+    skill_file.write_text("张雪峰测试提示词", encoding="utf-8")
+    service = ConversationService(
+        registry=SkillRegistry(
+            [
+                ZhangXueFengSkill(
+                    provider=FakeProvider('{"intent":"major_recommendation","summary":"ok"}'),
+                    skill_prompt_path=str(skill_file),
+                )
+            ]
+        )
+    )
+
+    result = service.handle_message(
+        channel="wechat",
+        user_id="wx-openid-1",
+        message="河南560分想学金融，靠谱吗？",
+        metadata={
+            "smart_analysis_mode": "gated",
+            "entitlements": [],
+        },
+    )
+
+    assert result["matched_skill"]["skill_id"] == "zhangxuefeng"
+    assert result["debug"] == {
+        "used_fallback": True,
+        "notes": ["smart_analysis_entitlement_required"],
+    }
+
+
+def test_conversation_service_allows_smart_analysis_when_gated_and_entitled(
+    tmp_path,
+) -> None:
+    skill_file = tmp_path / "SKILL.md"
+    skill_file.write_text("张雪峰测试提示词", encoding="utf-8")
+    service = ConversationService(
+        registry=SkillRegistry(
+            [
+                ZhangXueFengSkill(
+                    provider=FakeProvider(
+                        '{"intent":"major_recommendation","summary":"建议避开金融","analysis":"真实智能分析","suggestions":[],"follow_up_questions":[],"actions":[],"risk_flags":[],"rendered_reply":"智能分析已开启"}'
+                    ),
+                    skill_prompt_path=str(skill_file),
+                )
+            ]
+        )
+    )
+
+    result = service.handle_message(
+        channel="wechat",
+        user_id="wx-openid-1",
+        message="河南560分想学金融，靠谱吗？",
+        metadata={
+            "smart_analysis_mode": "gated",
+            "entitlements": ["smart_analysis"],
+        },
+    )
+
+    assert result["output"]["content"]["analysis"] == "真实智能分析"
+    assert result["debug"] == {"used_fallback": False, "notes": []}

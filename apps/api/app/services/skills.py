@@ -144,6 +144,15 @@ class ZhangXueFengSkill:
         )
 
     def invoke(self, request: ChatRequestContext) -> SkillInvocationResult:
+        if request.metadata.get("smart_analysis_allowed") is False:
+            reason = str(
+                request.metadata.get(
+                    "smart_analysis_reason",
+                    "smart_analysis_disabled_globally",
+                )
+            )
+            return self._rule_based_fallback(request, debug_note=reason)
+
         if self.provider and self.skill_prompt_path:
             try:
                 prompt_asset = Path(self.skill_prompt_path).read_text(encoding="utf-8")
@@ -175,18 +184,30 @@ class ZhangXueFengSkill:
                 )
             except (FileNotFoundError, OSError):
                 return self._rule_based_fallback(request, debug_note="skill_prompt_missing")
-            except (
-                json.JSONDecodeError,
-                KeyError,
-                ProviderRequestError,
-                ProviderResponseFormatError,
-            ):
+            except json.JSONDecodeError:
                 return self._rule_based_fallback(
                     request,
-                    debug_note="skill_provider_unavailable",
+                    debug_note="provider_invalid_response",
+                )
+            except KeyError:
+                return self._rule_based_fallback(
+                    request,
+                    debug_note="provider_invalid_response",
+                )
+            except ProviderRequestError:
+                return self._rule_based_fallback(
+                    request,
+                    debug_note="provider_request_failed",
+                )
+            except ProviderResponseFormatError:
+                return self._rule_based_fallback(
+                    request,
+                    debug_note="provider_invalid_response",
                 )
 
-        return self._rule_based_fallback(request, debug_note="skill_provider_unavailable")
+        if not self.skill_prompt_path:
+            return self._rule_based_fallback(request, debug_note="skill_prompt_missing")
+        return self._rule_based_fallback(request, debug_note="provider_not_configured")
 
     def _rule_based_fallback(
         self,

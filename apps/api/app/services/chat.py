@@ -8,6 +8,7 @@ from .llm import OpenAICompatibleProvider, ProviderConfigurationError
 from .skills import ChatRequestContext, SkillRegistry, ZhangXueFengSkill
 
 ROUTING_THRESHOLD = 0.6
+SMART_ANALYSIS_ENTITLEMENT = "smart_analysis"
 
 
 class ChatSkillNotFoundError(LookupError):
@@ -16,6 +17,24 @@ class ChatSkillNotFoundError(LookupError):
 
 class ChatSkillUnavailableError(RuntimeError):
     pass
+
+
+def resolve_smart_analysis_decision(
+    metadata: dict[str, Any] | None,
+    *,
+    default_mode: str,
+) -> tuple[bool, str | None]:
+    metadata = metadata or {}
+    mode = str(metadata.get("smart_analysis_mode", default_mode)).strip().lower()
+    entitlements = metadata.get("entitlements", [])
+    if not isinstance(entitlements, list):
+        entitlements = []
+
+    if mode == "off":
+        return False, "smart_analysis_disabled_globally"
+    if mode == "gated" and SMART_ANALYSIS_ENTITLEMENT not in entitlements:
+        return False, "smart_analysis_entitlement_required"
+    return True, None
 
 
 def build_default_registry() -> SkillRegistry:
@@ -73,12 +92,20 @@ class ConversationService:
         skill_id: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        smart_analysis_allowed, smart_analysis_reason = resolve_smart_analysis_decision(
+            metadata,
+            default_mode=settings.smart_analysis_mode,
+        )
         request = ChatRequestContext(
             channel=channel,
             user_id=user_id,
             message=message.strip(),
             session_id=session_id,
-            metadata=metadata or {},
+            metadata={
+                **(metadata or {}),
+                "smart_analysis_allowed": smart_analysis_allowed,
+                "smart_analysis_reason": smart_analysis_reason,
+            },
         )
 
         if skill_id:
