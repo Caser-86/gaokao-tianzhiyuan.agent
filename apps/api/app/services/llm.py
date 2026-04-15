@@ -11,7 +11,9 @@ class ProviderConfigurationError(RuntimeError):
 
 
 class ProviderRequestError(RuntimeError):
-    pass
+    def __init__(self, message: str, *, reason: str = "request_failed") -> None:
+        super().__init__(message)
+        self.reason = reason
 
 
 class ProviderResponseFormatError(RuntimeError):
@@ -65,8 +67,25 @@ class OpenAICompatibleProvider:
                     json=payload,
                 )
             response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            reason = "request_failed"
+            try:
+                error_code = exc.response.json().get("code", "")
+            except ValueError:
+                error_code = ""
+
+            if isinstance(error_code, str) and error_code.upper() == "INSUFFICIENT_BALANCE":
+                reason = "insufficient_balance"
+
+            raise ProviderRequestError(
+                "openai-compatible provider request failed",
+                reason=reason,
+            ) from exc
         except httpx.HTTPError as exc:
-            raise ProviderRequestError("openai-compatible provider request failed") from exc
+            raise ProviderRequestError(
+                "openai-compatible provider request failed",
+                reason="request_failed",
+            ) from exc
 
         content = response.json().get("choices", [{}])[0].get("message", {}).get("content")
         if not isinstance(content, str) or not content.strip():

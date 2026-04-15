@@ -19,7 +19,7 @@ class StubResponse:
             raise httpx.HTTPStatusError(
                 "request failed",
                 request=httpx.Request("POST", "https://relay.example/v1/chat/completions"),
-                response=httpx.Response(self.status_code),
+                response=httpx.Response(self.status_code, json=self._payload),
             )
 
     def json(self) -> dict:
@@ -86,6 +86,30 @@ def test_openai_compatible_provider_raises_request_error_on_transport_failure(
 
     with pytest.raises(ProviderRequestError):
         provider.complete_text(messages=[LLMMessage(role="user", content="test")])
+
+
+def test_openai_compatible_provider_marks_insufficient_balance_errors(
+    monkeypatch,
+) -> None:
+    def fake_post(self, url: str, *, headers: dict, json: dict) -> StubResponse:
+        return StubResponse(
+            {"code": "INSUFFICIENT_BALANCE", "message": "Insufficient account balance"},
+            status_code=403,
+        )
+
+    monkeypatch.setattr(httpx.Client, "post", fake_post)
+
+    provider = OpenAICompatibleProvider(
+        base_url="https://relay.example",
+        api_key="secret-key",
+        model="gpt-4o-mini",
+        timeout_seconds=30,
+    )
+
+    with pytest.raises(ProviderRequestError) as exc_info:
+        provider.complete_text(messages=[LLMMessage(role="user", content="test")])
+
+    assert exc_info.value.reason == "insufficient_balance"
 
 
 def test_openai_compatible_provider_raises_format_error_for_missing_message_content(

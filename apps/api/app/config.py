@@ -1,8 +1,31 @@
+from pathlib import Path
+from typing import Sequence
+
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEFAULT_ADMIN_TOKEN = "dev-admin-token"
 SAFE_DEFAULT_ADMIN_TOKEN_ENVIRONMENTS = {"development", "test"}
+DEFAULT_ZHANGXUEFENG_SKILL_CANDIDATES = (
+    Path(__file__).resolve().parents[3] / "vendor" / "zhangxuefeng-skill" / "SKILL.md",
+    Path(__file__).resolve().parents[3] / ".tmp" / "zhangxuefeng-skill" / "SKILL.md",
+)
+
+
+def resolve_zhangxuefeng_skill_path(
+    configured_path: str,
+    *,
+    default_candidates: Sequence[Path] = DEFAULT_ZHANGXUEFENG_SKILL_CANDIDATES,
+) -> str:
+    normalized = configured_path.strip()
+    if normalized and Path(normalized).is_file():
+        return normalized
+
+    for candidate in default_candidates:
+        if candidate.is_file():
+            return str(candidate)
+
+    return normalized
 
 
 class Settings(BaseSettings):

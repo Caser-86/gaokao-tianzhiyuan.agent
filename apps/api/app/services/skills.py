@@ -194,10 +194,15 @@ class ZhangXueFengSkill:
                     request,
                     debug_note="provider_invalid_response",
                 )
-            except ProviderRequestError:
+            except ProviderRequestError as exc:
+                debug_note = (
+                    "provider_insufficient_balance"
+                    if exc.reason == "insufficient_balance"
+                    else "provider_request_failed"
+                )
                 return self._rule_based_fallback(
                     request,
-                    debug_note="provider_request_failed",
+                    debug_note=debug_note,
                 )
             except ProviderResponseFormatError:
                 return self._rule_based_fallback(

@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.config import Settings
+from app.config import Settings, resolve_zhangxuefeng_skill_path
 
 
 def test_default_admin_token_is_rejected_outside_safe_modes() -> None:
@@ -81,3 +81,39 @@ def test_smart_analysis_mode_rejects_unknown_values() -> None:
     with pytest.raises(ValidationError) as exc_info:
         Settings(smart_analysis_mode="partial")
     assert "smart_analysis_mode must be one of: off, gated, on" in str(exc_info.value)
+
+
+def test_resolve_zhangxuefeng_skill_path_prefers_existing_configured_path(
+    tmp_path,
+) -> None:
+    configured_skill = tmp_path / "configured" / "SKILL.md"
+    configured_skill.parent.mkdir(parents=True, exist_ok=True)
+    configured_skill.write_text("configured", encoding="utf-8")
+
+    fallback_skill = tmp_path / "vendor" / "zhangxuefeng-skill" / "SKILL.md"
+    fallback_skill.parent.mkdir(parents=True, exist_ok=True)
+    fallback_skill.write_text("fallback", encoding="utf-8")
+
+    assert (
+        resolve_zhangxuefeng_skill_path(
+            str(configured_skill),
+            default_candidates=(fallback_skill,),
+        )
+        == str(configured_skill)
+    )
+
+
+def test_resolve_zhangxuefeng_skill_path_falls_back_to_first_existing_candidate(
+    tmp_path,
+) -> None:
+    fallback_skill = tmp_path / "vendor" / "zhangxuefeng-skill" / "SKILL.md"
+    fallback_skill.parent.mkdir(parents=True, exist_ok=True)
+    fallback_skill.write_text("fallback", encoding="utf-8")
+
+    assert (
+        resolve_zhangxuefeng_skill_path(
+            str(tmp_path / "missing" / "SKILL.md"),
+            default_candidates=(fallback_skill,),
+        )
+        == str(fallback_skill)
+    )

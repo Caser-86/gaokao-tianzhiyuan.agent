@@ -65,6 +65,14 @@ class ExplodingProvider:
         raise ProviderRequestError("relay unavailable")
 
 
+class EmptyBalanceProvider:
+    def complete_text(self, *, messages: list) -> str:
+        raise ProviderRequestError(
+            "insufficient account balance",
+            reason="insufficient_balance",
+        )
+
+
 def build_chat_engine():
     return create_engine(
         "sqlite://",
@@ -142,6 +150,27 @@ def test_zhangxuefeng_skill_falls_back_to_rule_based_response_on_provider_failur
     assert result.intent == "school_recommendation"
     assert result.summary == "用户在咨询江苏地区 985 冲刺建议"
     assert result.debug_notes == ["provider_request_failed"]
+
+
+def test_zhangxuefeng_skill_marks_insufficient_balance_fallback(
+    tmp_path,
+) -> None:
+    skill_file = tmp_path / "SKILL.md"
+    skill_file.write_text("寮犻洩宄版祴璇曟彁绀鸿瘝", encoding="utf-8")
+    skill = ZhangXueFengSkill(
+        provider=EmptyBalanceProvider(),
+        skill_prompt_path=str(skill_file),
+    )
+
+    result = skill.invoke(
+        ChatRequestContext(
+            channel="wechat",
+            user_id="wx-openid-1",
+            message="甯垜鐪嬬湅姹熻嫃閫傚悎鍐插摢浜?85",
+        )
+    )
+
+    assert result.debug_notes == ["provider_insufficient_balance"]
 
 
 def test_zhangxuefeng_skill_returns_low_confidence_for_irrelevant_message(

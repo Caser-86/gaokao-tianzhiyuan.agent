@@ -23,7 +23,18 @@ Then fill in these fields with your real relay config:
 - `GAOKAO_AGENT_LLM_API_KEY=<your relay api key>`
 - `GAOKAO_AGENT_LLM_MODEL=<your model name>`
 - `GAOKAO_AGENT_SMART_ANALYSIS_MODE=off`
-- `GAOKAO_AGENT_ZHANGXUEFENG_SKILL_PATH=<absolute path to SKILL.md>`
+- `GAOKAO_AGENT_ZHANGXUEFENG_SKILL_PATH=<optional absolute path to SKILL.md>`
+
+If you want to use the local ZhangXueFeng skill repository, clone it into the workspace root first:
+
+```powershell
+git clone https://github.com/alchaincyf/zhangxuefeng-skill.git vendor/zhangxuefeng-skill
+```
+
+When `GAOKAO_AGENT_ZHANGXUEFENG_SKILL_PATH` is left blank, the API will automatically try these local paths:
+
+- `vendor/zhangxuefeng-skill/SKILL.md`
+- `.tmp/zhangxuefeng-skill/SKILL.md`
 
 Example:
 
@@ -33,7 +44,7 @@ GAOKAO_AGENT_LLM_BASE_URL=https://your-relay.example
 GAOKAO_AGENT_LLM_API_KEY=your-relay-api-key
 GAOKAO_AGENT_LLM_MODEL=gpt-4o-mini
 GAOKAO_AGENT_SMART_ANALYSIS_MODE=off
-GAOKAO_AGENT_ZHANGXUEFENG_SKILL_PATH=D:/skills/zhangxuefeng-skill/SKILL.md
+GAOKAO_AGENT_ZHANGXUEFENG_SKILL_PATH=
 ```
 
 ## Run the API
@@ -111,6 +122,13 @@ When smart analysis is blocked by policy, the API still returns a normal fallbac
 
 - `smart_analysis_disabled_globally`
 - `smart_analysis_entitlement_required`
+
+When the relay itself is unavailable, the API also distinguishes technical fallback reasons:
+
+- `provider_not_configured`
+- `provider_request_failed`
+- `provider_insufficient_balance`
+- `provider_invalid_response`
 
 ### Admin-managed smart analysis
 
