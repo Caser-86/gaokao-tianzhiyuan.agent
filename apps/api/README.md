@@ -22,6 +22,7 @@ Then fill in these fields with your real relay config:
 - `GAOKAO_AGENT_LLM_BASE_URL=<your relay base url>`
 - `GAOKAO_AGENT_LLM_API_KEY=<your relay api key>`
 - `GAOKAO_AGENT_LLM_MODEL=<your model name>`
+- `GAOKAO_AGENT_SMART_ANALYSIS_MODE=off`
 - `GAOKAO_AGENT_ZHANGXUEFENG_SKILL_PATH=<absolute path to SKILL.md>`
 
 Example:
@@ -31,6 +32,7 @@ GAOKAO_AGENT_LLM_PROVIDER=openai_compatible
 GAOKAO_AGENT_LLM_BASE_URL=https://your-relay.example
 GAOKAO_AGENT_LLM_API_KEY=your-relay-api-key
 GAOKAO_AGENT_LLM_MODEL=gpt-4o-mini
+GAOKAO_AGENT_SMART_ANALYSIS_MODE=off
 GAOKAO_AGENT_ZHANGXUEFENG_SKILL_PATH=D:/skills/zhangxuefeng-skill/SKILL.md
 ```
 
@@ -86,3 +88,26 @@ Invoke-RestMethod `
 - The API now reads `apps/api/.env` automatically on startup.
 - If relay config is missing or the model call fails, `zhangxuefeng` falls back to rule-based output instead of crashing the chat gateway.
 - The response stays structured JSON so the web app and WeChat adapter can render differently later.
+
+## Smart analysis access control
+
+Smart analysis can be controlled globally with `GAOKAO_AGENT_SMART_ANALYSIS_MODE`:
+
+- `off`: disable model-backed smart analysis for everyone.
+- `gated`: allow model-backed smart analysis only for callers with the `smart_analysis` entitlement.
+- `on`: allow model-backed smart analysis for everyone.
+
+During the current integration phase, callers can pass entitlements through request metadata:
+
+```json
+{
+  "metadata": {
+    "entitlements": ["smart_analysis"]
+  }
+}
+```
+
+When smart analysis is blocked by policy, the API still returns a normal fallback answer and exposes the reason in `debug.notes`:
+
+- `smart_analysis_disabled_globally`
+- `smart_analysis_entitlement_required`
