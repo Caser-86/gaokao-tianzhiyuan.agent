@@ -1,14 +1,21 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 from uuid import uuid4
 
 from ..config import settings
+from ..db import get_engine
+from sqlmodel import Session
+from .access_control import (
+    SMART_ANALYSIS_ENTITLEMENT,
+    get_effective_smart_analysis_mode,
+    get_user_entitlements,
+)
 from .llm import OpenAICompatibleProvider, ProviderConfigurationError
 from .skills import ChatRequestContext, SkillRegistry, ZhangXueFengSkill
 
 ROUTING_THRESHOLD = 0.6
-SMART_ANALYSIS_ENTITLEMENT = "smart_analysis"
 
 
 class ChatSkillNotFoundError(LookupError):
@@ -65,9 +72,11 @@ class ConversationService:
         self,
         registry: SkillRegistry | None = None,
         threshold: float = ROUTING_THRESHOLD,
+        session_factory: Callable[[], Session] | None = None,
     ) -> None:
         self.registry = registry or build_default_registry()
         self.threshold = threshold
+        self.session_factory = session_factory or (lambda: Session(get_engine()))
 
     def list_skills(self) -> list[dict[str, Any]]:
         return [
@@ -92,9 +101,26 @@ class ConversationService:
         skill_id: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        incoming_metadata = metadata or {}
+        with self.session_factory() as session:
+            persisted_mode = get_effective_smart_analysis_mode(
+                session,
+                default_mode=settings.smart_analysis_mode,
+            )
+            persisted_entitlements = get_user_entitlements(session, user_id)
+
+        metadata_entitlements = (
+            incoming_metadata.get("entitlements", [])
+            if isinstance(incoming_metadata.get("entitlements"), list)
+            else []
+        )
+        merged_metadata = {
+            **incoming_metadata,
+            "entitlements": sorted({*persisted_entitlements, *metadata_entitlements}),
+        }
         smart_analysis_allowed, smart_analysis_reason = resolve_smart_analysis_decision(
-            metadata,
-            default_mode=settings.smart_analysis_mode,
+            merged_metadata,
+            default_mode=persisted_mode,
         )
         request = ChatRequestContext(
             channel=channel,
@@ -102,7 +128,7 @@ class ConversationService:
             message=message.strip(),
             session_id=session_id,
             metadata={
-                **(metadata or {}),
+                **merged_metadata,
                 "smart_analysis_allowed": smart_analysis_allowed,
                 "smart_analysis_reason": smart_analysis_reason,
             },

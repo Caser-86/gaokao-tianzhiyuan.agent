@@ -1,5 +1,14 @@
 from dataclasses import dataclass
 
+from sqlalchemy.pool import StaticPool
+from sqlmodel import SQLModel, Session, create_engine
+
+from app.services.access_control import (
+    SMART_ANALYSIS_ENTITLEMENT,
+    set_smart_analysis_mode,
+    set_user_entitlement,
+)
+
 from app.services.chat import ConversationService
 from app.services.llm import ProviderRequestError
 from app.services.skills import (
@@ -54,6 +63,14 @@ class FakeProvider:
 class ExplodingProvider:
     def complete_text(self, *, messages: list) -> str:
         raise ProviderRequestError("relay unavailable")
+
+
+def build_chat_engine():
+    return create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
 
 
 def test_skill_registry_lists_enabled_skills_for_supported_channel(tmp_path) -> None:
@@ -238,4 +255,45 @@ def test_conversation_service_allows_smart_analysis_when_gated_and_entitled(
     )
 
     assert result["output"]["content"]["analysis"] == "真实智能分析"
+    assert result["debug"] == {"used_fallback": False, "notes": []}
+
+
+def test_conversation_service_uses_db_entitlement_when_mode_is_gated(
+    tmp_path,
+) -> None:
+    skill_file = tmp_path / "SKILL.md"
+    skill_file.write_text("寮犻洩宄版祴璇曟彁绀鸿瘝", encoding="utf-8")
+    engine = build_chat_engine()
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        set_smart_analysis_mode(session, "gated")
+        set_user_entitlement(
+            session,
+            user_id="wx-openid-db-1",
+            entitlement=SMART_ANALYSIS_ENTITLEMENT,
+            is_enabled=True,
+        )
+
+    service = ConversationService(
+        registry=SkillRegistry(
+            [
+                ZhangXueFengSkill(
+                    provider=FakeProvider(
+                        '{"intent":"major_recommendation","summary":"寤鸿閬垮紑閲戣瀺","analysis":"鏁版嵁搴撴潈鐩婂凡鐢熸晥","suggestions":[],"follow_up_questions":[],"actions":[],"risk_flags":[],"rendered_reply":"ok"}'
+                    ),
+                    skill_prompt_path=str(skill_file),
+                )
+            ]
+        ),
+        session_factory=lambda: Session(engine),
+    )
+
+    result = service.handle_message(
+        channel="wechat",
+        user_id="wx-openid-db-1",
+        message="娌冲崡560鍒嗘兂瀛﹂噾铻嶏紝闈犺氨鍚楋紵",
+    )
+
+    assert result["output"]["content"]["analysis"] == "鏁版嵁搴撴潈鐩婂凡鐢熸晥"
     assert result["debug"] == {"used_fallback": False, "notes": []}
