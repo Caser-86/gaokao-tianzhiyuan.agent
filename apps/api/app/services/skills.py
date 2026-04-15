@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
@@ -13,7 +14,7 @@ from .llm import (
 )
 
 GAOKAO_KEYWORDS = ("学校", "专业", "志愿", "985", "211", "双一流", "冲", "稳", "保", "对比")
-PROVINCES = ("北京", "上海", "江苏", "浙江", "广东", "四川", "湖北")
+PROVINCES = ("北京", "上海", "江苏", "浙江", "广东", "四川", "湖北", "河南")
 SCHOOL_TAGS = ("985", "211", "双一流")
 
 
@@ -124,6 +125,12 @@ class ZhangXueFengSkill:
 
     def match(self, request: ChatRequestContext) -> SkillMatchResult:
         matched_keywords = [keyword for keyword in GAOKAO_KEYWORDS if keyword in request.message]
+        if not matched_keywords and re.search(r"\d{3}分", request.message):
+            return SkillMatchResult(
+                matched=True,
+                confidence=0.7,
+                reason="matched score pattern",
+            )
         if not matched_keywords:
             return SkillMatchResult(
                 matched=False,

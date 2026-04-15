@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Any
 from uuid import uuid4
 
+from ..config import settings
+from .llm import OpenAICompatibleProvider, ProviderConfigurationError
 from .skills import ChatRequestContext, SkillRegistry, ZhangXueFengSkill
 
 ROUTING_THRESHOLD = 0.6
@@ -17,11 +19,34 @@ class ChatSkillUnavailableError(RuntimeError):
 
 
 def build_default_registry() -> SkillRegistry:
-    return SkillRegistry([ZhangXueFengSkill()])
+    provider = None
+    if settings.llm_provider == "openai_compatible":
+        try:
+            provider = OpenAICompatibleProvider(
+                base_url=settings.llm_base_url,
+                api_key=settings.llm_api_key,
+                model=settings.llm_model,
+                timeout_seconds=settings.llm_timeout_seconds,
+            )
+        except ProviderConfigurationError:
+            provider = None
+
+    return SkillRegistry(
+        [
+            ZhangXueFengSkill(
+                provider=provider,
+                skill_prompt_path=settings.zhangxuefeng_skill_path,
+            )
+        ]
+    )
 
 
 class ConversationService:
-    def __init__(self, registry: SkillRegistry | None = None, threshold: float = ROUTING_THRESHOLD) -> None:
+    def __init__(
+        self,
+        registry: SkillRegistry | None = None,
+        threshold: float = ROUTING_THRESHOLD,
+    ) -> None:
         self.registry = registry or build_default_registry()
         self.threshold = threshold
 
@@ -69,6 +94,7 @@ class ConversationService:
         if not metadata.enabled or request.channel not in metadata.supports_channels:
             raise ChatSkillUnavailableError(skill_id)
 
+        result = skill.invoke(request)
         return self._build_response(
             request=request,
             matched_skill={
@@ -77,8 +103,9 @@ class ConversationService:
                 "confidence": 1.0,
                 "reason": "direct skill invocation",
             },
-            content=skill.invoke(request).as_content(),
-            used_fallback=False,
+            content=result.as_content(),
+            used_fallback=bool(result.debug_notes),
+            debug_notes=result.debug_notes,
         )
 
     def _invoke_best_match(self, request: ChatRequestContext) -> dict[str, Any]:
@@ -94,9 +121,10 @@ class ConversationService:
                 best_match = current_match
 
         if best_skill is None or best_match is None or best_match.confidence < self.threshold:
-            return self._build_fallback_response(request)
+            return self._build_global_fallback_response(request)
 
         metadata = best_skill.describe()
+        result = best_skill.invoke(request)
         return self._build_response(
             request=request,
             matched_skill={
@@ -105,8 +133,9 @@ class ConversationService:
                 "confidence": best_match.confidence,
                 "reason": best_match.reason,
             },
-            content=best_skill.invoke(request).as_content(),
-            used_fallback=False,
+            content=result.as_content(),
+            used_fallback=bool(result.debug_notes),
+            debug_notes=result.debug_notes,
         )
 
     def _build_response(
@@ -116,6 +145,7 @@ class ConversationService:
         matched_skill: dict[str, Any],
         content: dict[str, Any],
         used_fallback: bool,
+        debug_notes: list[str],
     ) -> dict[str, Any]:
         return {
             "request_id": f"chat_{uuid4().hex[:8]}",
@@ -128,11 +158,11 @@ class ConversationService:
             },
             "debug": {
                 "used_fallback": used_fallback,
-                "notes": [],
+                "notes": debug_notes,
             },
         }
 
-    def _build_fallback_response(self, request: ChatRequestContext) -> dict[str, Any]:
+    def _build_global_fallback_response(self, request: ChatRequestContext) -> dict[str, Any]:
         return self._build_response(
             request=request,
             matched_skill={
@@ -145,9 +175,13 @@ class ConversationService:
                 "intent": "fallback",
                 "summary": "当前没有命中明确技能",
                 "entities": {},
+                "analysis": "当前使用全局回退，请补充学校、专业或志愿填报需求。",
                 "suggestions": [],
                 "follow_up_questions": ["你想查学校、专业，还是志愿填报建议？"],
                 "actions": [],
+                "risk_flags": [],
+                "rendered_reply": "你想查学校、专业，还是志愿填报建议？",
             },
             used_fallback=True,
+            debug_notes=[],
         )

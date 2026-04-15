@@ -11,6 +11,7 @@ from app.services.skills import (
     SkillMatchResult,
     SkillMetadata,
     SkillRegistry,
+    ZhangXueFengSkill,
 )
 
 client = TestClient(app)
@@ -36,10 +37,18 @@ class WebOnlySkill:
             intent="fallback",
             summary="web-only",
             entities={},
+            analysis="",
             suggestions=[],
             follow_up_questions=[],
             actions=[],
+            risk_flags=[],
+            rendered_reply="",
         )
+
+
+class FakeProvider:
+    def complete_text(self, *, messages: list) -> str:
+        return '{"intent":"major_recommendation","summary":"建议避开金融","entities":{"province":"河南","score":560},"analysis":"普通家庭优先看就业出口","suggestions":[{"type":"major","title":"计算机科学与技术","reason":"通用能力更强"}],"follow_up_questions":["孩子是理科还是文科？"],"actions":[],"risk_flags":["financial_industry_competition"],"rendered_reply":"我跟你说，普通家庭先别冲金融。"}'
 
 
 def test_chat_health_returns_ok() -> None:
@@ -58,69 +67,55 @@ def test_chat_skills_lists_registered_skills() -> None:
             {
                 "skill_id": "zhangxuefeng",
                 "name": "张雪峰",
-                "version": "v1",
+                "version": "v2",
                 "enabled": True,
                 "supports_channels": ["wechat", "web"],
-                "description": "高考志愿、学校专业咨询的首期占位 skill",
+                "description": "使用本地 SKILL.md 和模型中转的高考咨询 skill",
             }
         ]
     }
 
 
-def test_chat_messages_auto_matches_zhangxuefeng() -> None:
-    response = client.post(
-        "/api/chat/messages",
-        json={
-            "channel": "wechat",
-            "user_id": "wx-openid-123",
-            "message": "帮我看看江苏适合冲哪些985",
-        },
+def test_chat_messages_can_return_provider_backed_skill_output(tmp_path) -> None:
+    skill_file = tmp_path / "SKILL.md"
+    skill_file.write_text("张雪峰测试提示词", encoding="utf-8")
+    original_service = chat_router_module.conversation_service
+    chat_router_module.conversation_service = ConversationService(
+        registry=SkillRegistry(
+            [
+                ZhangXueFengSkill(
+                    provider=FakeProvider(),
+                    skill_prompt_path=str(skill_file),
+                )
+            ]
+        )
     )
+
+    try:
+        response = client.post(
+            "/api/chat/messages",
+            json={
+                "channel": "wechat",
+                "user_id": "wx-openid-123",
+                "message": "河南560分想学金融，靠谱吗？",
+            },
+        )
+    finally:
+        chat_router_module.conversation_service = original_service
 
     assert response.status_code == 200
     payload = response.json()
     assert payload["channel"] == "wechat"
     assert payload["user_id"] == "wx-openid-123"
-    assert payload["matched_skill"] == {
-        "skill_id": "zhangxuefeng",
-        "version": "v1",
-        "confidence": 0.92,
-        "reason": "matched keyword: 985 / 冲",
-    }
-    assert payload["output"] == {
-        "type": "structured_json",
-        "content": {
-            "intent": "school_recommendation",
-            "summary": "用户在咨询江苏地区 985 冲刺建议",
-            "entities": {
-                "province": "江苏",
-                "school_tags": ["985"],
-                "score": None,
-            },
-            "suggestions": [
-                {
-                    "type": "school",
-                    "title": "东南大学",
-                    "slug": "southeast-university",
-                    "reason": "属于 985，工科实力强，适合作为冲刺项",
-                    "confidence": 0.81,
-                }
-            ],
-            "follow_up_questions": [],
-            "actions": [
-                {
-                    "type": "open_school",
-                    "label": "查看学校详情",
-                    "target": "/schools/southeast-university",
-                }
-            ],
-        },
-    }
+    assert payload["matched_skill"]["skill_id"] == "zhangxuefeng"
+    assert payload["output"]["content"]["summary"] == "建议避开金融"
+    assert payload["output"]["content"]["analysis"] == "普通家庭优先看就业出口"
+    assert payload["output"]["content"]["rendered_reply"] == "我跟你说，普通家庭先别冲金融。"
     assert payload["debug"] == {"used_fallback": False, "notes": []}
     assert payload["request_id"].startswith("chat_")
 
 
-def test_chat_messages_returns_fallback_for_unmatched_message() -> None:
+def test_chat_messages_returns_global_fallback_for_unmatched_message() -> None:
     response = client.post(
         "/api/chat/messages",
         json={
@@ -141,9 +136,12 @@ def test_chat_messages_returns_fallback_for_unmatched_message() -> None:
         "intent": "fallback",
         "summary": "当前没有命中明确技能",
         "entities": {},
+        "analysis": "当前使用全局回退，请补充学校、专业或志愿填报需求。",
         "suggestions": [],
         "follow_up_questions": ["你想查学校、专业，还是志愿填报建议？"],
         "actions": [],
+        "risk_flags": [],
+        "rendered_reply": "你想查学校、专业，还是志愿填报建议？",
     }
     assert response.json()["debug"] == {"used_fallback": True, "notes": []}
 
@@ -175,7 +173,11 @@ def test_chat_skill_invoke_allows_direct_skill_call() -> None:
     assert response.status_code == 200
     assert response.json()["matched_skill"]["skill_id"] == "zhangxuefeng"
     assert response.json()["output"]["type"] == "structured_json"
-    assert response.json()["debug"] == {"used_fallback": False, "notes": []}
+    assert response.json()["output"]["content"]["analysis"] == "当前使用规则降级结果，建议补充省份、分数和专业意向。"
+    assert response.json()["debug"] == {
+        "used_fallback": True,
+        "notes": ["skill_provider_unavailable"],
+    }
 
 
 def test_chat_skill_invoke_returns_404_for_unknown_skill() -> None:
@@ -231,6 +233,10 @@ def test_wechat_chat_adapter_normalizes_payload_and_reuses_chat_flow() -> None:
     assert payload["user_id"] == "wx-adapter-1"
     assert payload["matched_skill"]["skill_id"] == "zhangxuefeng"
     assert payload["output"]["content"]["intent"] == "school_recommendation"
+    assert payload["debug"] == {
+        "used_fallback": True,
+        "notes": ["skill_provider_unavailable"],
+    }
 
 
 def test_wechat_chat_adapter_requires_openid_and_message() -> None:
