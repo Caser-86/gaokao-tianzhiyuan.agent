@@ -63,6 +63,7 @@ npm run dev
 Detailed operator checklist:
 
 - `docs/operations/local-handover-runbook.md`
+- `deploy/windows/README.md`
 
 ## 环境变量
 
@@ -135,6 +136,14 @@ powershell -ExecutionPolicy Bypass -File scripts/start-local-stack.ps1 -RunSmoke
 ```
 
 Logs are written to `.tmp/`.
+
+### Windows run template
+
+Windows-focused env examples and operator notes live in:
+
+```text
+deploy/windows/
+```
 
 ### Live smoke
 

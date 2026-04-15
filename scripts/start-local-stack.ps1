@@ -4,6 +4,7 @@ param(
   [int]$WebPort = 3000,
   [string]$AdminToken = 'dev-admin-token',
   [string]$DatabasePath = '',
+  [string]$StateFilePath = '',
   [switch]$RunSmoke,
   [switch]$DryRun
 )
@@ -25,6 +26,12 @@ else {
 }
 
 $resolvedDatabaseUrl = 'sqlite:///' + ($resolvedDatabasePath -replace '\\', '/')
+$resolvedStateFilePath = if ([string]::IsNullOrWhiteSpace($StateFilePath)) {
+  Join-Path $tmpDir 'start-local-stack.state.json'
+}
+else {
+  $StateFilePath
+}
 $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $apiOutLog = Join-Path $tmpDir "start-local-stack-api.$timestamp.out.log"
 $apiErrLog = Join-Path $tmpDir "start-local-stack-api.$timestamp.err.log"
@@ -138,6 +145,7 @@ Write-PlanLine -Label 'Repo root' -Value $repoRoot
 Write-PlanLine -Label 'API base URL' -Value $apiBaseUrl
 Write-PlanLine -Label 'Web base URL' -Value $webBaseUrl
 Write-PlanLine -Label 'Database URL' -Value $resolvedDatabaseUrl
+Write-PlanLine -Label 'State file' -Value $resolvedStateFilePath
 Write-PlanLine -Label 'API stdout log' -Value $apiOutLog
 Write-PlanLine -Label 'API stderr log' -Value $apiErrLog
 Write-PlanLine -Label 'Web stdout log' -Value $webOutLog
@@ -212,8 +220,32 @@ try {
   Write-Host 'Local stack started successfully.' -ForegroundColor Green
   $displayApiProcessId = Select-PreferredProcessId -ListenerProcessId $apiListenerProcessId -FallbackProcessId $apiProcess.Id
   $displayWebProcessId = Select-PreferredProcessId -ListenerProcessId $webListenerProcessId -FallbackProcessId $webProcess.Id
+  $stateDirectory = Split-Path -Parent $resolvedStateFilePath
+  if (-not [string]::IsNullOrWhiteSpace($stateDirectory)) {
+    New-Item -ItemType Directory -Force -Path $stateDirectory | Out-Null
+  }
+
+  @{
+    bind_host = $BindHost
+    api_port = $ApiPort
+    web_port = $WebPort
+    api_base_url = $apiBaseUrl
+    web_base_url = $webBaseUrl
+    admin_token = $AdminToken
+    database_path = $resolvedDatabasePath
+    database_url = $resolvedDatabaseUrl
+    api_pid = $displayApiProcessId
+    web_pid = $displayWebProcessId
+    api_stdout_log = $apiOutLog
+    api_stderr_log = $apiErrLog
+    web_stdout_log = $webOutLog
+    web_stderr_log = $webErrLog
+    started_at = (Get-Date).ToString('o')
+  } | ConvertTo-Json -Depth 4 | Set-Content -Path $resolvedStateFilePath
+
   Write-PlanLine -Label 'API PID' -Value $displayApiProcessId.ToString()
   Write-PlanLine -Label 'Web PID' -Value $displayWebProcessId.ToString()
+  Write-PlanLine -Label 'State file' -Value $resolvedStateFilePath
   Write-PlanLine -Label 'Web homepage' -Value $webBaseUrl
   Write-PlanLine -Label 'Web chat' -Value "$webBaseUrl/chat"
   Write-PlanLine -Label 'Web admin' -Value "$webBaseUrl/admin"
@@ -235,5 +267,6 @@ catch {
   if ($apiListenerProcessId) {
     Stop-Process -Id $apiListenerProcessId -Force -ErrorAction SilentlyContinue
   }
+  Remove-Item -LiteralPath $resolvedStateFilePath -Force -ErrorAction SilentlyContinue
   throw
 }

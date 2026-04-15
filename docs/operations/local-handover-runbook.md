@@ -13,6 +13,7 @@ The current workspace includes:
 - `apps/web`: Next.js frontend for public pages, `/chat`, and `/admin`.
 - `vendor/zhangxuefeng-skill` or `.tmp/zhangxuefeng-skill`: optional local skill
   checkout for the ZhangXueFeng integration.
+- `deploy/windows`: Windows 11 operator templates and env examples
 
 ## Prerequisites
 
@@ -121,6 +122,21 @@ Optional:
 - add `-RunSmoke` to run the existing live smoke checks right after startup
 - logs are written to `.tmp/`
 - the script prints `Stop-Process` commands for the spawned API and Web processes
+- startup state is written to `.tmp/start-local-stack.state.json`
+
+### Windows operator templates
+
+Windows-specific env examples and operator notes:
+
+```text
+deploy/windows/
+```
+
+Stop the running stack with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/stop-local-stack.ps1
+```
 
 ### 2. Manual API startup
 
