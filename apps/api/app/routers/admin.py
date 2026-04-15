@@ -6,6 +6,13 @@ from sqlmodel import SQLModel, Session, select
 from ..config import settings
 from ..db import get_session
 from ..models.ingestion import ReviewQueue
+from ..services.access_control import (
+    SMART_ANALYSIS_ENTITLEMENT,
+    get_effective_smart_analysis_mode,
+    get_user_entitlements,
+    set_smart_analysis_mode,
+    set_user_entitlement,
+)
 from ..services import featured_content as featured_content_service
 from ..services.featured_content import (
     build_featured_content_preview,
@@ -233,6 +240,28 @@ class RelatedMajorUpdateRequest(SQLModel):
     related_schools: list[str]
 
 
+class SmartAnalysisSettingsResponse(SQLModel):
+    mode: str
+
+
+class SmartAnalysisSettingsRequest(SQLModel):
+    mode: str
+
+
+class UserEntitlementStatusResponse(SQLModel):
+    name: str
+    enabled: bool
+
+
+class SmartAnalysisUserEntitlementsResponse(SQLModel):
+    user_id: str
+    entitlements: list[UserEntitlementStatusResponse]
+
+
+class SmartAnalysisUserEntitlementsRequest(SQLModel):
+    smart_analysis_enabled: bool
+
+
 def serialize_review_queue_item(item: ReviewQueue) -> ReviewQueueItemResponse:
     created_at = item.created_at
     if created_at.tzinfo is None:
@@ -287,6 +316,20 @@ def require_admin(x_admin_token: str | None = Header(default=None)) -> None:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="admin authentication required",
         )
+
+
+def build_smart_analysis_user_response(
+    *,
+    user_id: str,
+    entitlements: list[str],
+) -> SmartAnalysisUserEntitlementsResponse:
+    return SmartAnalysisUserEntitlementsResponse(
+        user_id=user_id,
+        entitlements=[
+            UserEntitlementStatusResponse(name=name, enabled=True)
+            for name in entitlements
+        ],
+    )
 
 
 def normalize_ranking_references(
@@ -385,6 +428,82 @@ def list_review_queue(
     items = session.exec(stmt).all()
     return ReviewQueueListResponse(
         items=[serialize_review_queue_item(item) for item in items]
+    )
+
+
+@router.get("/smart-analysis/settings", response_model=SmartAnalysisSettingsResponse)
+def get_smart_analysis_settings(
+    _authorized: None = Depends(require_admin),
+    session: Session = Depends(get_session),
+) -> SmartAnalysisSettingsResponse:
+    return SmartAnalysisSettingsResponse(
+        mode=get_effective_smart_analysis_mode(
+            session,
+            default_mode=settings.smart_analysis_mode,
+        )
+    )
+
+
+@router.put("/smart-analysis/settings", response_model=SmartAnalysisSettingsResponse)
+def update_smart_analysis_settings(
+    payload: SmartAnalysisSettingsRequest,
+    _authorized: None = Depends(require_admin),
+    session: Session = Depends(get_session),
+) -> SmartAnalysisSettingsResponse:
+    try:
+        mode = set_smart_analysis_mode(session, payload.mode)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+
+    return SmartAnalysisSettingsResponse(mode=mode)
+
+
+@router.get(
+    "/smart-analysis/users/{user_id}",
+    response_model=SmartAnalysisUserEntitlementsResponse,
+)
+def get_smart_analysis_user_entitlements(
+    user_id: str,
+    _authorized: None = Depends(require_admin),
+    session: Session = Depends(get_session),
+) -> SmartAnalysisUserEntitlementsResponse:
+    entitlements = get_user_entitlements(session, user_id)
+    return build_smart_analysis_user_response(
+        user_id=user_id,
+        entitlements=entitlements,
+    )
+
+
+@router.put(
+    "/smart-analysis/users/{user_id}",
+    response_model=SmartAnalysisUserEntitlementsResponse,
+)
+def update_smart_analysis_user_entitlements(
+    user_id: str,
+    payload: SmartAnalysisUserEntitlementsRequest,
+    _authorized: None = Depends(require_admin),
+    session: Session = Depends(get_session),
+) -> SmartAnalysisUserEntitlementsResponse:
+    try:
+        set_user_entitlement(
+            session,
+            user_id=user_id,
+            entitlement=SMART_ANALYSIS_ENTITLEMENT,
+            is_enabled=payload.smart_analysis_enabled,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+
+    entitlements = get_user_entitlements(session, user_id)
+    return build_smart_analysis_user_response(
+        user_id=user_id,
+        entitlements=entitlements,
     )
 
 

@@ -696,3 +696,56 @@ def test_review_action_requires_admin_header(admin_client) -> None:
 
     assert response.status_code == 401
     assert response.json() == {"detail": "admin authentication required"}
+
+
+def test_smart_analysis_settings_endpoint_returns_bootstrap_default(admin_client) -> None:
+    client, _engine = admin_client
+
+    response = client.get(
+        "/api/admin/smart-analysis/settings",
+        headers={"x-admin-token": settings.admin_token},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"mode": settings.smart_analysis_mode}
+
+
+def test_update_smart_analysis_settings_persists_mode(admin_client) -> None:
+    client, _engine = admin_client
+
+    response = client.put(
+        "/api/admin/smart-analysis/settings",
+        headers={"x-admin-token": settings.admin_token},
+        json={"mode": "gated"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"mode": "gated"}
+
+
+def test_smart_analysis_user_entitlement_can_be_granted_and_revoked(admin_client) -> None:
+    client, _engine = admin_client
+
+    grant_response = client.put(
+        "/api/admin/smart-analysis/users/wx-openid-123",
+        headers={"x-admin-token": settings.admin_token},
+        json={"smart_analysis_enabled": True},
+    )
+
+    assert grant_response.status_code == 200
+    assert grant_response.json() == {
+        "user_id": "wx-openid-123",
+        "entitlements": [{"name": "smart_analysis", "enabled": True}],
+    }
+
+    revoke_response = client.put(
+        "/api/admin/smart-analysis/users/wx-openid-123",
+        headers={"x-admin-token": settings.admin_token},
+        json={"smart_analysis_enabled": False},
+    )
+
+    assert revoke_response.status_code == 200
+    assert revoke_response.json() == {
+        "user_id": "wx-openid-123",
+        "entitlements": [],
+    }
