@@ -1,4 +1,4 @@
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEFAULT_ADMIN_TOKEN = "dev-admin-token"
@@ -23,6 +23,15 @@ class Settings(BaseSettings):
     llm_model: str = ""
     llm_timeout_seconds: int = 30
     zhangxuefeng_skill_path: str = ""
+    smart_analysis_mode: str = "off"
+
+    @field_validator("smart_analysis_mode")
+    @classmethod
+    def validate_smart_analysis_mode(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if normalized not in {"off", "gated", "on"}:
+            raise ValueError("smart_analysis_mode must be one of: off, gated, on")
+        return normalized
 
     @model_validator(mode="after")
     def validate_admin_token(self) -> "Settings":

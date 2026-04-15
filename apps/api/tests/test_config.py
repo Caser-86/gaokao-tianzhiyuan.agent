@@ -69,3 +69,15 @@ def test_settings_automatically_load_default_dotenv(monkeypatch, tmp_path) -> No
     assert settings.llm_base_url == "https://relay.default"
     assert settings.llm_api_key == "dotenv-key"
     assert settings.llm_model == "gpt-4.1-mini"
+
+
+def test_smart_analysis_mode_accepts_supported_values() -> None:
+    assert Settings(smart_analysis_mode="off").smart_analysis_mode == "off"
+    assert Settings(smart_analysis_mode="gated").smart_analysis_mode == "gated"
+    assert Settings(smart_analysis_mode="on").smart_analysis_mode == "on"
+
+
+def test_smart_analysis_mode_rejects_unknown_values() -> None:
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(smart_analysis_mode="partial")
+    assert "smart_analysis_mode must be one of: off, gated, on" in str(exc_info.value)

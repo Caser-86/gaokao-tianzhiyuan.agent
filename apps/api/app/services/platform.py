@@ -22,6 +22,7 @@ PRODUCTS = [
             "school_deep_dive_access",
             "major_deep_dive_access",
             "region_compare_access",
+            "smart_analysis",
         ],
     },
 ]
