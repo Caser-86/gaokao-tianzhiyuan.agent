@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from app.services.llm import ProviderRequestError
 from app.services.skills import (
     ChatRequestContext,
     SkillInvocationResult,
@@ -30,14 +31,39 @@ class DisabledSkill:
             intent="fallback",
             summary="disabled",
             entities={},
+            analysis="",
             suggestions=[],
             follow_up_questions=[],
             actions=[],
+            risk_flags=[],
+            rendered_reply="",
         )
 
 
-def test_skill_registry_lists_enabled_skills_for_supported_channel() -> None:
-    registry = SkillRegistry([ZhangXueFengSkill(), DisabledSkill()])
+class FakeProvider:
+    def __init__(self, content: str) -> None:
+        self.content = content
+        self.messages: list = []
+
+    def complete_text(self, *, messages: list) -> str:
+        self.messages = messages
+        return self.content
+
+
+class ExplodingProvider:
+    def complete_text(self, *, messages: list) -> str:
+        raise ProviderRequestError("relay unavailable")
+
+
+def test_skill_registry_lists_enabled_skills_for_supported_channel(tmp_path) -> None:
+    skill_file = tmp_path / "SKILL.md"
+    skill_file.write_text("张雪峰测试提示词", encoding="utf-8")
+    registry = SkillRegistry(
+        [
+            ZhangXueFengSkill(skill_prompt_path=str(skill_file)),
+            DisabledSkill(),
+        ]
+    )
 
     listed = registry.list_skills()
     enabled_for_wechat = registry.enabled_for_channel("wechat")
@@ -48,54 +74,72 @@ def test_skill_registry_lists_enabled_skills_for_supported_channel() -> None:
     assert [item.describe().skill_id for item in enabled_for_web] == ["zhangxuefeng"]
 
 
-def test_zhangxuefeng_skill_matches_and_returns_structured_school_recommendation() -> None:
-    skill = ZhangXueFengSkill()
+def test_zhangxuefeng_skill_uses_provider_and_normalizes_json(tmp_path) -> None:
+    skill_file = tmp_path / "SKILL.md"
+    skill_file.write_text("张雪峰测试提示词", encoding="utf-8")
+    provider = FakeProvider(
+        '{"intent":"major_recommendation","summary":"建议避开金融","analysis":"普通家庭先看就业中位数","suggestions":[{"type":"major","title":"计算机科学与技术","reason":"可迁移能力更强"}],"follow_up_questions":["河南理科还是文科？"],"actions":[],"risk_flags":["financial_industry_competition"],"rendered_reply":"我跟你说，普通家庭别先冲金融。"}'
+    )
+    skill = ZhangXueFengSkill(
+        provider=provider,
+        skill_prompt_path=str(skill_file),
+    )
+
     request = ChatRequestContext(
         channel="wechat",
         user_id="wx-openid-1",
-        message="帮我看看江苏适合冲哪些985",
+        message="河南560分想学金融，靠谱吗？",
     )
 
-    match = skill.match(request)
     result = skill.invoke(request)
 
-    assert match.matched is True
-    assert match.confidence >= 0.6
-    assert "985" in match.reason
-    assert result.intent == "school_recommendation"
-    assert result.summary == "用户在咨询江苏地区 985 冲刺建议"
-    assert result.entities == {
-        "province": "江苏",
-        "school_tags": ["985"],
-        "score": None,
-    }
-    assert result.suggestions == [
-        {
-            "type": "school",
-            "title": "东南大学",
-            "slug": "southeast-university",
-            "reason": "属于 985，工科实力强，适合作为冲刺项",
-            "confidence": 0.81,
-        }
-    ]
-    assert result.actions == [
-        {
-            "type": "open_school",
-            "label": "查看学校详情",
-            "target": "/schools/southeast-university",
-        }
-    ]
+    assert result.intent == "major_recommendation"
+    assert result.summary == "建议避开金融"
+    assert result.analysis == "普通家庭先看就业中位数"
+    assert result.risk_flags == ["financial_industry_competition"]
+    assert result.rendered_reply == "我跟你说，普通家庭别先冲金融。"
+    assert provider.messages[0].role == "system"
+    assert "张雪峰测试提示词" in provider.messages[0].content
+    assert "Return valid JSON only" in provider.messages[0].content
 
 
-def test_zhangxuefeng_skill_returns_low_confidence_for_irrelevant_message() -> None:
-    skill = ZhangXueFengSkill()
-    request = ChatRequestContext(
-        channel="wechat",
-        user_id="wx-openid-2",
-        message="今天天气怎么样",
+def test_zhangxuefeng_skill_falls_back_to_rule_based_response_on_provider_failure(
+    tmp_path,
+) -> None:
+    skill_file = tmp_path / "SKILL.md"
+    skill_file.write_text("张雪峰测试提示词", encoding="utf-8")
+    skill = ZhangXueFengSkill(
+        provider=ExplodingProvider(),
+        skill_prompt_path=str(skill_file),
     )
 
-    match = skill.match(request)
+    result = skill.invoke(
+        ChatRequestContext(
+            channel="wechat",
+            user_id="wx-openid-1",
+            message="帮我看看江苏适合冲哪些985",
+        )
+    )
+
+    assert result.intent == "school_recommendation"
+    assert result.summary == "用户在咨询江苏地区 985 冲刺建议"
+    assert result.debug_notes == ["skill_provider_unavailable"]
+
+
+def test_zhangxuefeng_skill_returns_low_confidence_for_irrelevant_message(
+    tmp_path,
+) -> None:
+    skill_file = tmp_path / "SKILL.md"
+    skill_file.write_text("张雪峰测试提示词", encoding="utf-8")
+    skill = ZhangXueFengSkill(skill_prompt_path=str(skill_file))
+
+    match = skill.match(
+        ChatRequestContext(
+            channel="wechat",
+            user_id="wx-openid-2",
+            message="今天天气怎么样",
+        )
+    )
 
     assert match == SkillMatchResult(
         matched=False,
