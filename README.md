@@ -60,6 +60,10 @@ npm run dev
 - Admin: `http://127.0.0.1:3000/admin`
 - Chat: `http://127.0.0.1:3000/chat`
 
+Detailed operator checklist:
+
+- `docs/operations/local-handover-runbook.md`
+
 ## 环境变量
 
 ### API
