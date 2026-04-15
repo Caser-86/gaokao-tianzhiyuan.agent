@@ -1,0 +1,18 @@
+[Unit]
+Description=Gaokao Agent API
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/srv/gaokao-agent/apps/api
+EnvironmentFile=/etc/gaokao-agent/api.env
+ExecStart=/usr/bin/python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -64,6 +64,7 @@ Detailed operator checklist:
 
 - `docs/operations/local-handover-runbook.md`
 - `deploy/windows/README.md`
+- `deploy/linux/README.md`
 
 ## 环境变量
 
@@ -143,6 +144,14 @@ Windows-focused env examples and operator notes live in:
 
 ```text
 deploy/windows/
+```
+
+### Linux deployment template
+
+Linux `systemd + nginx` templates and operator notes live in:
+
+```text
+deploy/linux/
 ```
 
 ### Live smoke

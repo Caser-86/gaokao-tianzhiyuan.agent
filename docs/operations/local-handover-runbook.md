@@ -14,6 +14,7 @@ The current workspace includes:
 - `vendor/zhangxuefeng-skill` or `.tmp/zhangxuefeng-skill`: optional local skill
   checkout for the ZhangXueFeng integration.
 - `deploy/windows`: Windows 11 operator templates and env examples
+- `deploy/linux`: Linux deployment templates for `systemd` and `nginx`
 
 ## Prerequisites
 
@@ -131,6 +132,21 @@ Windows-specific env examples and operator notes:
 ```text
 deploy/windows/
 ```
+
+### Linux operator templates
+
+Linux deployment templates and operator notes:
+
+```text
+deploy/linux/
+```
+
+This includes:
+
+- production-style API and Web env examples
+- `systemd` unit templates
+- an `nginx` site config template
+- a Linux deployment readme
 
 Stop the running stack with:
 
