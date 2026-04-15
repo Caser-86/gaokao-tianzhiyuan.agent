@@ -32,13 +32,18 @@ def list_products() -> dict[str, list[dict[str, Any]]]:
     return {"items": PRODUCTS}
 
 
-def evaluate_entitlements(product_slugs: list[str]) -> dict[str, list[str]]:
+def evaluate_entitlements(
+    product_slugs: list[str],
+    *,
+    persisted_entitlements: list[str] | None = None,
+) -> dict[str, list[str]]:
     entitlement_set = {
         entitlement
         for product in PRODUCTS
         if product["slug"] in product_slugs
         for entitlement in product["entitlements"]
     }
+    entitlement_set.update(persisted_entitlements or [])
 
     return {
         "product_slugs": product_slugs,

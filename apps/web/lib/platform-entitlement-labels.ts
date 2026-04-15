@@ -41,6 +41,11 @@ const ENTITLEMENT_COPY: Record<string, Omit<PlatformEntitlementCopy, 'rawKey'>> 
     description:
       '\u5bf9\u6bd4\u4e0d\u540c\u5730\u533a\u7684\u9662\u6821\u673a\u4f1a\u3001\u5f55\u53d6\u96be\u5ea6\u548c\u9009\u62e9\u7a7a\u95f4\u3002',
   },
+  smart_analysis: {
+    title: '\u667a\u80fd\u5206\u6790',
+    description:
+      '\u83b7\u5f97\u66f4\u6df1\u5165\u7684\u5fd7\u613f\u5206\u6790\u3001\u62e9\u6821\u5efa\u8bae\u548c\u5bf9\u8bdd\u5f0f\u89e3\u8bfb\u3002',
+  },
 };
 
 export function getPlatformEntitlementCopy(key: string): PlatformEntitlementCopy {

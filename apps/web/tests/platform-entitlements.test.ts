@@ -43,3 +43,33 @@ test('evaluatePlatformEntitlements posts selected products to the entitlement AP
   );
   expect(payload.entitlements).toEqual(['major_basic_access', 'school_basic_access']);
 });
+
+test('evaluatePlatformEntitlements includes user context when provided', async () => {
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      product_slugs: ['deep-dive-pack'],
+      entitlements: ['smart_analysis'],
+    }),
+  });
+
+  await evaluatePlatformEntitlements(
+    ['deep-dive-pack'],
+    'https://api.gaokao.test',
+    'wx-openid-123',
+  );
+
+  expect(fetchMock).toHaveBeenCalledWith(
+    'https://api.gaokao.test/api/platform/entitlements/evaluate',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        product_slugs: ['deep-dive-pack'],
+        user_id: 'wx-openid-123',
+      }),
+    },
+  );
+});

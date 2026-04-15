@@ -37,6 +37,7 @@ const renderShelf = () =>
   render(
     <PlatformHomepageShelf
       apiBaseUrl="https://api.gaokao.test"
+      userId="wx-openid-123"
       products={homepageProducts}
     />,
   );
@@ -74,6 +75,27 @@ test('renders user-facing entitlement titles in product card metadata', () => {
     within(firstCard).getByText('\u9662\u6821\u57fa\u7840\u4fe1\u606f\u67e5\u770b'),
   ).toBeInTheDocument();
   expect(within(firstCard).queryByText('school_basic_access')).not.toBeInTheDocument();
+});
+
+test('renders smart analysis as user-facing copy in product metadata', () => {
+  render(
+    <PlatformHomepageShelf
+      apiBaseUrl="https://api.gaokao.test"
+      products={[
+        {
+          slug: 'deep-dive-pack',
+          name: '深度报告包',
+          description: '深度能力组合。',
+          entitlements: ['smart_analysis'],
+        },
+      ]}
+    />,
+  );
+
+  const onlyCard = screen.getAllByRole('article')[0];
+
+  expect(within(onlyCard).getByText('智能分析')).toBeInTheDocument();
+  expect(within(onlyCard).queryByText('smart_analysis')).not.toBeInTheDocument();
 });
 
 test('keeps raw keys visible for unknown product entitlements', () => {
@@ -128,6 +150,7 @@ test('selecting products renders merged entitlements from the API', async () => 
     expect(evaluatePlatformEntitlementsMock).toHaveBeenLastCalledWith(
       ['insight-weekly', 'deep-dive-pack'],
       'https://api.gaokao.test',
+      'wx-openid-123',
     );
   });
 
@@ -199,6 +222,7 @@ test('shows a local error when entitlement evaluation fails', async () => {
     expect(evaluatePlatformEntitlementsMock).toHaveBeenCalledWith(
       ['insight-weekly'],
       'https://api.gaokao.test',
+      'wx-openid-123',
     );
   });
 

@@ -12,6 +12,7 @@ const getPlatformApiUrl = (apiBaseUrl?: string): string =>
 export async function evaluatePlatformEntitlements(
   productSlugs: string[],
   apiBaseUrl?: string,
+  userId?: string,
 ): Promise<PlatformEntitlementsPayload> {
   const response = await fetch(
     `${getPlatformApiUrl(apiBaseUrl)}/api/platform/entitlements/evaluate`,
@@ -22,6 +23,7 @@ export async function evaluatePlatformEntitlements(
       },
       body: JSON.stringify({
         product_slugs: productSlugs,
+        user_id: userId,
       }),
     },
   );

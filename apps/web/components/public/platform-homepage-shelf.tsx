@@ -12,6 +12,7 @@ import { trackPlatformEvent } from '../../lib/platform-events';
 
 type PlatformHomepageShelfProps = {
   apiBaseUrl: string;
+  userId?: string;
   products: PlatformProduct[];
 };
 
@@ -23,6 +24,7 @@ type EntitlementState =
 
 export default function PlatformHomepageShelf({
   apiBaseUrl,
+  userId,
   products,
 }: PlatformHomepageShelfProps) {
   const [selectedProductSlugs, setSelectedProductSlugs] = useState<string[]>([]);
@@ -44,7 +46,7 @@ export default function PlatformHomepageShelf({
       entitlements: current.entitlements,
     }));
 
-    void evaluatePlatformEntitlements(selectedProductSlugs, apiBaseUrl)
+    void evaluatePlatformEntitlements(selectedProductSlugs, apiBaseUrl, userId)
       .then((payload) => {
         if (cancelled) {
           return;
@@ -69,7 +71,7 @@ export default function PlatformHomepageShelf({
     return () => {
       cancelled = true;
     };
-  }, [apiBaseUrl, selectedProductSlugs]);
+  }, [apiBaseUrl, selectedProductSlugs, userId]);
 
   const toggleProduct = (productSlug: string) => {
     setSelectedProductSlugs((current) =>

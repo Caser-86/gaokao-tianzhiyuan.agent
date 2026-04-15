@@ -8,9 +8,17 @@ import { getSearchEntry, listMajors, listSchools } from '../lib/public-content-a
 
 const getApiBaseUrl = () => process.env.GAOKAO_AGENT_API_URL ?? 'http://127.0.0.1:8000';
 
-export default async function HomePage() {
+type HomePageProps = {
+  searchParams?: Promise<{
+    user_id?: string;
+  }>;
+};
+
+export default async function HomePage({ searchParams }: HomePageProps = {}) {
   try {
     const apiBaseUrl = getApiBaseUrl();
+    const resolvedSearchParams = searchParams ? await searchParams : undefined;
+    const userId = resolvedSearchParams?.user_id?.trim() || undefined;
     const [searchEntry, schoolPayload, majorPayload] = await Promise.all([
       getSearchEntry(),
       listSchools(),
@@ -95,7 +103,11 @@ export default async function HomePage() {
         </section>
 
         {productPayload ? (
-          <PlatformHomepageShelf apiBaseUrl={apiBaseUrl} products={productPayload.items} />
+          <PlatformHomepageShelf
+            apiBaseUrl={apiBaseUrl}
+            userId={userId}
+            products={productPayload.items}
+          />
         ) : (
           <PlatformUnavailablePanel />
         )}
