@@ -1,5 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
-import { beforeEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 const {
   listReviewQueueMock,
@@ -56,12 +56,16 @@ vi.mock('../app/(admin)/admin/actions', () => ({
   updateMajorRotationAction: async () => undefined,
   updateSchoolRankingReferencesAction: async () => undefined,
   updateMajorRankingReferencesAction: async () => undefined,
+  updateSmartAnalysisModeAction: async () => undefined,
+  updateSmartAnalysisUserAction: async () => undefined,
 }));
 
 import AdminPage from '../app/(admin)/admin/page';
 import DashboardShell from '../components/admin/dashboard-shell';
 
 beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-04-14T12:00:00Z'));
   listReviewQueueMock.mockReset();
   listFeaturedContentMock.mockReset();
   listRankingReferencesMock.mockReset();
@@ -80,6 +84,10 @@ beforeEach(() => {
     schools: [],
     majors: [],
   });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 test('renders school and major ranking reference admin sections', async () => {

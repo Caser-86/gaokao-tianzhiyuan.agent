@@ -1,5 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
-import { beforeEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 import DashboardShell from '../components/admin/dashboard-shell';
 
@@ -58,6 +58,8 @@ vi.mock('../app/(admin)/admin/actions', () => ({
   updateMajorRankingReferencesAction: async () => undefined,
   updateSchoolRotationAction: async () => undefined,
   updateMajorRotationAction: async () => undefined,
+  updateSmartAnalysisModeAction: async () => undefined,
+  updateSmartAnalysisUserAction: async () => undefined,
 }));
 
 import AdminPage from '../app/(admin)/admin/page';
@@ -77,6 +79,8 @@ const majorRotation = {
 };
 
 beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-04-14T12:00:00Z'));
   listReviewQueueMock.mockReset();
   listFeaturedContentMock.mockReset();
   listRankingReferencesMock.mockReset();
@@ -99,6 +103,10 @@ beforeEach(() => {
     schools: [],
     majors: [],
   });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 test('filters the featured school configuration down to missing-image schools only', () => {

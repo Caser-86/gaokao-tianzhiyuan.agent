@@ -58,6 +58,8 @@ vi.mock('../app/(admin)/admin/actions', () => ({
   updateMajorRankingReferencesAction: async () => undefined,
   updateSchoolRotationAction: async () => undefined,
   updateMajorRotationAction: async () => undefined,
+  updateSmartAnalysisModeAction: async () => undefined,
+  updateSmartAnalysisUserAction: async () => undefined,
 }));
 
 import AdminPage from '../app/(admin)/admin/page';
