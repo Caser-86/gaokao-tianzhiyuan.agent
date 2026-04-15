@@ -38,6 +38,7 @@ beforeEach(() => {
             target: '/schools/southeast-university',
           },
         ],
+        risk_flags: ['financial_industry_competition'],
       },
     },
   });
@@ -87,6 +88,20 @@ test('renders suggestion cards and action links from the chat response', async (
     'href',
     '/schools/southeast-university',
   );
+});
+
+test('renders risk flags as visible warning badges', async () => {
+  render(
+    <ChatWorkspace
+      apiBaseUrl="https://api.gaokao.test"
+      userId="wx-openid-123"
+      initialPrompt="查学校"
+    />,
+  );
+
+  await waitFor(() => {
+    expect(screen.getByText('financial_industry_competition')).toBeInTheDocument();
+  });
 });
 
 test('allows manually sending a question when there is no initial prompt', async () => {

@@ -130,6 +130,16 @@ export default function ChatWorkspace({
               <strong>{content.rendered_reply ?? content.summary ?? '已收到分析结果'}</strong>
             </div>
             {content.analysis ? <p style={{ margin: '8px 0 0' }}>{content.analysis}</p> : null}
+            {content.risk_flags?.length ? (
+              <section>
+                <h3 style={{ margin: '16px 0 8px' }}>风险提醒</h3>
+                <div className="meta">
+                  {content.risk_flags.map((riskFlag) => (
+                    <span key={riskFlag}>{riskFlag}</span>
+                  ))}
+                </div>
+              </section>
+            ) : null}
             {content.suggestions?.length ? (
               <section>
                 <h3 style={{ margin: '16px 0 8px' }}>推荐内容</h3>

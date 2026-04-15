@@ -13,6 +13,7 @@ export type ChatMessageResponse = {
         label: string;
         target: string;
       }>;
+      risk_flags?: string[];
       summary?: string;
       analysis?: string;
       follow_up_questions?: string[];
