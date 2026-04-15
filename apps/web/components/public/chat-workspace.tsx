@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 
 import { type ChatMessageResponse, sendChatMessage } from '../../lib/chat-api';
@@ -8,6 +9,21 @@ type ChatWorkspaceProps = {
   apiBaseUrl: string;
   userId?: string;
   initialPrompt?: string;
+};
+
+const resolveSuggestionHref = (
+  suggestion: NonNullable<ChatMessageResponse['output']['content']['suggestions']>[number],
+) => {
+  if (!suggestion.slug) {
+    return null;
+  }
+  if (suggestion.type === 'school') {
+    return `/schools/${suggestion.slug}`;
+  }
+  if (suggestion.type === 'major') {
+    return `/majors/${suggestion.slug}`;
+  }
+  return null;
 };
 
 export default function ChatWorkspace({
@@ -114,12 +130,59 @@ export default function ChatWorkspace({
               <strong>{content.rendered_reply ?? content.summary ?? '已收到分析结果'}</strong>
             </div>
             {content.analysis ? <p style={{ margin: '8px 0 0' }}>{content.analysis}</p> : null}
+            {content.suggestions?.length ? (
+              <section>
+                <h3 style={{ margin: '16px 0 8px' }}>推荐内容</h3>
+                <div className="catalog-list">
+                  {content.suggestions.map((suggestion) => {
+                    const href = resolveSuggestionHref(suggestion);
+
+                    return (
+                      <article
+                        key={`${suggestion.type ?? 'suggestion'}-${suggestion.title}`}
+                        className="catalog-card"
+                      >
+                        {href ? (
+                          <Link href={href}>
+                            <strong>{suggestion.title}</strong>
+                          </Link>
+                        ) : (
+                          <strong>{suggestion.title}</strong>
+                        )}
+                        {suggestion.reason ? <p>{suggestion.reason}</p> : null}
+                        {typeof suggestion.confidence === 'number' ? (
+                          <div className="meta">
+                            <span>{`置信度 ${(suggestion.confidence * 100).toFixed(0)}%`}</span>
+                          </div>
+                        ) : null}
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : null}
             {content.follow_up_questions?.length ? (
               <ul style={{ margin: '12px 0 0', paddingLeft: 20 }}>
                 {content.follow_up_questions.map((question) => (
                   <li key={question}>{question}</li>
                 ))}
               </ul>
+            ) : null}
+            {content.actions?.length ? (
+              <section>
+                <h3 style={{ margin: '16px 0 8px' }}>下一步动作</h3>
+                <div className="link-row">
+                  {content.actions.map((action) => (
+                    <Link
+                      key={`${action.type ?? 'action'}-${action.label}`}
+                      href={action.target}
+                      className="cta secondary"
+                    >
+                      {action.label}
+                    </Link>
+                  ))}
+                </div>
+              </section>
             ) : null}
           </div>
         ) : null}

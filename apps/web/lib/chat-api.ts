@@ -8,10 +8,22 @@ export type ChatMessageResponse = {
   output: {
     type: 'structured_json';
     content: {
+      actions?: Array<{
+        type?: string;
+        label: string;
+        target: string;
+      }>;
       summary?: string;
       analysis?: string;
       follow_up_questions?: string[];
       rendered_reply?: string;
+      suggestions?: Array<{
+        type?: string;
+        title: string;
+        slug?: string;
+        reason?: string;
+        confidence?: number;
+      }>;
     };
   };
 };
