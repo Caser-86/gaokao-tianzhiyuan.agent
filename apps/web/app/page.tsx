@@ -10,6 +10,7 @@ const getApiBaseUrl = () => process.env.GAOKAO_AGENT_API_URL ?? 'http://127.0.0.
 
 type HomePageProps = {
   searchParams?: Promise<{
+    openid?: string;
     user_id?: string;
   }>;
 };
@@ -18,7 +19,10 @@ export default async function HomePage({ searchParams }: HomePageProps = {}) {
   try {
     const apiBaseUrl = getApiBaseUrl();
     const resolvedSearchParams = searchParams ? await searchParams : undefined;
-    const userId = resolvedSearchParams?.user_id?.trim() || undefined;
+    const userId =
+      resolvedSearchParams?.user_id?.trim() ||
+      resolvedSearchParams?.openid?.trim() ||
+      undefined;
     const [searchEntry, schoolPayload, majorPayload] = await Promise.all([
       getSearchEntry(),
       listSchools(),

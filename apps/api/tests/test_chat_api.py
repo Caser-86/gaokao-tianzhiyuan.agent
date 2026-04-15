@@ -2,9 +2,12 @@ import json
 from dataclasses import dataclass
 
 from fastapi.testclient import TestClient
+from sqlmodel import Session
 
 from app.main import app
+from app.db import get_engine
 from app.routers import chat as chat_router_module
+from app.services.access_control import SMART_ANALYSIS_ENTITLEMENT, set_user_entitlement
 from app.services.chat import ConversationService
 from app.services.skills import (
     ChatRequestContext,
@@ -311,6 +314,56 @@ def test_wechat_chat_adapter_requires_openid_and_message() -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_wechat_chat_adapter_merges_persisted_user_entitlements(tmp_path) -> None:
+    skill_file = tmp_path / "SKILL.md"
+    skill_file.write_text("寮犻洩宄版祴璇曟彁绀鸿瘝", encoding="utf-8")
+    with Session(get_engine()) as session:
+        set_user_entitlement(
+            session,
+            user_id="wx-openid-entitled",
+            entitlement=SMART_ANALYSIS_ENTITLEMENT,
+            is_enabled=True,
+        )
+
+    original_service = chat_router_module.conversation_service
+    chat_router_module.conversation_service = ConversationService(
+        registry=SkillRegistry(
+            [
+                ZhangXueFengSkill(
+                    provider=None,
+                    skill_prompt_path=str(skill_file),
+                )
+            ]
+        )
+    )
+
+    try:
+        response = client.post(
+            "/api/chat/channels/wechat",
+            json={
+                "openid": "wx-openid-entitled",
+                "message": "娌冲崡560鍒嗘兂瀛﹂噾铻嶏紝闈犺氨鍚楋紵",
+                "message_type": "text",
+                "metadata": {
+                    "source": "official_account",
+                    "smart_analysis_mode": "gated",
+                },
+            },
+        )
+    finally:
+        chat_router_module.conversation_service = original_service
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["channel"] == "wechat"
+    assert payload["user_id"] == "wx-openid-entitled"
+    assert payload["matched_skill"]["skill_id"] == "zhangxuefeng"
+    assert payload["debug"] == {
+        "used_fallback": True,
+        "notes": ["provider_not_configured"],
+    }
 
 
 def test_chat_messages_return_policy_note_when_smart_analysis_is_globally_off() -> None:

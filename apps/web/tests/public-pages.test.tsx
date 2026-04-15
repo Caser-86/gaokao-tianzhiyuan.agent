@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
 
 const {
@@ -9,6 +9,7 @@ const {
   listPlatformProductsMock,
   getSchoolBySlugMock,
   getMajorBySlugMock,
+  evaluatePlatformEntitlementsMock,
   notFoundMock,
   refreshMock,
 } = vi.hoisted(() => ({
@@ -26,6 +27,7 @@ const {
   listPlatformProductsMock: vi.fn(),
   getSchoolBySlugMock: vi.fn(),
   getMajorBySlugMock: vi.fn(),
+  evaluatePlatformEntitlementsMock: vi.fn(),
   notFoundMock: vi.fn(() => {
     throw new Error('NEXT_NOT_FOUND');
   }),
@@ -43,6 +45,10 @@ vi.mock('../lib/public-content-api', () => ({
 
 vi.mock('../lib/platform-api', () => ({
   listPlatformProducts: listPlatformProductsMock,
+}));
+
+vi.mock('../lib/platform-entitlements', () => ({
+  evaluatePlatformEntitlements: evaluatePlatformEntitlementsMock,
 }));
 
 vi.mock('next/navigation', () => ({
@@ -77,6 +83,11 @@ beforeEach(() => {
   listPlatformProductsMock.mockReset();
   getSchoolBySlugMock.mockReset();
   getMajorBySlugMock.mockReset();
+  evaluatePlatformEntitlementsMock.mockReset();
+  evaluatePlatformEntitlementsMock.mockResolvedValue({
+    product_slugs: ['insight-weekly'],
+    entitlements: ['school_basic_access'],
+  });
   notFoundMock.mockClear();
   refreshMock.mockReset();
 });
@@ -177,6 +188,72 @@ test('home page renders an explicit error state on public API failure', async ()
   render(await HomePage());
 
   expect(screen.getByText(PUBLIC_ERROR_TEXT)).toBeInTheDocument();
+});
+
+test('home page accepts openid query params for platform entitlement lookup', async () => {
+  getSearchEntryMock.mockResolvedValue({
+    title: HOME_TITLE,
+    description: HOME_DESCRIPTION,
+    quickPrompts: ['\u67e5\u5b66\u6821', '\u67e5\u4e13\u4e1a'],
+  });
+  listSchoolsMock.mockResolvedValue({
+    items: [
+      {
+        slug: 'southeast-university',
+        name: '\u4e1c\u5357\u5927\u5b66',
+        region: '\u6c5f\u82cf',
+        city: '\u5357\u4eac',
+        tags: ['985'],
+        summary: '\u5de5\u79d1\u89c1\u957f\u3002',
+      },
+    ],
+    total: 1,
+  });
+  listMajorsMock.mockResolvedValue({
+    items: [
+      {
+        slug: 'clinical-medicine',
+        name: '\u4e34\u5e8a\u533b\u5b66',
+        discipline: '\u533b\u5b66',
+        recommendedRegions: ['\u6c5f\u82cf'],
+        summary: '\u57f9\u517b\u5468\u671f\u957f\u3002',
+      },
+    ],
+    total: 1,
+  });
+  listPlatformProductsMock.mockResolvedValue({
+    items: [
+      {
+        slug: 'insight-weekly',
+        name: '\u5fd7\u613f\u5feb\u62a5\u8ba2\u9605',
+        description:
+          '\u6301\u7eed\u8ddf\u8e2a\u5b66\u6821\u3001\u4e13\u4e1a\u548c\u98ce\u9669\u53d8\u5316\u3002',
+        entitlements: ['school_basic_access'],
+      },
+    ],
+  });
+
+  render(
+    await HomePage({
+      searchParams: Promise.resolve({
+        openid: 'wx-openid-homepage',
+      }),
+    }),
+  );
+
+  fireEvent.click(
+    screen.getByRole('button', {
+      name: '\u52a0\u5165\u80fd\u529b\u9884\u89c8\u5fd7\u613f\u5feb\u62a5\u8ba2\u9605',
+    }),
+  );
+
+  await waitFor(() => {
+    expect(evaluatePlatformEntitlementsMock).toHaveBeenCalledWith(
+      ['insight-weekly'],
+      'http://127.0.0.1:8000',
+      'wx-openid-homepage',
+    );
+  });
 });
 
 test('home page renders a platform unavailable panel when platform products fail', async () => {
