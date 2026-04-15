@@ -10,7 +10,7 @@ type ChatPageProps = {
   }>;
 };
 
-export default async function ChatPage({ searchParams }: ChatPageProps = {}) {
+export default async function ChatPage({ searchParams }: ChatPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const userId =
     resolvedSearchParams?.user_id?.trim() ||

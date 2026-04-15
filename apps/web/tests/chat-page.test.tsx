@@ -1,6 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
 
+const SCHOOL_PROMPT = '\u67e5\u5b66\u6821';
+const MAJOR_PROMPT = '\u67e5\u4e13\u4e1a';
+
 const { chatWorkspaceMock } = vi.hoisted(() => ({
   chatWorkspaceMock: vi.fn(
     ({ userId, initialPrompt }: { userId?: string; initialPrompt?: string }) => (
@@ -24,12 +27,12 @@ test('chat page forwards openid query params to the chat workspace', async () =>
     await ChatPage({
       searchParams: Promise.resolve({
         openid: 'wx-openid-123',
-        prompt: '查学校',
+        prompt: SCHOOL_PROMPT,
       }),
     }),
   );
 
-  expect(screen.getByText('workspace:wx-openid-123:查学校')).toBeInTheDocument();
+  expect(screen.getByText(`workspace:wx-openid-123:${SCHOOL_PROMPT}`)).toBeInTheDocument();
 });
 
 test('chat page prefers user_id when both user_id and openid are present', async () => {
@@ -38,10 +41,16 @@ test('chat page prefers user_id when both user_id and openid are present', async
       searchParams: Promise.resolve({
         user_id: 'user-1',
         openid: 'wx-openid-123',
-        prompt: '查专业',
+        prompt: MAJOR_PROMPT,
       }),
     }),
   );
 
-  expect(screen.getByText('workspace:user-1:查专业')).toBeInTheDocument();
+  expect(screen.getByText(`workspace:user-1:${MAJOR_PROMPT}`)).toBeInTheDocument();
+});
+
+test('chat page renders an anonymous workspace when search params are absent', async () => {
+  render(await ChatPage({}));
+
+  expect(screen.getByText('workspace:anon:')).toBeInTheDocument();
 });

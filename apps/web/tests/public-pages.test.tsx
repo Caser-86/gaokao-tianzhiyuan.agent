@@ -155,7 +155,7 @@ test('home page renders API-backed search, catalog, and product data', async () 
     ],
   });
 
-  render(await HomePage());
+  render(await HomePage({}));
 
   expect(screen.getByRole('heading', { name: HOME_TITLE })).toBeInTheDocument();
   expect(screen.getByText('\u4e1c\u5357\u5927\u5b66')).toBeInTheDocument();
@@ -185,7 +185,7 @@ test('home page renders an explicit error state on public API failure', async ()
     throw new Error('boom');
   });
 
-  render(await HomePage());
+  render(await HomePage({}));
 
   expect(screen.getByText(PUBLIC_ERROR_TEXT)).toBeInTheDocument();
 });
@@ -289,7 +289,7 @@ test('home page renders a platform unavailable panel when platform products fail
   });
   listPlatformProductsMock.mockRejectedValue(new Error('platform down'));
 
-  render(await HomePage());
+  render(await HomePage({}));
 
   expect(screen.getByRole('heading', { name: PLATFORM_UNAVAILABLE_TITLE })).toBeInTheDocument();
   expect(
