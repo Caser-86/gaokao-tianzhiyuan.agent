@@ -13,7 +13,7 @@ from .access_control import (
     get_user_entitlements,
 )
 from .llm import OpenAICompatibleProvider, ProviderConfigurationError
-from .skills import ChatRequestContext, SkillRegistry, ZhangXueFengSkill
+from .skills import CatalogLookupSkill, ChatRequestContext, SkillRegistry, ZhangXueFengSkill
 
 ROUTING_THRESHOLD = 0.6
 
@@ -64,7 +64,8 @@ def build_default_registry() -> SkillRegistry:
                 skill_prompt_path=resolve_zhangxuefeng_skill_path(
                     settings.zhangxuefeng_skill_path
                 ),
-            )
+            ),
+            CatalogLookupSkill(),
         ]
     )
 

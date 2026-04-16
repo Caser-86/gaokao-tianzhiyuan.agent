@@ -9,7 +9,8 @@ from sqlmodel import SQLModel, Session, create_engine
 from app.config import settings
 from app.db import get_session
 from app.main import app
-from app.models.ingestion import ReviewQueue
+from app.models.ingestion import MediaAnalysisEvent, ReviewQueue
+from app.routers import admin as admin_router_module
 from app.services import featured_content as featured_content_service
 
 
@@ -721,6 +722,533 @@ def test_update_smart_analysis_settings_persists_mode(admin_client) -> None:
 
     assert response.status_code == 200
     assert response.json() == {"mode": "gated"}
+
+
+def test_media_analysis_events_endpoint_returns_recent_items_for_valid_admin_token(
+    admin_client,
+) -> None:
+    client, engine = admin_client
+    now = datetime.now(timezone.utc)
+
+    with Session(engine) as session:
+        session.add(
+            MediaAnalysisEvent(
+                channel="wechat",
+                source="wechat_official_account",
+                user_id="wx-openid-older",
+                message_id="msg-older",
+                media_id="media-older",
+                media_type="image",
+                provider="pending",
+                status="pending",
+                summary="older summary",
+                rendered_reply="",
+                extracted_fields={"province": "河南"},
+                context={
+                    "msg_type": "image",
+                    "pic_url": "https://example.com/older.png",
+                },
+                auto_routed_to_chat=False,
+                created_at=now,
+            )
+        )
+        session.add(
+            MediaAnalysisEvent(
+                channel="wechat",
+                source="wechat_official_account_image_media_analysis",
+                user_id="wx-openid-newer",
+                message_id="msg-newer",
+                media_id="media-newer",
+                media_type="image",
+                provider="openai_compatible",
+                status="success",
+                summary="识别到河南560分理科，目标专业计算机科学与技术",
+                rendered_reply="图片已进入高考分析链路",
+                extracted_fields={
+                    "province": "河南",
+                    "score": 560,
+                    "subject": "理科",
+                },
+                context={
+                    "msg_type": "image",
+                    "pic_url": "https://example.com/newer.png",
+                    "create_time": "1710000001",
+                },
+                auto_routed_to_chat=True,
+                created_at=now + timedelta(minutes=1),
+            )
+        )
+        session.commit()
+
+    response = client.get(
+        "/api/admin/media-analysis-events?limit=1",
+        headers={"x-admin-token": settings.admin_token},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "items": [
+            {
+                "id": 2,
+                "channel": "wechat",
+                "source": "wechat_official_account_image_media_analysis",
+                "user_id": "wx-openid-newer",
+                "message_id": "msg-newer",
+                "media_id": "media-newer",
+                "media_type": "image",
+                "provider": "openai_compatible",
+                "status": "success",
+                "summary": "识别到河南560分理科，目标专业计算机科学与技术",
+                "rendered_reply": "图片已进入高考分析链路",
+                "extracted_fields": {
+                    "province": "河南",
+                    "score": 560,
+                    "subject": "理科",
+                },
+                "context": {
+                    "msg_type": "image",
+                    "pic_url": "https://example.com/newer.png",
+                    "create_time": "1710000001",
+                },
+                "retryable": True,
+                "retry_block_reason": None,
+                "auto_routed_to_chat": True,
+                "created_at": (now + timedelta(minutes=1))
+                .isoformat()
+                .replace("+00:00", "Z"),
+            }
+        ]
+    }
+
+
+def test_media_analysis_events_endpoint_supports_status_user_and_auto_route_filters(
+    admin_client,
+) -> None:
+    client, engine = admin_client
+    now = datetime.now(timezone.utc)
+
+    with Session(engine) as session:
+        session.add(
+            MediaAnalysisEvent(
+                channel="wechat",
+                source="wechat_official_account",
+                user_id="wx-openid-1",
+                message_id="msg-1",
+                media_id="media-1",
+                media_type="image",
+                provider="openai_compatible",
+                status="success",
+                summary="match me",
+                rendered_reply="reply-1",
+                extracted_fields={"province": "河南"},
+                context={
+                    "msg_type": "image",
+                    "pic_url": "https://example.com/1.png",
+                },
+                auto_routed_to_chat=True,
+                created_at=now,
+            )
+        )
+        session.add(
+            MediaAnalysisEvent(
+                channel="wechat",
+                source="wechat_official_account",
+                user_id="wx-openid-1",
+                message_id="msg-2",
+                media_id="media-2",
+                media_type="image",
+                provider="openai_compatible",
+                status="pending",
+                summary="wrong status",
+                rendered_reply="reply-2",
+                extracted_fields={},
+                context={"msg_type": "image"},
+                auto_routed_to_chat=True,
+                created_at=now + timedelta(minutes=1),
+            )
+        )
+        session.add(
+            MediaAnalysisEvent(
+                channel="wechat",
+                source="wechat_official_account",
+                user_id="wx-openid-2",
+                message_id="msg-3",
+                media_id="media-3",
+                media_type="image",
+                provider="openai_compatible",
+                status="success",
+                summary="wrong user",
+                rendered_reply="reply-3",
+                extracted_fields={},
+                context={"msg_type": "image"},
+                auto_routed_to_chat=True,
+                created_at=now + timedelta(minutes=2),
+            )
+        )
+        session.add(
+            MediaAnalysisEvent(
+                channel="wechat",
+                source="wechat_official_account",
+                user_id="wx-openid-1",
+                message_id="msg-4",
+                media_id="media-4",
+                media_type="image",
+                provider="openai_compatible",
+                status="success",
+                summary="wrong routing",
+                rendered_reply="reply-4",
+                extracted_fields={},
+                context={"msg_type": "image"},
+                auto_routed_to_chat=False,
+                created_at=now + timedelta(minutes=3),
+            )
+        )
+        session.commit()
+
+    response = client.get(
+        "/api/admin/media-analysis-events?status=success&user_id=wx-openid-1&auto_routed_to_chat=1",
+        headers={"x-admin-token": settings.admin_token},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["items"] == [
+        {
+            "id": 1,
+            "channel": "wechat",
+            "source": "wechat_official_account",
+            "user_id": "wx-openid-1",
+            "message_id": "msg-1",
+            "media_id": "media-1",
+            "media_type": "image",
+            "provider": "openai_compatible",
+            "status": "success",
+            "summary": "match me",
+            "rendered_reply": "reply-1",
+            "extracted_fields": {"province": "河南"},
+            "context": {
+                "msg_type": "image",
+                "pic_url": "https://example.com/1.png",
+            },
+            "retryable": True,
+            "retry_block_reason": None,
+            "auto_routed_to_chat": True,
+            "created_at": now.isoformat().replace("+00:00", "Z"),
+        }
+    ]
+
+
+def test_media_analysis_events_endpoint_reports_blocked_retry_reason_for_video_records(
+    admin_client,
+) -> None:
+    client, engine = admin_client
+    now = datetime.now(timezone.utc)
+
+    with Session(engine) as session:
+        session.add(
+            MediaAnalysisEvent(
+                channel="wechat",
+                source="wechat_official_account_video_media_analysis",
+                user_id="wx-openid-video",
+                message_id="msg-video",
+                media_id="media-video",
+                media_type="video",
+                provider="openai_compatible",
+                status="failed",
+                summary="video unsupported",
+                rendered_reply="reply-video",
+                extracted_fields={},
+                context={
+                    "msg_type": "video",
+                    "media_id": "media-video",
+                    "failure_reason": "video unsupported",
+                },
+                auto_routed_to_chat=False,
+                created_at=now,
+            )
+        )
+        session.commit()
+
+    response = client.get(
+        "/api/admin/media-analysis-events?status=failed",
+        headers={"x-admin-token": settings.admin_token},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["items"] == [
+        {
+            "id": 1,
+            "channel": "wechat",
+            "source": "wechat_official_account_video_media_analysis",
+            "user_id": "wx-openid-video",
+            "message_id": "msg-video",
+            "media_id": "media-video",
+            "media_type": "video",
+            "provider": "openai_compatible",
+            "status": "failed",
+            "summary": "video unsupported",
+            "rendered_reply": "reply-video",
+            "extracted_fields": {},
+            "context": {
+                "msg_type": "video",
+                "media_id": "media-video",
+                "failure_reason": "video unsupported",
+            },
+            "retryable": False,
+            "retry_block_reason": "\u975e\u56fe\u7247\u5a92\u4f53\u8bb0\u5f55\u6682\u4e0d\u652f\u6301\u624b\u52a8\u91cd\u8bd5",
+            "auto_routed_to_chat": False,
+            "created_at": now.isoformat().replace("+00:00", "Z"),
+        }
+    ]
+
+
+def test_retry_media_analysis_endpoint_creates_new_retry_record(
+    admin_client,
+    monkeypatch,
+) -> None:
+    client, engine = admin_client
+
+    with Session(engine) as session:
+        session.add(
+            MediaAnalysisEvent(
+                channel="wechat",
+                source="wechat_official_account",
+                user_id="wx-openid-retry",
+                message_id="msg-retry-1",
+                media_id="media-retry-1",
+                media_type="image",
+                provider="openai_compatible",
+                status="success",
+                summary="original summary",
+                rendered_reply="original reply",
+                extracted_fields={"province": "河南", "score": 560},
+                context={
+                    "to_user_name": "gh_retry",
+                    "from_user_name": "wx-openid-retry",
+                    "create_time": "1710000001",
+                    "msg_type": "image",
+                    "msg_id": "msg-retry-1",
+                    "media_id": "media-retry-1",
+                    "pic_url": "https://example.com/retry-image.png",
+                },
+                auto_routed_to_chat=False,
+            )
+        )
+        session.commit()
+
+    class FakeMediaAnalysisProvider:
+        def analyze(self, *, request):
+            assert request.media_type == "image"
+            assert request.user_id == "wx-openid-retry"
+            assert request.payload["PicUrl"] == "https://example.com/retry-image.png"
+            return admin_router_module.MediaAnalysisResult(
+                status="success",
+                provider="retry-provider",
+                summary="retried summary",
+                rendered_reply="retried reply",
+                extracted_fields={"province": "河南", "score": 565},
+            )
+
+    monkeypatch.setattr(
+        admin_router_module,
+        "media_analysis_provider",
+        FakeMediaAnalysisProvider(),
+    )
+
+    response = client.post(
+        "/api/admin/media-analysis-events/1/retry",
+        headers={"x-admin-token": settings.admin_token},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": 2,
+        "channel": "wechat",
+        "source": "admin_media_analysis_retry",
+        "user_id": "wx-openid-retry",
+        "message_id": "msg-retry-1",
+        "media_id": "media-retry-1",
+        "media_type": "image",
+        "provider": "retry-provider",
+        "status": "success",
+        "summary": "retried summary",
+        "rendered_reply": "retried reply",
+        "extracted_fields": {"province": "河南", "score": 565},
+        "context": {
+            "to_user_name": "gh_retry",
+            "from_user_name": "wx-openid-retry",
+            "create_time": "1710000001",
+            "msg_type": "image",
+            "msg_id": "msg-retry-1",
+            "media_id": "media-retry-1",
+            "pic_url": "https://example.com/retry-image.png",
+            "retried_from_event_id": 1,
+            "retry_trigger": "admin_manual",
+        },
+        "retryable": True,
+        "retry_block_reason": None,
+        "auto_routed_to_chat": False,
+        "created_at": response.json()["created_at"],
+    }
+
+
+def test_retry_media_analysis_endpoint_rejects_image_records_without_pic_url(
+    admin_client,
+) -> None:
+    client, engine = admin_client
+
+    with Session(engine) as session:
+        session.add(
+            MediaAnalysisEvent(
+                channel="wechat",
+                source="wechat_official_account",
+                user_id="wx-openid-no-pic",
+                message_id="msg-no-pic",
+                media_id="media-no-pic",
+                media_type="image",
+                provider="openai_compatible",
+                status="success",
+                summary="summary",
+                rendered_reply="reply",
+                extracted_fields={},
+                context={"msg_type": "image"},
+                auto_routed_to_chat=False,
+            )
+        )
+        session.commit()
+
+    response = client.post(
+        "/api/admin/media-analysis-events/1/retry",
+        headers={"x-admin-token": settings.admin_token},
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": "图片记录缺少 pic_url，暂不支持手动重试"
+    }
+
+
+def test_retry_media_analysis_endpoint_rejects_non_image_records(
+    admin_client,
+) -> None:
+    client, engine = admin_client
+
+    with Session(engine) as session:
+        session.add(
+            MediaAnalysisEvent(
+                channel="wechat",
+                source="wechat_official_account_video_media_analysis",
+                user_id="wx-openid-video-blocked",
+                message_id="msg-video-blocked",
+                media_id="media-video-blocked",
+                media_type="video",
+                provider="openai_compatible",
+                status="failed",
+                summary="video unsupported",
+                rendered_reply="reply",
+                extracted_fields={},
+                context={"msg_type": "video", "media_id": "media-video-blocked"},
+                auto_routed_to_chat=False,
+            )
+        )
+        session.commit()
+
+    response = client.post(
+        "/api/admin/media-analysis-events/1/retry",
+        headers={"x-admin-token": settings.admin_token},
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": "非图片媒体记录暂不支持手动重试"
+    }
+
+
+def test_retry_media_analysis_endpoint_persists_failure_reason(
+    admin_client,
+    monkeypatch,
+) -> None:
+    client, engine = admin_client
+
+    with Session(engine) as session:
+        session.add(
+            MediaAnalysisEvent(
+                channel="wechat",
+                source="wechat_official_account",
+                user_id="wx-openid-retry-failed",
+                message_id="msg-retry-failed-1",
+                media_id="media-retry-failed-1",
+                media_type="image",
+                provider="openai_compatible",
+                status="success",
+                summary="original summary",
+                rendered_reply="original reply",
+                extracted_fields={},
+                context={
+                    "to_user_name": "gh_retry_failed",
+                    "from_user_name": "wx-openid-retry-failed",
+                    "create_time": "1710000001",
+                    "msg_type": "image",
+                    "msg_id": "msg-retry-failed-1",
+                    "media_id": "media-retry-failed-1",
+                    "pic_url": "https://example.com/retry-failed-image.png",
+                },
+                auto_routed_to_chat=False,
+            )
+        )
+        session.commit()
+
+    class FakeMediaAnalysisProvider:
+        def analyze(self, *, request):
+            assert request.media_type == "image"
+            assert request.user_id == "wx-openid-retry-failed"
+            return admin_router_module.MediaAnalysisResult(
+                status="failed",
+                provider="retry-provider",
+                failure_reason="上游媒体分析请求失败：HTTP 429",
+            )
+
+    monkeypatch.setattr(
+        admin_router_module,
+        "media_analysis_provider",
+        FakeMediaAnalysisProvider(),
+    )
+
+    response = client.post(
+        "/api/admin/media-analysis-events/1/retry",
+        headers={"x-admin-token": settings.admin_token},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": 2,
+        "channel": "wechat",
+        "source": "admin_media_analysis_retry",
+        "user_id": "wx-openid-retry-failed",
+        "message_id": "msg-retry-failed-1",
+        "media_id": "media-retry-failed-1",
+        "media_type": "image",
+        "provider": "retry-provider",
+        "status": "failed",
+        "summary": "",
+        "rendered_reply": "",
+        "extracted_fields": {},
+        "context": {
+            "to_user_name": "gh_retry_failed",
+            "from_user_name": "wx-openid-retry-failed",
+            "create_time": "1710000001",
+            "msg_type": "image",
+            "msg_id": "msg-retry-failed-1",
+            "media_id": "media-retry-failed-1",
+            "pic_url": "https://example.com/retry-failed-image.png",
+            "retried_from_event_id": 1,
+            "retry_trigger": "admin_manual",
+            "failure_reason": "上游媒体分析请求失败：HTTP 429",
+        },
+        "retryable": True,
+        "retry_block_reason": None,
+        "auto_routed_to_chat": False,
+        "created_at": response.json()["created_at"],
+    }
 
 
 def test_smart_analysis_user_entitlement_can_be_granted_and_revoked(admin_client) -> None:

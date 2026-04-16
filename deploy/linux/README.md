@@ -41,6 +41,9 @@ Fill in:
 - admin token
 - database path
 - relay settings
+- wechat official account callback token
+- wechat official account app id
+- wechat official account encoding aes key
 - domain-facing API URL used by the Web app
 
 ### 2. Build the Web app
@@ -99,6 +102,18 @@ If nginx is already wired to your domain:
 curl http://your-domain.example/health
 curl http://your-domain.example/api/chat/health
 curl http://your-domain.example/
+curl http://your-domain.example/api/chat/skills
+```
+
+The chat skill listing should include both built-in skills:
+
+- `zhangxuefeng`
+- `catalog_lookup`
+
+Official account callback checks:
+
+```bash
+curl "http://127.0.0.1:8000/api/chat/channels/wechat/official-account?signature=<signature>&timestamp=<timestamp>&nonce=<nonce>&echostr=hello"
 ```
 
 ## Rollback-oriented checks

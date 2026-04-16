@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 const {
   listReviewQueueMock,
+  listMediaAnalysisEventsMock,
   listFeaturedContentMock,
   suggestFeaturedSchoolImageMock,
   listRankingReferencesMock,
@@ -13,6 +14,7 @@ const {
   getSmartAnalysisUserMock,
 } = vi.hoisted(() => ({
   listReviewQueueMock: vi.fn(),
+  listMediaAnalysisEventsMock: vi.fn(),
   listFeaturedContentMock: vi.fn(),
   suggestFeaturedSchoolImageMock: vi.fn(),
   listRankingReferencesMock: vi.fn(),
@@ -25,6 +27,10 @@ const {
 
 vi.mock('../lib/admin-review-api', () => ({
   listReviewQueue: listReviewQueueMock,
+}));
+
+vi.mock('../lib/admin-media-analysis-api', () => ({
+  listMediaAnalysisEvents: listMediaAnalysisEventsMock,
 }));
 
 vi.mock('../lib/admin-featured-content-api', () => ({
@@ -56,6 +62,7 @@ vi.mock('../lib/admin-smart-analysis-api', () => ({
 vi.mock('../app/(admin)/admin/actions', () => ({
   approveReviewQueueAction: async () => undefined,
   rejectReviewQueueAction: async () => undefined,
+  retryMediaAnalysisEventAction: async () => undefined,
   updateFeaturedSchoolAction: async () => undefined,
   suggestSchoolImageAction: async () => undefined,
   updateFeaturedMajorAction: async () => undefined,
@@ -79,6 +86,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-04-14T12:00:00Z'));
   listReviewQueueMock.mockReset();
+  listMediaAnalysisEventsMock.mockReset();
   listFeaturedContentMock.mockReset();
   suggestFeaturedSchoolImageMock.mockReset();
   listRankingReferencesMock.mockReset();
@@ -106,6 +114,7 @@ beforeEach(() => {
   listSmartAnalysisSettingsMock.mockResolvedValue({
     mode: 'off',
   });
+  listMediaAnalysisEventsMock.mockResolvedValue([]);
   getSmartAnalysisUserMock.mockResolvedValue({
     userId: '',
     entitlements: [],
@@ -169,6 +178,205 @@ test('renders smart analysis admin controls from admin api clients', async () =>
   expect(screen.getByDisplayValue('gated')).toBeInTheDocument();
   expect(screen.getByLabelText('用户 ID')).toHaveValue('wx-openid-123');
   expect(screen.getByText('当前已开通智能分析')).toBeInTheDocument();
+});
+
+test('builds a failed-only media analysis shortcut while preserving active admin filters', async () => {
+  listReviewQueueMock.mockResolvedValue([]);
+  listFeaturedContentMock.mockResolvedValue({
+    schools: [],
+    majors: [],
+    rotation: {
+      schools: {
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      },
+      majors: {
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      },
+    },
+    preview: {
+      today: { schools: [], majors: [] },
+      next: { schools: [], majors: [] },
+      schedule: [],
+      selectedDate: null,
+      selectedDateError: null,
+    },
+  });
+  listMediaAnalysisEventsMock.mockResolvedValue([
+    {
+      id: 1,
+      channel: 'wechat',
+      source: 'wechat_official_account',
+      userId: 'wx-openid-123',
+      messageId: 'msg-1',
+      mediaId: 'media-1',
+      mediaType: 'image',
+      provider: 'openai_compatible',
+      status: 'success',
+      summary: '识别到河南560分',
+      renderedReply: '图片已进入分析',
+      extractedFields: {},
+      context: {
+        pic_url: 'https://example.com/retry-image.png',
+      },
+      retryable: true,
+      retryBlockReason: null,
+      autoRoutedToChat: true,
+      createdAt: '2026-04-15T09:00:00Z',
+    },
+    {
+      id: 2,
+      channel: 'wechat',
+      source: 'admin_media_analysis_retry',
+      userId: 'wx-openid-123',
+      messageId: 'msg-2',
+      mediaId: 'media-2',
+      mediaType: 'image',
+      provider: 'openai_compatible',
+      status: 'failed',
+      summary: '管理员手动重试失败，等待排查',
+      renderedReply: '',
+      extractedFields: {},
+      context: {
+        pic_url: 'https://example.com/retry-failed-image.png',
+        failure_reason: '上游媒体分析请求失败：HTTP 429',
+      },
+      retryable: true,
+      retryBlockReason: null,
+      autoRoutedToChat: true,
+      createdAt: '2026-04-15T09:05:00Z',
+    },
+    {
+      id: 3,
+      channel: 'wechat',
+      source: 'wechat_official_account_video_media_analysis',
+      userId: 'wx-openid-123',
+      messageId: 'msg-3',
+      mediaId: 'media-3',
+      mediaType: 'video',
+      provider: 'openai_compatible',
+      status: 'failed',
+      summary: 'video unsupported',
+      renderedReply: '',
+      extractedFields: {},
+      context: {
+        failure_reason: 'video unsupported',
+      },
+      retryable: false,
+      retryBlockReason:
+        '\u975e\u56fe\u7247\u5a92\u4f53\u8bb0\u5f55\u6682\u4e0d\u652f\u6301\u624b\u52a8\u91cd\u8bd5',
+      autoRoutedToChat: false,
+      createdAt: '2026-04-15T09:06:00Z',
+    },
+  ]);
+
+  render(
+    await AdminPage({
+      searchParams: Promise.resolve({
+        preview_date: '2026-04-15',
+        scheduled_gap_days: '1',
+        media_analysis_user_id: 'wx-openid-123',
+        media_analysis_auto_routed: '1',
+      }),
+    }),
+  );
+
+  expect(listMediaAnalysisEventsMock).toHaveBeenCalledWith({
+    limit: 10,
+    status: undefined,
+    userId: 'wx-openid-123',
+    autoRoutedToChat: true,
+  });
+  expect(screen.getByLabelText('媒体用户 ID')).toHaveValue('wx-openid-123');
+  expect(screen.getByLabelText('只看已自动进主分析')).toBeChecked();
+  expect(screen.getByRole('link', { name: '只看失败记录（2）' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-15&scheduled_gap_days=1&media_analysis_status=failed&media_analysis_user_id=wx-openid-123&media_analysis_auto_routed=1',
+  );
+  expect(screen.getAllByRole('button', { name: '重试分析' })).toHaveLength(2);
+  expect(
+    screen.getByText('不可重试：非图片媒体记录暂不支持手动重试'),
+  ).toBeInTheDocument();
+});
+
+test('preserves admin context when viewing failed-only media analysis records', async () => {
+  listReviewQueueMock.mockResolvedValue([]);
+  listFeaturedContentMock.mockResolvedValue({
+    schools: [],
+    majors: [],
+    rotation: {
+      schools: {
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      },
+      majors: {
+        enabled: false,
+        frequencyDays: 1,
+        windowSize: 1,
+        orderedSlugs: [],
+      },
+    },
+    preview: {
+      today: { schools: [], majors: [] },
+      next: { schools: [], majors: [] },
+      schedule: [],
+      selectedDate: null,
+      selectedDateError: null,
+    },
+  });
+  listMediaAnalysisEventsMock.mockResolvedValue([
+    {
+      id: 2,
+      channel: 'wechat',
+      source: 'admin_media_analysis_retry',
+      userId: 'wx-openid-123',
+      messageId: 'msg-2',
+      mediaId: 'media-2',
+      mediaType: 'image',
+      provider: 'openai_compatible',
+      status: 'failed',
+      summary: '管理员手动重试失败，等待排查',
+      renderedReply: '',
+      extractedFields: {},
+      context: {
+        pic_url: 'https://example.com/retry-failed-image.png',
+        failure_reason: '上游媒体分析请求失败：HTTP 429',
+      },
+      autoRoutedToChat: true,
+      createdAt: '2026-04-15T09:05:00Z',
+    },
+  ]);
+
+  render(
+    await AdminPage({
+      searchParams: Promise.resolve({
+        preview_date: '2026-04-15',
+        scheduled_gap_days: '1',
+        media_analysis_status: 'failed',
+        media_analysis_user_id: 'wx-openid-123',
+        media_analysis_auto_routed: '1',
+      }),
+    }),
+  );
+
+  expect(listMediaAnalysisEventsMock).toHaveBeenCalledWith({
+    limit: 10,
+    status: 'failed',
+    userId: 'wx-openid-123',
+    autoRoutedToChat: true,
+  });
+  expect(screen.getByDisplayValue('failed')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: '查看全部媒体记录' })).toHaveAttribute(
+    'href',
+    '/admin?preview_date=2026-04-15&scheduled_gap_days=1&media_analysis_user_id=wx-openid-123&media_analysis_auto_routed=1',
+  );
 });
 
 test('renders queue items, date preview shortcuts, and schedule highlight returned by the admin api client', async () => {

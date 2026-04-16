@@ -18,6 +18,7 @@ import type {
   AdminRotationRule,
 } from '../../lib/admin-featured-content-api';
 import type { AdminRankingReferenceEntity } from '../../lib/admin-ranking-reference-api';
+import type { AdminMediaAnalysisEvent } from '../../lib/admin-media-analysis-api';
 import type { AdminSmartAnalysisMode } from '../../lib/admin-smart-analysis-api';
 import SmartAnalysisOpsPanel from './smart-analysis-ops-panel';
 
@@ -35,9 +36,20 @@ export type AdminReviewItem = {
   created_at: string;
 };
 
+export type { AdminMediaAnalysisEvent };
+
 type DashboardShellProps = {
   title: string;
   queueItems: AdminReviewItem[];
+  mediaAnalysisEvents?: AdminMediaAnalysisEvent[];
+  mediaAnalysisError?: string;
+  mediaAnalysisStatusFilter?: string;
+  mediaAnalysisUserIdFilter?: string;
+  mediaAnalysisAutoRoutedOnly?: boolean;
+  clearMediaAnalysisFiltersHref?: string;
+  showFailedMediaAnalysisOnlyHref?: string;
+  showAllMediaAnalysisStatusesHref?: string;
+  retryMediaAnalysisEventAction?: (formData: FormData) => Promise<void>;
   featuredSchools: AdminFeaturedSchool[];
   featuredMajors: AdminFeaturedMajor[];
   schoolRotation: AdminRotationRule;
@@ -145,6 +157,62 @@ const buildSchoolImageSearchHref = (name: string): string =>
   `https://image.baidu.com/search/index?tn=baiduimage&word=${encodeURIComponent(
     `${name} 校园`,
   )}`;
+
+const getRetriedFromEventId = (event: AdminMediaAnalysisEvent): number | null => {
+  const rawValue = event.context['retried_from_event_id'];
+
+  if (typeof rawValue === 'number' && Number.isInteger(rawValue)) {
+    return rawValue;
+  }
+
+  if (typeof rawValue === 'string') {
+    const parsedValue = Number.parseInt(rawValue, 10);
+    return Number.isNaN(parsedValue) ? null : parsedValue;
+  }
+
+  return null;
+};
+
+const buildLatestRetryByOriginalId = (
+  events: AdminMediaAnalysisEvent[],
+): Map<number, AdminMediaAnalysisEvent> => {
+  const latestRetryByOriginalId = new Map<number, AdminMediaAnalysisEvent>();
+
+  for (const event of events) {
+    const retriedFromEventId = getRetriedFromEventId(event);
+    if (retriedFromEventId === null) {
+      continue;
+    }
+
+    const currentLatestRetry = latestRetryByOriginalId.get(retriedFromEventId);
+    if (
+      !currentLatestRetry ||
+      event.createdAt > currentLatestRetry.createdAt ||
+      (event.createdAt === currentLatestRetry.createdAt && event.id > currentLatestRetry.id)
+    ) {
+      latestRetryByOriginalId.set(retriedFromEventId, event);
+    }
+  }
+
+  return latestRetryByOriginalId;
+};
+
+const buildRetryRelationshipLabel = (
+  event: AdminMediaAnalysisEvent,
+  latestRetryByOriginalId: Map<number, AdminMediaAnalysisEvent>,
+): string => {
+  const retriedFromEventId = getRetriedFromEventId(event);
+  if (retriedFromEventId !== null) {
+    return `手动重试记录 · 来源 #${retriedFromEventId}`;
+  }
+
+  const latestRetry = latestRetryByOriginalId.get(event.id);
+  if (latestRetry) {
+    return `原始记录 · 最新重试 #${latestRetry.id} · ${latestRetry.status}`;
+  }
+
+  return '原始记录';
+};
 
 function PreviewList({
   items,
@@ -338,6 +406,15 @@ function RelatedContentForm({
 export default function DashboardShell({
   title,
   queueItems,
+  mediaAnalysisEvents = [],
+  mediaAnalysisError,
+  mediaAnalysisStatusFilter = '',
+  mediaAnalysisUserIdFilter = '',
+  mediaAnalysisAutoRoutedOnly = false,
+  clearMediaAnalysisFiltersHref,
+  showFailedMediaAnalysisOnlyHref,
+  showAllMediaAnalysisStatusesHref,
+  retryMediaAnalysisEventAction = noopAction,
   featuredSchools,
   featuredMajors,
   schoolRotation,
@@ -436,6 +513,31 @@ export default function DashboardShell({
   updateSchoolRotationAction,
   updateMajorRotationAction,
 }: DashboardShellProps) {
+  const latestRetryByOriginalId = buildLatestRetryByOriginalId(mediaAnalysisEvents);
+  const failedMediaAnalysisCount = mediaAnalysisEvents.filter(
+    (event) => event.status === 'failed',
+  ).length;
+  const pendingMediaAnalysisCount = mediaAnalysisEvents.filter(
+    (event) => event.status === 'pending',
+  ).length;
+  const mediaAnalysisListSummary =
+    !mediaAnalysisError && mediaAnalysisEvents.length > 0
+      ? `\u5f53\u524d\u5217\u8868\u5171 ${mediaAnalysisEvents.length} \u6761\uff0c\u5931\u8d25 ${failedMediaAnalysisCount} \u6761\uff0c\u5f85\u5904\u7406 ${pendingMediaAnalysisCount} \u6761`
+      : undefined;
+  const mediaAnalysisStatusShortcut =
+    mediaAnalysisStatusFilter === 'failed'
+      ? showAllMediaAnalysisStatusesHref
+        ? {
+            href: showAllMediaAnalysisStatusesHref,
+            label: '\u67e5\u770b\u5168\u90e8\u5a92\u4f53\u8bb0\u5f55',
+          }
+        : undefined
+      : failedMediaAnalysisCount > 0 && showFailedMediaAnalysisOnlyHref
+        ? {
+            href: showFailedMediaAnalysisOnlyHref,
+            label: `\u53ea\u770b\u5931\u8d25\u8bb0\u5f55\uff08${failedMediaAnalysisCount}\uff09`,
+          }
+        : undefined;
   const showSelectedDateHelper =
     !selectedPreviewDateValue && !selectedDatePreview && !selectedDateError;
   const sortedFeaturedSchools = [...featuredSchools].sort((left, right) => {
@@ -1583,6 +1685,89 @@ export default function DashboardShell({
         updateModeAction={updateSmartAnalysisModeAction}
         updateUserAction={updateSmartAnalysisUserAction}
       />
+
+      <section aria-labelledby="recent-media-analysis-heading">
+        <form action="/admin" method="GET">
+          <label>
+            状态
+            <select name="media_analysis_status" defaultValue={mediaAnalysisStatusFilter}>
+              <option value="">全部</option>
+              <option value="success">success</option>
+              <option value="pending">pending</option>
+              <option value="failed">failed</option>
+            </select>
+          </label>
+          <label>
+            媒体用户 ID
+            <input name="media_analysis_user_id" defaultValue={mediaAnalysisUserIdFilter} />
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              name="media_analysis_auto_routed"
+              value="1"
+              defaultChecked={mediaAnalysisAutoRoutedOnly}
+            />
+            只看已自动进主分析
+          </label>
+          <button type="submit">筛选媒体记录</button>
+          {clearMediaAnalysisFiltersHref ? <a href={clearMediaAnalysisFiltersHref}>清除媒体筛选</a> : null}
+        </form>
+        <h2 id="recent-media-analysis-heading">最近媒体分析记录</h2>
+        {mediaAnalysisListSummary ? <p>{mediaAnalysisListSummary}</p> : null}
+        {mediaAnalysisStatusShortcut ? (
+          <p>
+            <a href={mediaAnalysisStatusShortcut.href}>{mediaAnalysisStatusShortcut.label}</a>
+          </p>
+        ) : null}
+        {mediaAnalysisError ? <p>{mediaAnalysisError}</p> : null}
+        {!mediaAnalysisError && mediaAnalysisEvents.length === 0 ? (
+          <p>当前还没有可查看的媒体分析记录</p>
+        ) : null}
+        {!mediaAnalysisError && mediaAnalysisEvents.length > 0 ? (
+          <div>
+            {mediaAnalysisEvents.map((event) => {
+              const retryRelationshipLabel = buildRetryRelationshipLabel(
+                event,
+                latestRetryByOriginalId,
+              );
+              const rawFailureReason = event.context['failure_reason'];
+              const failureReason =
+                typeof rawFailureReason === 'string' ? rawFailureReason.trim() : '';
+              const retryBlockReason =
+                typeof event.retryBlockReason === 'string' ? event.retryBlockReason.trim() : '';
+
+              return (
+                <article key={event.id}>
+                  <h3>{`${event.mediaType} · ${event.status} · ${event.provider}`}</h3>
+                  <p>{event.createdAt}</p>
+                  <p>{event.userId}</p>
+                  <p>{event.source}</p>
+                  <p>{retryRelationshipLabel}</p>
+                  {failureReason ? <p>{`失败原因：${failureReason}`}</p> : null}
+                  {event.summary ? <p>{event.summary}</p> : null}
+                  {event.renderedReply ? <p>{event.renderedReply}</p> : null}
+                  <pre>{JSON.stringify(event.extractedFields, null, 2)}</pre>
+                  <p>{event.autoRoutedToChat ? '已自动进入高考分析' : '未自动进入高考分析'}</p>
+                  {event.retryable ? (
+                    <form action={retryMediaAnalysisEventAction}>
+                      <input type="hidden" name="eventId" value={String(event.id)} />
+                      <button type="submit">重试分析</button>
+                    </form>
+                  ) : null}
+                  {!event.retryable && retryBlockReason ? (
+                    <p>{`不可重试：${retryBlockReason}`}</p>
+                  ) : null}
+                  <details>
+                    <summary>查看媒体详情</summary>
+                    <pre>{JSON.stringify(event.context, null, 2)}</pre>
+                  </details>
+                </article>
+              );
+            })}
+          </div>
+        ) : null}
+      </section>
 
       <section aria-labelledby="content-gap-overview-heading">
         <h2 id="content-gap-overview-heading">内容缺口总览</h2>

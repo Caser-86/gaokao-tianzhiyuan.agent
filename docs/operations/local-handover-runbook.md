@@ -46,6 +46,9 @@ Fill in these values before using relay-backed smart analysis:
 Optional:
 
 - `GAOKAO_AGENT_SMART_ANALYSIS_MODE`
+- `GAOKAO_AGENT_WECHAT_OFFICIAL_ACCOUNT_TOKEN`
+- `GAOKAO_AGENT_WECHAT_OFFICIAL_ACCOUNT_APP_ID`
+- `GAOKAO_AGENT_WECHAT_OFFICIAL_ACCOUNT_ENCODING_AES_KEY`
 - `GAOKAO_AGENT_ZHANGXUEFENG_SKILL_PATH`
 
 ### Web
@@ -100,6 +103,10 @@ Admin endpoints:
 - `PUT /api/admin/smart-analysis/settings`
 - `GET /api/admin/smart-analysis/users/{user_id}`
 - `PUT /api/admin/smart-analysis/users/{user_id}`
+- `GET /api/admin/media-analysis-events?limit=10`
+  - optional filters: `status`, `user_id`, `auto_routed_to_chat`
+- `POST /api/admin/media-analysis-events/{event_id}/retry`
+  - currently retries image records with a persisted `context.pic_url`
 
 Fallback reasons exposed in `debug.notes` include:
 
@@ -121,9 +128,21 @@ powershell -ExecutionPolicy Bypass -File scripts/start-local-stack.ps1
 Optional:
 
 - add `-RunSmoke` to run the existing live smoke checks right after startup
+- add `-ApiEnvFilePath apps\api\.env` or `-WebEnvFilePath apps\web\.env.local` if you want to point at non-default env files explicitly
 - logs are written to `.tmp/`
+- the script auto-loads `apps/api/.env` and `apps/web/.env.local` when those files exist
 - the script prints `Stop-Process` commands for the spawned API and Web processes
 - startup state is written to `.tmp/start-local-stack.state.json`
+- startup output and state now mask or omit raw admin and WeChat callback secrets
+
+Example with explicit env files plus smoke:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/start-local-stack.ps1 `
+  -ApiEnvFilePath apps\api\.env `
+  -WebEnvFilePath apps\web\.env.local `
+  -RunSmoke
+```
 
 ### Windows operator templates
 
@@ -235,11 +254,95 @@ Useful options:
 
 - `-ApiBaseUrl http://127.0.0.1:8000`
 - `-WebBaseUrl http://127.0.0.1:3000`
+- `-ApiEnvFilePath apps\api\.env`
 - `-AdminToken <your admin token>`
+- `-WechatOfficialAccountToken <your wechat callback token>`
+- `-WechatOfficialAccountAppId <your wechat app id>`
+- `-WechatOfficialAccountEncodingAesKey <your 43-char aes key>`
+- `-RequiredSkillIds zhangxuefeng,catalog_lookup`
 - `-SkipAdminCheck`
 - `-SkipChatProbe`
 - `-SkipWechatProbe`
+- `-SkipWechatOfficialAccountProbe`
 - `-DryRun`
+
+If `apps/api/.env` exists, the smoke script auto-loads it and reuses the admin
+token plus official-account callback settings automatically.
+
+The official-account smoke probe now verifies:
+
+- signature handshake
+- passive text-message reply
+- passive subscribe welcome reply
+- passive menu-click reply
+- official-account callback event routing
+- picture-event guidance reply
+- direct image-message guidance reply
+- direct video-message guidance reply
+- voice-message recognition routing
+- location-message routing
+- link-message routing
+- AES-mode handshake
+- AES-mode encrypted passive reply
+
+The chat skill listing smoke probe now expects both built-in skills by default:
+
+- `zhangxuefeng`
+- `catalog_lookup`
+
+When you need to hand-debug an official-account AES callback outside the smoke
+script, use the repo helper:
+
+```powershell
+python scripts/wechat_aes_helper.py sign `
+  --value "<Encrypt payload>" `
+  --token "<wechat token>" `
+  --timestamp "1710000000" `
+  --nonce "nonce-123"
+```
+
+```powershell
+python scripts/wechat_aes_helper.py decrypt `
+  --value "<Encrypt payload>" `
+  --app-id "<wechat app id>" `
+  --encoding-aes-key "<43-char aes key>"
+```
+
+For callback-only acceptance without checking homepage/admin/chat, use the
+dedicated probe:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/smoke-wechat-official-account.ps1 `
+  -ApiBaseUrl http://127.0.0.1:8000 `
+  -ApiEnvFilePath apps\api\.env
+```
+
+Useful options:
+
+- `-WechatOfficialAccountToken <your wechat callback token>`
+- `-WechatOfficialAccountAppId <your wechat app id>`
+- `-WechatOfficialAccountEncodingAesKey <your 43-char aes key>`
+- `-SkipPlaintextProbes`
+- `-SkipAesProbes`
+- `-DryRun`
+
+Note:
+
+- Direct `image` / `video` official-account messages now reuse the existing smart-analysis global mode and user-entitlement gate.
+- When media analysis is enabled for the current user, intentionally blank media-analysis providers still use the reserved pending reply, but explicit image-analysis failures now return a dedicated temporary-unavailable reply and persist a failed event reason.
+- The adapter layer already reserves `GAOKAO_AGENT_MEDIA_ANALYSIS_PROVIDER / BASE_URL / API_KEY / MODEL / TIMEOUT_SECONDS`; later provider integration should plug into that layer instead of modifying the callback router again.
+- The current `openai_compatible` adapter performs real media analysis only for official-account `image` callbacks with `PicUrl`; `video` / `shortvideo` are still unsupported and do not enter a real upstream analysis flow yet.
+- Official-account `video` / `shortvideo` attempts under `openai_compatible` now persist as explicit failed records with a readable unsupported-media reason, while user-facing replies stay on the normal video guidance text.
+- Successful media-analysis results are now normalized into `summary / extracted_fields / rendered_reply`, so later routing can consume extracted fields without changing provider-specific parsing again.
+- Admin dashboard operators can manually retry a stored image-analysis event; the retry writes a new `admin_media_analysis_retry` record so audit history stays intact.
+- Failed media-analysis requests now persist a readable `context.failure_reason`, and the `/admin` media-analysis cards render that reason directly for triage.
+- The `/admin` media-analysis area now shows current-list failure counts plus one-click failed-only or all-record shortcuts, so support can narrow triage faster without rebuilding filters.
+- Recent media-analysis cards now label whether a row is the original record or a manual retry record, and original rows surface the latest visible retry id/status when one exists in the current list.
+- The `/admin` media-analysis list now also exposes `retryable` vs blocked records. Only image rows with persisted `pic_url` render the retry action; blocked rows show a readable reason such as unsupported non-image media or missing `pic_url`.
+- When extracted image fields are rich enough, the callback now auto-synthesizes a normalized gaokao prompt and routes it into the existing chat flow instead of stopping at a media summary.
+- Each official-account media-analysis attempt now writes a lightweight SQLite record, and `/admin` shows the most recent records so operators can verify provider output, extracted fields, retained callback context, and whether an image was auto-routed into the main gaokao flow.
+- Operators can now narrow that list by `status`, `user_id`, and the “auto-routed into main analysis” flag when investigating a bad extraction or a specific user complaint.
+- Each record now has a detail expander so support can inspect raw callback context such as `msg_id`, `media_id`, `pic_url`, and `create_time` without querying SQLite directly.
 
 ## Verification Commands
 

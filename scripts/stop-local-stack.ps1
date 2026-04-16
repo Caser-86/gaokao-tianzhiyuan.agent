@@ -82,6 +82,8 @@ if (Test-Path -LiteralPath $resolvedStateFilePath) {
 
 $resolvedApiPort = if ($ApiPort -gt 0) { $ApiPort } elseif ($state) { [int]$state.api_port } else { 0 }
 $resolvedWebPort = if ($WebPort -gt 0) { $WebPort } elseif ($state) { [int]$state.web_port } else { 0 }
+$apiRunnerPid = if ($state -and $state.PSObject.Properties.Name -contains 'api_runner_pid') { [int]$state.api_runner_pid } else { 0 }
+$webRunnerPid = if ($state -and $state.PSObject.Properties.Name -contains 'web_runner_pid') { [int]$state.web_runner_pid } else { 0 }
 $apiPid = if ($state) { [int]$state.api_pid } else { 0 }
 $webPid = if ($state) { [int]$state.web_pid } else { 0 }
 
@@ -89,11 +91,15 @@ Write-Host '==> Local stack stop plan' -ForegroundColor Cyan
 Write-PlanLine -Label 'State file' -Value $resolvedStateFilePath
 Write-PlanLine -Label 'API port' -Value $resolvedApiPort.ToString()
 Write-PlanLine -Label 'Web port' -Value $resolvedWebPort.ToString()
+Write-PlanLine -Label 'API runner pid from state' -Value $apiRunnerPid.ToString()
+Write-PlanLine -Label 'Web runner pid from state' -Value $webRunnerPid.ToString()
 Write-PlanLine -Label 'API pid from state' -Value $apiPid.ToString()
 Write-PlanLine -Label 'Web pid from state' -Value $webPid.ToString()
 
 Stop-ProcessIfRunning -ProcessId $webPid -Label 'Web'
 Stop-ProcessIfRunning -ProcessId $apiPid -Label 'API'
+Stop-ProcessIfRunning -ProcessId $webRunnerPid -Label 'Web runner'
+Stop-ProcessIfRunning -ProcessId $apiRunnerPid -Label 'API runner'
 
 $webListenerProcessId = Get-ListeningProcessId -Port $resolvedWebPort
 if ($webListenerProcessId) {

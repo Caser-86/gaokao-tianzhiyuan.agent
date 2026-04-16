@@ -83,6 +83,17 @@ def test_smart_analysis_mode_rejects_unknown_values() -> None:
     assert "smart_analysis_mode must be one of: off, gated, on" in str(exc_info.value)
 
 
+def test_cors_allowed_origins_accept_comma_separated_values() -> None:
+    settings = Settings(
+        cors_allowed_origins="http://127.0.0.1:3000, http://localhost:3000"
+    )
+
+    assert settings.cors_allowed_origins == (
+        "http://127.0.0.1:3000",
+        "http://localhost:3000",
+    )
+
+
 def test_resolve_zhangxuefeng_skill_path_prefers_existing_configured_path(
     tmp_path,
 ) -> None:

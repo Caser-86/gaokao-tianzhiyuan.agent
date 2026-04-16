@@ -5,7 +5,7 @@ from sqlmodel import SQLModel, Session, select
 
 from ..config import settings
 from ..db import get_session
-from ..models.ingestion import ReviewQueue
+from ..models.ingestion import MediaAnalysisEvent, ReviewQueue
 from ..services.access_control import (
     SMART_ANALYSIS_ENTITLEMENT,
     get_effective_smart_analysis_mode,
@@ -14,6 +14,15 @@ from ..services.access_control import (
     set_user_entitlement,
 )
 from ..services import featured_content as featured_content_service
+from ..services.media_analysis import (
+    MediaAnalysisRequest,
+    MediaAnalysisResult,
+    build_media_analysis_provider,
+)
+from ..services.media_analysis_events import (
+    create_media_analysis_event,
+    list_media_analysis_events,
+)
 from ..services.featured_content import (
     build_featured_content_preview,
     list_featured_content,
@@ -33,6 +42,13 @@ from ..services.catalog import (
 )
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+media_analysis_provider = build_media_analysis_provider(
+    provider=settings.media_analysis_provider,
+    base_url=settings.media_analysis_base_url,
+    api_key=settings.media_analysis_api_key,
+    model=settings.media_analysis_model,
+    timeout_seconds=settings.media_analysis_timeout_seconds,
+)
 
 
 class ReviewQueueItemResponse(SQLModel):
@@ -51,6 +67,30 @@ class ReviewQueueItemResponse(SQLModel):
 
 class ReviewQueueListResponse(SQLModel):
     items: list[ReviewQueueItemResponse]
+
+
+class MediaAnalysisEventResponse(SQLModel):
+    id: int
+    channel: str
+    source: str
+    user_id: str
+    message_id: str
+    media_id: str
+    media_type: str
+    provider: str
+    status: str
+    summary: str
+    rendered_reply: str
+    extracted_fields: dict
+    context: dict
+    retryable: bool
+    retry_block_reason: str | None
+    auto_routed_to_chat: bool
+    created_at: datetime
+
+
+class MediaAnalysisEventListResponse(SQLModel):
+    items: list[MediaAnalysisEventResponse]
 
 
 class ReviewDecisionRequest(SQLModel):
@@ -282,6 +322,35 @@ def serialize_review_queue_item(item: ReviewQueue) -> ReviewQueueItemResponse:
     )
 
 
+def serialize_media_analysis_event(
+    item: MediaAnalysisEvent,
+) -> MediaAnalysisEventResponse:
+    created_at = item.created_at
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    retryable, retry_block_reason = get_media_analysis_retryability(item)
+
+    return MediaAnalysisEventResponse(
+        id=item.id,
+        channel=item.channel,
+        source=item.source,
+        user_id=item.user_id,
+        message_id=item.message_id,
+        media_id=item.media_id,
+        media_type=item.media_type,
+        provider=item.provider,
+        status=item.status,
+        summary=item.summary,
+        rendered_reply=item.rendered_reply,
+        extracted_fields=item.extracted_fields,
+        context=item.context,
+        retryable=retryable,
+        retry_block_reason=retry_block_reason,
+        auto_routed_to_chat=item.auto_routed_to_chat,
+        created_at=created_at,
+    )
+
+
 def get_review_queue_item(session: Session, queue_id: int) -> ReviewQueue:
     queue_item = session.get(ReviewQueue, queue_id)
     if queue_item is None:
@@ -290,6 +359,99 @@ def get_review_queue_item(session: Session, queue_id: int) -> ReviewQueue:
             detail="review queue item not found",
         )
     return queue_item
+
+
+def get_media_analysis_event(session: Session, event_id: int) -> MediaAnalysisEvent:
+    event = session.get(MediaAnalysisEvent, event_id)
+    if event is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="media analysis event not found",
+        )
+    return event
+
+
+def get_media_analysis_retryability(
+    item: MediaAnalysisEvent,
+) -> tuple[bool, str | None]:
+    context = item.context or {}
+    pic_url = str(context.get("pic_url", "")).strip()
+
+    if item.media_type != "image":
+        return False, "非图片媒体记录暂不支持手动重试"
+
+    if not pic_url:
+        return False, "图片记录缺少 pic_url，暂不支持手动重试"
+
+    return True, None
+
+
+def build_media_analysis_retry_payload(
+    item: MediaAnalysisEvent,
+) -> dict[str, str]:
+    context = item.context or {}
+    retryable, retry_block_reason = get_media_analysis_retryability(item)
+    if not retryable:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=retry_block_reason or "media analysis retry is not available",
+        )
+    pic_url = str(context.get("pic_url", "")).strip()
+
+    payload = {
+        "ToUserName": str(context.get("to_user_name", "")).strip(),
+        "FromUserName": str(context.get("from_user_name", "") or item.user_id).strip(),
+        "CreateTime": str(context.get("create_time", "")).strip(),
+        "MsgType": str(context.get("msg_type", "") or item.media_type).strip(),
+        "MsgId": str(context.get("msg_id", "") or item.message_id).strip(),
+        "MediaId": str(context.get("media_id", "") or item.media_id).strip(),
+        "PicUrl": pic_url,
+    }
+
+    thumb_media_id = str(context.get("thumb_media_id", "")).strip()
+    if thumb_media_id:
+        payload["ThumbMediaId"] = thumb_media_id
+
+    return payload
+
+
+def retry_media_analysis_event(
+    *,
+    session: Session,
+    item: MediaAnalysisEvent,
+) -> MediaAnalysisEvent:
+    payload = build_media_analysis_retry_payload(item)
+    result: MediaAnalysisResult = media_analysis_provider.analyze(
+        request=MediaAnalysisRequest(
+            media_type=item.media_type,
+            user_id=item.user_id,
+            payload=payload,
+        )
+    )
+    retry_context = {
+        **(item.context or {}),
+        "retried_from_event_id": item.id,
+        "retry_trigger": "admin_manual",
+    }
+    if result.failure_reason:
+        retry_context["failure_reason"] = result.failure_reason
+
+    return create_media_analysis_event(
+        session,
+        channel=item.channel,
+        source="admin_media_analysis_retry",
+        user_id=item.user_id,
+        message_id=item.message_id,
+        media_id=item.media_id,
+        media_type=item.media_type,
+        provider=result.provider,
+        status=result.status,
+        summary=result.summary or "",
+        rendered_reply=result.rendered_reply or "",
+        extracted_fields=result.extracted_fields or {},
+        context=retry_context,
+        auto_routed_to_chat=False,
+    )
 
 
 def finalize_review_queue_item(
@@ -429,6 +591,44 @@ def list_review_queue(
     return ReviewQueueListResponse(
         items=[serialize_review_queue_item(item) for item in items]
     )
+
+
+@router.get(
+    "/media-analysis-events",
+    response_model=MediaAnalysisEventListResponse,
+)
+def get_media_analysis_events(
+    limit: int = Query(default=20, ge=1, le=100),
+    status: str | None = Query(default=None),
+    user_id: str | None = Query(default=None),
+    auto_routed_to_chat: bool | None = Query(default=None),
+    _authorized: None = Depends(require_admin),
+    session: Session = Depends(get_session),
+) -> MediaAnalysisEventListResponse:
+    items = list_media_analysis_events(
+        session,
+        limit=limit,
+        status=status.strip() if status else None,
+        user_id=user_id.strip() if user_id else None,
+        auto_routed_to_chat=auto_routed_to_chat,
+    )
+    return MediaAnalysisEventListResponse(
+        items=[serialize_media_analysis_event(item) for item in items]
+    )
+
+
+@router.post(
+    "/media-analysis-events/{event_id}/retry",
+    response_model=MediaAnalysisEventResponse,
+)
+def retry_media_analysis_event_endpoint(
+    event_id: int,
+    _authorized: None = Depends(require_admin),
+    session: Session = Depends(get_session),
+) -> MediaAnalysisEventResponse:
+    item = get_media_analysis_event(session, event_id)
+    retried = retry_media_analysis_event(session=session, item=item)
+    return serialize_media_analysis_event(retried)
 
 
 @router.get("/smart-analysis/settings", response_model=SmartAnalysisSettingsResponse)

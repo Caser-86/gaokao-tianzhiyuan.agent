@@ -36,6 +36,9 @@ Pay attention to:
 - `GAOKAO_AGENT_ADMIN_TOKEN`
 - `GAOKAO_AGENT_DATABASE_URL`
 - relay credentials
+- `GAOKAO_AGENT_WECHAT_OFFICIAL_ACCOUNT_TOKEN`
+- `GAOKAO_AGENT_WECHAT_OFFICIAL_ACCOUNT_APP_ID`
+- `GAOKAO_AGENT_WECHAT_OFFICIAL_ACCOUNT_ENCODING_AES_KEY`
 - `GAOKAO_AGENT_ZHANGXUEFENG_SKILL_PATH`
 
 ### Web
@@ -60,10 +63,45 @@ Start plus smoke:
 powershell -ExecutionPolicy Bypass -File scripts/start-local-stack.ps1 -RunSmoke
 ```
 
+Start with explicit env files:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/start-local-stack.ps1 `
+  -ApiEnvFilePath apps\api\.env `
+  -WebEnvFilePath apps\web\.env.local `
+  -RunSmoke
+```
+
 The script writes:
 
 - runtime logs into `.tmp/`
 - runtime state into `.tmp/start-local-stack.state.json`
+- masked startup diagnostics to the console without printing raw admin or WeChat callback secrets
+
+If `apps/api/.env` and `apps/web/.env.local` already exist, the startup script
+auto-loads them even when you do not pass extra arguments.
+
+If you want to validate the official account callback during smoke
+checks, keep `GAOKAO_AGENT_WECHAT_OFFICIAL_ACCOUNT_TOKEN` aligned with the token
+you pass into the WeChat backend.
+
+The smoke script can also reuse the API env file directly:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/smoke-local-stack.ps1 `
+  -ApiEnvFilePath apps\api\.env
+```
+
+By default, the smoke check now verifies that `/api/chat/skills` exposes both
+`zhangxuefeng` and `catalog_lookup`.
+
+If you only want to validate the WeChat official-account callback path, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/smoke-wechat-official-account.ps1 `
+  -ApiBaseUrl http://127.0.0.1:8000 `
+  -ApiEnvFilePath apps\api\.env
+```
 
 ## Stop
 

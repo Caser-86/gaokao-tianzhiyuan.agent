@@ -36,11 +36,20 @@ import {
   updateSmartAnalysisSettings,
   updateSmartAnalysisUser,
 } from '../../../lib/admin-smart-analysis-api';
+import { retryMediaAnalysisEvent } from '../../../lib/admin-media-analysis-api';
 
 const parseQueueId = (rawValue: FormDataEntryValue | null): number => {
   const value = typeof rawValue === 'string' ? Number.parseInt(rawValue, 10) : Number.NaN;
   if (Number.isNaN(value)) {
     throw new Error('queue id is required');
+  }
+  return value;
+};
+
+const parseEventId = (rawValue: FormDataEntryValue | null): number => {
+  const value = typeof rawValue === 'string' ? Number.parseInt(rawValue, 10) : Number.NaN;
+  if (Number.isNaN(value)) {
+    throw new Error('event id is required');
   }
   return value;
 };
@@ -187,6 +196,17 @@ export async function rejectReviewQueueAction(formData: FormData): Promise<void>
     const reviewNote = String(formData.get('reviewNote') ?? '').trim();
 
     await rejectReviewQueueItem(queueId, reviewedBy, reviewNote || undefined);
+    revalidatePath('/admin');
+  } catch {
+    return;
+  }
+}
+
+export async function retryMediaAnalysisEventAction(formData: FormData): Promise<void> {
+  try {
+    const eventId = parseEventId(formData.get('eventId'));
+
+    await retryMediaAnalysisEvent(eventId);
     revalidatePath('/admin');
   } catch {
     return;

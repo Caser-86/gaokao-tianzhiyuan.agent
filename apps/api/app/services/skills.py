@@ -12,6 +12,7 @@ from .llm import (
     ProviderRequestError,
     ProviderResponseFormatError,
 )
+from .catalog import load_catalog
 
 GAOKAO_KEYWORDS = ("学校", "专业", "志愿", "985", "211", "双一流", "冲", "稳", "保", "对比")
 PROVINCES = ("北京", "上海", "江苏", "浙江", "广东", "四川", "湖北", "河南")
@@ -101,6 +102,236 @@ class SkillRegistry:
             if metadata.enabled and channel in metadata.supports_channels:
                 enabled.append(skill)
         return enabled
+
+
+CATALOG_LOOKUP_HINTS = (
+    "\u600e\u4e48\u6837",
+    "\u4ecb\u7ecd",
+    "\u8be6\u60c5",
+    "\u4ec0\u4e48",
+    "\u503c\u5f97",
+    "\u9662\u6821",
+    "\u4e13\u4e1a",
+)
+
+
+def _catalog_lookup_candidates(entity_key: str) -> list[dict[str, Any]]:
+    catalog = load_catalog()
+    entities = catalog.get(entity_key, [])
+    return sorted(
+        [item for item in entities if str(item.get("name", "")).strip()],
+        key=lambda item: len(str(item["name"])),
+        reverse=True,
+    )
+
+
+def _catalog_lookup_exact_message(message: str, name: str) -> bool:
+    normalized_message = message.strip()
+    normalized_name = name.strip()
+    return bool(normalized_message and normalized_name and normalized_message == normalized_name)
+
+
+def _catalog_lookup_has_hint(message: str) -> bool:
+    return any(hint in message for hint in CATALOG_LOOKUP_HINTS)
+
+
+def _resolve_catalog_lookup_entity(message: str) -> tuple[str, dict[str, Any]] | None:
+    for entity_key in ("majors", "schools"):
+        for item in _catalog_lookup_candidates(entity_key):
+            name = str(item.get("name", "")).strip()
+            if not name or name not in message:
+                continue
+            if _catalog_lookup_exact_message(message, name) or _catalog_lookup_has_hint(message):
+                entity_type = "major" if entity_key == "majors" else "school"
+                return entity_type, item
+    return None
+
+
+def _build_catalog_lookup_related_suggestions(
+    *,
+    related_field: str,
+    related_entity_key: str,
+    suggestion_type: str,
+    related_slugs: list[str],
+) -> list[dict[str, Any]]:
+    catalog = load_catalog()
+    related_by_slug = {
+        item["slug"]: item
+        for item in catalog.get(related_entity_key, [])
+        if str(item.get("slug", "")).strip()
+    }
+    suggestions: list[dict[str, Any]] = []
+    for slug in related_slugs[:3]:
+        item = related_by_slug.get(slug)
+        if item is None:
+            continue
+        suggestions.append(
+            {
+                "type": suggestion_type,
+                "title": str(item.get("name", "")).strip(),
+                "slug": slug,
+                related_field: slug,
+            }
+        )
+    return suggestions
+
+
+class CatalogLookupSkill:
+    def describe(self) -> SkillMetadata:
+        return SkillMetadata(
+            skill_id="catalog_lookup",
+            name="Catalog Lookup",
+            version="v1",
+            description="Catalog-backed school and major lookup skill",
+            enabled=True,
+            supports_channels=("wechat", "web"),
+        )
+
+    def match(self, request: ChatRequestContext) -> SkillMatchResult:
+        matched_entity = _resolve_catalog_lookup_entity(request.message)
+        if matched_entity is None:
+            return SkillMatchResult(
+                matched=False,
+                confidence=0.0,
+                reason="no catalog entity matched",
+            )
+
+        entity_type, item = matched_entity
+        confidence = 0.88 if _catalog_lookup_has_hint(request.message) else 0.82
+        return SkillMatchResult(
+            matched=True,
+            confidence=confidence,
+            reason=f"matched {entity_type}: {item['slug']}",
+        )
+
+    def invoke(self, request: ChatRequestContext) -> SkillInvocationResult:
+        matched_entity = _resolve_catalog_lookup_entity(request.message)
+        if matched_entity is None:
+            return SkillInvocationResult(
+                intent="catalog_lookup_fallback",
+                summary="\u672a\u547d\u4e2d\u9662\u6821\u6216\u4e13\u4e1a\u76ee\u5f55",
+                entities={},
+                analysis="\u8bf7\u76f4\u63a5\u53d1\u9001\u5b66\u6821\u540d\u6216\u4e13\u4e1a\u540d\uff0c\u6211\u53ef\u4ee5\u5148\u8fd4\u56de\u76ee\u5f55\u91cc\u7684\u57fa\u7840\u4fe1\u606f\u6458\u8981\u3002",
+                suggestions=[],
+                follow_up_questions=["\u4f60\u60f3\u67e5\u5b66\u6821\u8be6\u60c5\uff0c\u8fd8\u662f\u4e13\u4e1a\u4ecb\u7ecd\uff1f"],
+                actions=[],
+                risk_flags=[],
+                rendered_reply="\u8bf7\u76f4\u63a5\u53d1\u9001\u5b66\u6821\u540d\u6216\u4e13\u4e1a\u540d\uff0c\u6211\u53ef\u4ee5\u5148\u8fd4\u56de\u76ee\u5f55\u91cc\u7684\u57fa\u7840\u4fe1\u606f\u6458\u8981\u3002",
+                debug_notes=["catalog_lookup_no_match"],
+            )
+
+        entity_type, item = matched_entity
+        if entity_type == "school":
+            return self._build_school_result(item)
+        return self._build_major_result(item)
+
+    def _build_school_result(self, item: dict[str, Any]) -> SkillInvocationResult:
+        slug = str(item.get("slug", "")).strip()
+        name = str(item.get("name", "")).strip()
+        region = str(item.get("region", "")).strip()
+        city = str(item.get("city", "")).strip()
+        summary = str(item.get("summary", "")).strip()
+        tags = [str(tag).strip() for tag in item.get("tags", []) if str(tag).strip()]
+        suggestions = _build_catalog_lookup_related_suggestions(
+            related_field="related_major_slug",
+            related_entity_key="majors",
+            suggestion_type="major",
+            related_slugs=[
+                str(related_slug).strip()
+                for related_slug in item.get("related_majors", [])
+                if str(related_slug).strip()
+            ],
+        )
+        analysis_parts = []
+        if region or city:
+            analysis_parts.append(f"{region}{city}".strip())
+        if tags:
+            analysis_parts.append(" / ".join(tags))
+        if summary:
+            analysis_parts.append(summary)
+        analysis = "；".join(part for part in analysis_parts if part)
+        rendered_reply = f"{name}位于{region}{city}。{summary}".strip("。") + "。"
+
+        return SkillInvocationResult(
+            intent="catalog_lookup_school",
+            summary=f"已命中院校：{name}",
+            entities={
+                "entity_type": "school",
+                "slug": slug,
+                "name": name,
+                "region": region,
+                "city": city,
+            },
+            analysis=analysis,
+            suggestions=suggestions,
+            follow_up_questions=(
+                ["想继续看这所学校相关专业的目录摘要吗？"] if suggestions else []
+            ),
+            actions=[
+                {
+                    "type": "open_school",
+                    "label": "查看院校详情",
+                    "target": f"/schools/{slug}",
+                }
+            ],
+            risk_flags=[],
+            rendered_reply=rendered_reply,
+        )
+
+    def _build_major_result(self, item: dict[str, Any]) -> SkillInvocationResult:
+        slug = str(item.get("slug", "")).strip()
+        name = str(item.get("name", "")).strip()
+        discipline = str(item.get("discipline", "")).strip()
+        summary = str(item.get("summary", "")).strip()
+        recommended_regions = [
+            str(region).strip()
+            for region in item.get("recommended_regions", [])
+            if str(region).strip()
+        ]
+        suggestions = _build_catalog_lookup_related_suggestions(
+            related_field="related_school_slug",
+            related_entity_key="schools",
+            suggestion_type="school",
+            related_slugs=[
+                str(related_slug).strip()
+                for related_slug in item.get("related_schools", [])
+                if str(related_slug).strip()
+            ],
+        )
+        analysis_parts = []
+        if discipline:
+            analysis_parts.append(f"学科门类：{discipline}")
+        if recommended_regions:
+            analysis_parts.append(f"推荐区域：{' / '.join(recommended_regions)}")
+        if summary:
+            analysis_parts.append(summary)
+        analysis = "；".join(part for part in analysis_parts if part)
+        rendered_reply = f"{name}属于{discipline}。{summary}".strip("。") + "。"
+
+        return SkillInvocationResult(
+            intent="catalog_lookup_major",
+            summary=f"已命中专业：{name}",
+            entities={
+                "entity_type": "major",
+                "slug": slug,
+                "name": name,
+                "discipline": discipline,
+            },
+            analysis=analysis,
+            suggestions=suggestions,
+            follow_up_questions=(
+                ["想继续看这个专业可关联的院校吗？"] if suggestions else []
+            ),
+            actions=[
+                {
+                    "type": "open_major",
+                    "label": "查看专业详情",
+                    "target": f"/majors/{slug}",
+                }
+            ],
+            risk_flags=[],
+            rendered_reply=rendered_reply,
+        )
 
 
 class ZhangXueFengSkill:

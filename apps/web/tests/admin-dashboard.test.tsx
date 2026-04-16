@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 
 import DashboardShell, {
+  type AdminMediaAnalysisEvent,
   type AdminReviewItem,
 } from '../components/admin/dashboard-shell';
 
@@ -17,6 +18,62 @@ const queueItems: AdminReviewItem[] = [
     reviewed_at: null,
     review_note: null,
     created_at: '2026-04-13T09:00:00Z',
+  },
+];
+
+const mediaAnalysisEvents: AdminMediaAnalysisEvent[] = [
+  {
+    id: 22,
+    channel: 'wechat',
+    source: 'admin_media_analysis_retry',
+    userId: 'wx-openid-123',
+    messageId: 'msg-123',
+    mediaId: 'media-123',
+    mediaType: 'image',
+    provider: 'openai_compatible',
+    status: 'failed',
+    summary: '管理员手动重试中，等待返回新结果',
+    renderedReply: '',
+    extractedFields: {},
+    context: {
+      msg_type: 'image',
+      pic_url: 'https://example.com/image-123.png',
+      retried_from_event_id: 21,
+      retry_trigger: 'admin_manual',
+      failure_reason: '上游媒体分析请求失败：HTTP 429',
+    },
+    retryable: true,
+    retryBlockReason: null,
+    autoRoutedToChat: false,
+    createdAt: '2026-04-15T09:05:00Z',
+  },
+  {
+    id: 21,
+    channel: 'wechat',
+    source: 'wechat_official_account_image_media_analysis',
+    userId: 'wx-openid-123',
+    messageId: 'msg-123',
+    mediaId: 'media-123',
+    mediaType: 'image',
+    provider: 'openai_compatible',
+    status: 'success',
+    summary: '识别到河南560分理科，目标专业计算机科学与技术',
+    renderedReply: '图片已自动进入高考志愿分析',
+    extractedFields: {
+      province: '河南',
+      score: 560,
+      subject: '理科',
+    },
+    context: {
+      msg_type: 'image',
+      pic_url: 'https://example.com/image-123.png',
+      create_time: '1710000001',
+      msg_id: 'msg-123',
+    },
+    retryable: true,
+    retryBlockReason: null,
+    autoRoutedToChat: true,
+    createdAt: '2026-04-15T09:00:00Z',
   },
 ];
 
@@ -275,6 +332,94 @@ test('renders smart analysis ops panel with mode and per-user controls', () => {
   expect(screen.getByRole('button', { name: '保存智能分析模式' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '开通智能分析' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '关闭智能分析' })).toBeInTheDocument();
+});
+
+test('renders recent media analysis events in the admin dashboard', () => {
+  render(
+    <DashboardShell
+      title="内容运营后台"
+      queueItems={[]}
+      mediaAnalysisEvents={mediaAnalysisEvents}
+      showFailedMediaAnalysisOnlyHref="/admin?media_analysis_status=failed"
+      featuredSchools={[]}
+      featuredMajors={[]}
+      schoolRotation={schoolRotation}
+      majorRotation={majorRotation}
+      featuredSchoolPreview={[]}
+      featuredMajorPreview={[]}
+      nextFeaturedSchoolPreview={[]}
+      nextFeaturedMajorPreview={[]}
+      featuredSchedule={[]}
+      selectedPreviewDateValue=""
+      selectedDatePreview={null}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
+    />,
+  );
+
+  const mediaRegion = screen.getByRole('region', { name: '最近媒体分析记录' });
+
+  expect(screen.getByRole('heading', { name: '最近媒体分析记录' })).toBeInTheDocument();
+  expect(within(mediaRegion).getByText('当前列表共 2 条，失败 1 条，待处理 0 条')).toBeInTheDocument();
+  expect(within(mediaRegion).getByRole('link', { name: '只看失败记录（1）' })).toHaveAttribute(
+    'href',
+    '/admin?media_analysis_status=failed',
+  );
+  expect(within(mediaRegion).getByText('image · success · openai_compatible')).toBeInTheDocument();
+  expect(within(mediaRegion).getByText('image · failed · openai_compatible')).toBeInTheDocument();
+  expect(within(mediaRegion).getAllByText('wx-openid-123')).toHaveLength(2);
+  expect(
+    within(mediaRegion).getByText('识别到河南560分理科，目标专业计算机科学与技术'),
+  ).toBeInTheDocument();
+  expect(within(mediaRegion).getByText('图片已自动进入高考志愿分析')).toBeInTheDocument();
+  expect(within(mediaRegion).getByText(/"province": "河南"/)).toBeInTheDocument();
+  expect(within(mediaRegion).getByText('已自动进入高考分析')).toBeInTheDocument();
+  expect(within(mediaRegion).getByText('失败原因：上游媒体分析请求失败：HTTP 429')).toBeInTheDocument();
+  expect(within(mediaRegion).getAllByRole('button', { name: '重试分析' })).toHaveLength(2);
+  expect(within(mediaRegion).getAllByText('查看媒体详情')).toHaveLength(2);
+  expect(
+    within(mediaRegion).getAllByText(/"pic_url": "https:\/\/example.com\/image-123.png"/),
+  ).toHaveLength(2);
+  expect(within(mediaRegion).getByText(/"msg_id": "msg-123"/)).toBeInTheDocument();
+});
+
+test('shows retry relationship details for original and retried media-analysis events', () => {
+  render(
+    <DashboardShell
+      title="鍐呭杩愯惀鍚庡彴"
+      queueItems={[]}
+      mediaAnalysisEvents={mediaAnalysisEvents}
+      mediaAnalysisStatusFilter="failed"
+      showAllMediaAnalysisStatusesHref="/admin"
+      featuredSchools={[]}
+      featuredMajors={[]}
+      schoolRotation={schoolRotation}
+      majorRotation={majorRotation}
+      featuredSchoolPreview={[]}
+      featuredMajorPreview={[]}
+      nextFeaturedSchoolPreview={[]}
+      nextFeaturedMajorPreview={[]}
+      featuredSchedule={[]}
+      selectedPreviewDateValue=""
+      selectedDatePreview={null}
+      approveAction={async () => undefined}
+      rejectAction={async () => undefined}
+      updateFeaturedSchoolAction={async () => undefined}
+      updateFeaturedMajorAction={async () => undefined}
+      updateSchoolRotationAction={async () => undefined}
+      updateMajorRotationAction={async () => undefined}
+    />,
+  );
+
+  expect(screen.getByText('管理员手动重试中，等待返回新结果')).toBeInTheDocument();
+  expect(screen.getByText('原始记录 · 最新重试 #22 · failed')).toBeInTheDocument();
+  expect(screen.getByText('手动重试记录 · 来源 #21')).toBeInTheDocument();
+  expect(screen.getByText('失败原因：上游媒体分析请求失败：HTTP 429')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: '查看全部媒体记录' })).toHaveAttribute('href', '/admin');
 });
 
 test('renders helper text and highlights today when no selected preview date is provided', () => {

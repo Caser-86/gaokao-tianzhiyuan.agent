@@ -2,9 +2,15 @@ param(
   [string]$BindHost = '127.0.0.1',
   [int]$ApiPort = 8000,
   [int]$WebPort = 3000,
-  [string]$AdminToken = 'dev-admin-token',
+  [string]$AdminToken = '',
+  [string]$WechatOfficialAccountToken = '',
+  [string]$WechatOfficialAccountAppId = '',
+  [string]$WechatOfficialAccountEncodingAesKey = '',
+  [string]$SmartAnalysisMode = '',
   [string]$DatabasePath = '',
   [string]$StateFilePath = '',
+  [string]$ApiEnvFilePath = '',
+  [string]$WebEnvFilePath = '',
   [switch]$RunSmoke,
   [switch]$DryRun
 )
@@ -16,28 +22,6 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $tmpDir = Join-Path $repoRoot '.tmp'
 New-Item -ItemType Directory -Force -Path $tmpDir | Out-Null
 
-$apiBaseUrl = "http://$BindHost`:$ApiPort"
-$webBaseUrl = "http://$BindHost`:$WebPort"
-$resolvedDatabasePath = if ([string]::IsNullOrWhiteSpace($DatabasePath)) {
-  Join-Path $tmpDir 'start-local-stack.db'
-}
-else {
-  $DatabasePath
-}
-
-$resolvedDatabaseUrl = 'sqlite:///' + ($resolvedDatabasePath -replace '\\', '/')
-$resolvedStateFilePath = if ([string]::IsNullOrWhiteSpace($StateFilePath)) {
-  Join-Path $tmpDir 'start-local-stack.state.json'
-}
-else {
-  $StateFilePath
-}
-$timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-$apiOutLog = Join-Path $tmpDir "start-local-stack-api.$timestamp.out.log"
-$apiErrLog = Join-Path $tmpDir "start-local-stack-api.$timestamp.err.log"
-$webOutLog = Join-Path $tmpDir "start-local-stack-web.$timestamp.out.log"
-$webErrLog = Join-Path $tmpDir "start-local-stack-web.$timestamp.err.log"
-
 function Write-PlanLine {
   param(
     [Parameter(Mandatory = $true)]
@@ -47,6 +31,127 @@ function Write-PlanLine {
   )
 
   Write-Host ("{0}: {1}" -f $Label, $Value)
+}
+
+function Read-EnvFile {
+  param(
+    [string]$Path
+  )
+
+  $values = @{}
+  if ([string]::IsNullOrWhiteSpace($Path)) {
+    return $values
+  }
+
+  $resolvedPath = (Resolve-Path -LiteralPath $Path -ErrorAction Stop).Path
+  foreach ($rawLine in Get-Content -LiteralPath $resolvedPath) {
+    $line = $rawLine.Trim()
+    if ([string]::IsNullOrWhiteSpace($line) -or $line.StartsWith('#')) {
+      continue
+    }
+
+    $separatorIndex = $line.IndexOf('=')
+    if ($separatorIndex -lt 1) {
+      continue
+    }
+
+    $name = $line.Substring(0, $separatorIndex).Trim()
+    $value = $line.Substring($separatorIndex + 1)
+    if (
+      $value.Length -ge 2 -and (
+        ($value.StartsWith('"') -and $value.EndsWith('"')) -or
+        ($value.StartsWith("'") -and $value.EndsWith("'"))
+      )
+    ) {
+      $value = $value.Substring(1, $value.Length - 2)
+    }
+
+    $values[$name] = $value
+  }
+
+  return $values
+}
+
+function Resolve-SettingValue {
+  param(
+    [string]$ExplicitValue,
+    [System.Collections.IDictionary[]]$EnvMaps = @(),
+    [Parameter(Mandatory = $true)]
+    [string]$Name,
+    [string]$Fallback = ''
+  )
+
+  if (-not [string]::IsNullOrWhiteSpace($ExplicitValue)) {
+    return $ExplicitValue
+  }
+
+  foreach ($envMap in $EnvMaps) {
+    if ($null -eq $envMap) {
+      continue
+    }
+
+    if ($envMap.ContainsKey($Name)) {
+      $candidate = [string]$envMap[$Name]
+      if (-not [string]::IsNullOrWhiteSpace($candidate)) {
+        return $candidate
+      }
+    }
+  }
+
+  return $Fallback
+}
+
+function ConvertTo-EnvAssignmentBlock {
+  param(
+    [Parameter(Mandatory = $true)]
+    [System.Collections.IDictionary]$Variables
+  )
+
+  $lines = @()
+  foreach ($name in ($Variables.Keys | Sort-Object)) {
+    $value = [string]$Variables[$name]
+    $escapedValue = $value.Replace("'", "''")
+    $lines += "`$env:${name}='$escapedValue'"
+  }
+
+  return ($lines -join "`n")
+}
+
+function Get-MaskedValue {
+  param(
+    [string]$Value
+  )
+
+  if ([string]::IsNullOrWhiteSpace($Value)) {
+    return '(not set)'
+  }
+
+  if ($Value.Length -le 4) {
+    return ('*' * $Value.Length)
+  }
+
+  return ('*' * ($Value.Length - 4)) + $Value.Substring($Value.Length - 4)
+}
+
+function Get-SqlitePathFromDatabaseUrl {
+  param(
+    [string]$DatabaseUrl
+  )
+
+  if ([string]::IsNullOrWhiteSpace($DatabaseUrl)) {
+    return ''
+  }
+
+  if (-not $DatabaseUrl.StartsWith('sqlite:///')) {
+    return ''
+  }
+
+  $path = $DatabaseUrl.Substring('sqlite:///'.Length)
+  if ($path -match '^[A-Za-z]:/') {
+    return ($path -replace '/', '\')
+  }
+
+  return $path
 }
 
 function Wait-UntilReady {
@@ -78,13 +183,81 @@ function Wait-UntilReady {
   }
 
   $exitHint = if ($Process.HasExited) {
-    " Process exited before readiness check passed."
+    ' Process exited before readiness check passed.'
   }
   else {
     ''
   }
 
   throw "$Label did not become ready at $Uri within $Attempts seconds.$exitHint Logs: $StdOutLog ; $StdErrLog"
+}
+
+function Wait-UntilStable {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Label,
+    [Parameter(Mandatory = $true)]
+    [string]$Uri,
+    [Parameter(Mandatory = $true)]
+    [int]$Port,
+    [Parameter(Mandatory = $true)]
+    [System.Diagnostics.Process]$Process,
+    [Parameter(Mandatory = $true)]
+    [string]$StdOutLog,
+    [Parameter(Mandatory = $true)]
+    [string]$StdErrLog,
+    [int]$StableSeconds = 5
+  )
+
+  for ($second = 1; $second -le $StableSeconds; $second++) {
+    if ($Process.HasExited) {
+      throw "$Label exited during the stability window. Logs: $StdOutLog ; $StdErrLog"
+    }
+
+    $listenerProcessId = Get-ListeningProcessId -Port $Port
+    if (-not $listenerProcessId) {
+      throw "$Label stopped listening on port $Port during the stability window. Logs: $StdOutLog ; $StdErrLog"
+    }
+
+    try {
+      $response = Invoke-RestMethod -Uri $Uri -Method Get
+      if ($null -eq $response) {
+        throw
+      }
+    }
+    catch {
+      throw "$Label failed a stability probe at $Uri. Logs: $StdOutLog ; $StdErrLog"
+    }
+
+    Start-Sleep -Seconds 1
+  }
+}
+
+function Write-ServiceRunnerScript {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Label,
+    [Parameter(Mandatory = $true)]
+    [string]$WorkingDirectory,
+    [Parameter(Mandatory = $true)]
+    [string]$EnvAssignmentBlock,
+    [Parameter(Mandatory = $true)]
+    [string]$CommandText,
+    [Parameter(Mandatory = $true)]
+    [string]$Timestamp
+  )
+
+  $runnerScriptPath = Join-Path $tmpDir ("start-local-stack-{0}.{1}.runner.ps1" -f $Label.ToLowerInvariant(), $Timestamp)
+  $escapedWorkingDirectory = $WorkingDirectory.Replace("'", "''")
+  $scriptContent = @"
+`$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+$EnvAssignmentBlock
+Set-Location '$escapedWorkingDirectory'
+$CommandText
+"@
+  Set-Content -LiteralPath $runnerScriptPath -Value $scriptContent -Encoding UTF8
+  return $runnerScriptPath
 }
 
 function Start-ChildService {
@@ -94,7 +267,7 @@ function Start-ChildService {
     [Parameter(Mandatory = $true)]
     [string]$WorkingDirectory,
     [Parameter(Mandatory = $true)]
-    [string]$ScriptBlockText,
+    [string]$RunnerScriptPath,
     [Parameter(Mandatory = $true)]
     [string]$StdOutLog,
     [Parameter(Mandatory = $true)]
@@ -102,9 +275,10 @@ function Start-ChildService {
   )
 
   Write-Host "==> Starting $Label" -ForegroundColor Cyan
+  $quotedRunnerScriptPath = '"' + $RunnerScriptPath + '"'
   return Start-Process `
     -FilePath 'powershell' `
-    -ArgumentList @('-NoProfile', '-Command', $ScriptBlockText) `
+    -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $quotedRunnerScriptPath) `
     -WorkingDirectory $WorkingDirectory `
     -RedirectStandardOutput $StdOutLog `
     -RedirectStandardError $StdErrLog `
@@ -140,11 +314,96 @@ function Select-PreferredProcessId {
   return $FallbackProcessId
 }
 
+$defaultApiEnvPath = Join-Path $repoRoot 'apps/api/.env'
+$defaultWebEnvPath = Join-Path $repoRoot 'apps/web/.env.local'
+$resolvedApiEnvFilePath = if (-not [string]::IsNullOrWhiteSpace($ApiEnvFilePath)) {
+  (Resolve-Path -LiteralPath $ApiEnvFilePath -ErrorAction Stop).Path
+}
+elseif (Test-Path -LiteralPath $defaultApiEnvPath) {
+  (Resolve-Path -LiteralPath $defaultApiEnvPath).Path
+}
+else {
+  ''
+}
+$resolvedWebEnvFilePath = if (-not [string]::IsNullOrWhiteSpace($WebEnvFilePath)) {
+  (Resolve-Path -LiteralPath $WebEnvFilePath -ErrorAction Stop).Path
+}
+elseif (Test-Path -LiteralPath $defaultWebEnvPath) {
+  (Resolve-Path -LiteralPath $defaultWebEnvPath).Path
+}
+else {
+  ''
+}
+$apiEnvValues = Read-EnvFile -Path $resolvedApiEnvFilePath
+$webEnvValues = Read-EnvFile -Path $resolvedWebEnvFilePath
+
+$apiBaseUrl = "http://$BindHost`:$ApiPort"
+$webBaseUrl = "http://$BindHost`:$WebPort"
+$effectiveAdminToken = Resolve-SettingValue `
+  -ExplicitValue $AdminToken `
+  -EnvMaps @($apiEnvValues, $webEnvValues) `
+  -Name 'GAOKAO_AGENT_ADMIN_TOKEN' `
+  -Fallback 'dev-admin-token'
+$effectiveWechatOfficialAccountToken = Resolve-SettingValue `
+  -ExplicitValue $WechatOfficialAccountToken `
+  -EnvMaps @($apiEnvValues) `
+  -Name 'GAOKAO_AGENT_WECHAT_OFFICIAL_ACCOUNT_TOKEN' `
+  -Fallback 'dev-wechat-token'
+$effectiveWechatOfficialAccountAppId = Resolve-SettingValue `
+  -ExplicitValue $WechatOfficialAccountAppId `
+  -EnvMaps @($apiEnvValues) `
+  -Name 'GAOKAO_AGENT_WECHAT_OFFICIAL_ACCOUNT_APP_ID' `
+  -Fallback 'wx-dev-appid'
+$effectiveWechatOfficialAccountEncodingAesKey = Resolve-SettingValue `
+  -ExplicitValue $WechatOfficialAccountEncodingAesKey `
+  -EnvMaps @($apiEnvValues) `
+  -Name 'GAOKAO_AGENT_WECHAT_OFFICIAL_ACCOUNT_ENCODING_AES_KEY' `
+  -Fallback 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY'
+$effectiveSmartAnalysisMode = Resolve-SettingValue `
+  -ExplicitValue $SmartAnalysisMode `
+  -EnvMaps @($apiEnvValues) `
+  -Name 'GAOKAO_AGENT_SMART_ANALYSIS_MODE' `
+  -Fallback 'off'
+$resolvedDatabaseUrl = if (-not [string]::IsNullOrWhiteSpace($DatabasePath)) {
+  'sqlite:///' + ($DatabasePath -replace '\\', '/')
+}
+else {
+  Resolve-SettingValue `
+    -ExplicitValue '' `
+    -EnvMaps @($apiEnvValues) `
+    -Name 'GAOKAO_AGENT_DATABASE_URL' `
+    -Fallback ('sqlite:///' + ((Join-Path $tmpDir 'start-local-stack.db') -replace '\\', '/'))
+}
+$resolvedDatabasePath = if (-not [string]::IsNullOrWhiteSpace($DatabasePath)) {
+  $DatabasePath
+}
+else {
+  Get-SqlitePathFromDatabaseUrl -DatabaseUrl $resolvedDatabaseUrl
+}
+$resolvedStateFilePath = if ([string]::IsNullOrWhiteSpace($StateFilePath)) {
+  Join-Path $tmpDir 'start-local-stack.state.json'
+}
+else {
+  $StateFilePath
+}
+$timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$apiOutLog = Join-Path $tmpDir "start-local-stack-api.$timestamp.out.log"
+$apiErrLog = Join-Path $tmpDir "start-local-stack-api.$timestamp.err.log"
+$webOutLog = Join-Path $tmpDir "start-local-stack-web.$timestamp.out.log"
+$webErrLog = Join-Path $tmpDir "start-local-stack-web.$timestamp.err.log"
+
 Write-Host '==> Local stack startup plan' -ForegroundColor Cyan
 Write-PlanLine -Label 'Repo root' -Value $repoRoot
 Write-PlanLine -Label 'API base URL' -Value $apiBaseUrl
 Write-PlanLine -Label 'Web base URL' -Value $webBaseUrl
+Write-PlanLine -Label 'API env file' -Value $(if ($resolvedApiEnvFilePath) { $resolvedApiEnvFilePath } else { '(not found)' })
+Write-PlanLine -Label 'Web env file' -Value $(if ($resolvedWebEnvFilePath) { $resolvedWebEnvFilePath } else { '(not found)' })
 Write-PlanLine -Label 'Database URL' -Value $resolvedDatabaseUrl
+Write-PlanLine -Label 'Admin token' -Value (Get-MaskedValue -Value $effectiveAdminToken)
+Write-PlanLine -Label 'Smart analysis mode' -Value $effectiveSmartAnalysisMode
+Write-PlanLine -Label 'WeChat callback token' -Value (Get-MaskedValue -Value $effectiveWechatOfficialAccountToken)
+Write-PlanLine -Label 'WeChat app id' -Value $effectiveWechatOfficialAccountAppId
+Write-PlanLine -Label 'WeChat AES key configured' -Value (-not [string]::IsNullOrWhiteSpace($effectiveWechatOfficialAccountEncodingAesKey)).ToString()
 Write-PlanLine -Label 'State file' -Value $resolvedStateFilePath
 Write-PlanLine -Label 'API stdout log' -Value $apiOutLog
 Write-PlanLine -Label 'API stderr log' -Value $apiErrLog
@@ -157,19 +416,47 @@ if ($DryRun) {
   return
 }
 
+$apiRuntimeEnv = @{}
+foreach ($name in $apiEnvValues.Keys) {
+  $apiRuntimeEnv[$name] = [string]$apiEnvValues[$name]
+}
+$apiRuntimeEnv['GAOKAO_AGENT_ADMIN_TOKEN'] = $effectiveAdminToken
+$apiRuntimeEnv['GAOKAO_AGENT_DATABASE_URL'] = $resolvedDatabaseUrl
+$apiRuntimeEnv['GAOKAO_AGENT_SMART_ANALYSIS_MODE'] = $effectiveSmartAnalysisMode
+$apiRuntimeEnv['GAOKAO_AGENT_WECHAT_OFFICIAL_ACCOUNT_TOKEN'] = $effectiveWechatOfficialAccountToken
+$apiRuntimeEnv['GAOKAO_AGENT_WECHAT_OFFICIAL_ACCOUNT_APP_ID'] = $effectiveWechatOfficialAccountAppId
+$apiRuntimeEnv['GAOKAO_AGENT_WECHAT_OFFICIAL_ACCOUNT_ENCODING_AES_KEY'] = $effectiveWechatOfficialAccountEncodingAesKey
+$apiEnvAssignmentBlock = ConvertTo-EnvAssignmentBlock -Variables $apiRuntimeEnv
+
+$webRuntimeEnv = @{}
+foreach ($name in $webEnvValues.Keys) {
+  $webRuntimeEnv[$name] = [string]$webEnvValues[$name]
+}
+$webRuntimeEnv['GAOKAO_AGENT_API_URL'] = $apiBaseUrl
+$webRuntimeEnv['NEXT_PUBLIC_GAOKAO_AGENT_API_URL'] = $apiBaseUrl
+$webRuntimeEnv['GAOKAO_AGENT_ADMIN_TOKEN'] = $effectiveAdminToken
+$webEnvAssignmentBlock = ConvertTo-EnvAssignmentBlock -Variables $webRuntimeEnv
+
 $apiCommand = @"
-`$env:GAOKAO_AGENT_ADMIN_TOKEN='$AdminToken'
-`$env:GAOKAO_AGENT_DATABASE_URL='$resolvedDatabaseUrl'
-`$env:GAOKAO_AGENT_SMART_ANALYSIS_MODE='off'
 python -m uvicorn app.main:app --host $BindHost --port $ApiPort
 "@
 
 $webCommand = @"
-`$env:GAOKAO_AGENT_API_URL='$apiBaseUrl'
-`$env:NEXT_PUBLIC_GAOKAO_AGENT_API_URL='$apiBaseUrl'
-`$env:GAOKAO_AGENT_ADMIN_TOKEN='$AdminToken'
 node .\node_modules\next\dist\bin\next dev --hostname $BindHost --port $WebPort
 "@
+
+$apiRunnerScript = Write-ServiceRunnerScript `
+  -Label 'api' `
+  -WorkingDirectory (Join-Path $repoRoot 'apps/api') `
+  -EnvAssignmentBlock $apiEnvAssignmentBlock `
+  -CommandText $apiCommand `
+  -Timestamp $timestamp
+$webRunnerScript = Write-ServiceRunnerScript `
+  -Label 'web' `
+  -WorkingDirectory (Join-Path $repoRoot 'apps/web') `
+  -EnvAssignmentBlock $webEnvAssignmentBlock `
+  -CommandText $webCommand `
+  -Timestamp $timestamp
 
 $apiProcess = $null
 $webProcess = $null
@@ -180,7 +467,7 @@ try {
   $apiProcess = Start-ChildService `
     -Label 'API' `
     -WorkingDirectory (Join-Path $repoRoot 'apps/api') `
-    -ScriptBlockText $apiCommand `
+    -RunnerScriptPath $apiRunnerScript `
     -StdOutLog $apiOutLog `
     -StdErrLog $apiErrLog
 
@@ -191,18 +478,35 @@ try {
     -StdOutLog $apiOutLog `
     -StdErrLog $apiErrLog
 
+  Wait-UntilStable `
+    -Label 'API' `
+    -Uri "$apiBaseUrl/health" `
+    -Port $ApiPort `
+    -Process $apiProcess `
+    -StdOutLog $apiOutLog `
+    -StdErrLog $apiErrLog
+
   $apiListenerProcessId = Get-ListeningProcessId -Port $ApiPort
 
   $webProcess = Start-ChildService `
     -Label 'Web' `
     -WorkingDirectory (Join-Path $repoRoot 'apps/web') `
-    -ScriptBlockText $webCommand `
+    -RunnerScriptPath $webRunnerScript `
     -StdOutLog $webOutLog `
     -StdErrLog $webErrLog
 
   Wait-UntilReady `
     -Label 'Web' `
     -Uri "$webBaseUrl/" `
+    -Process $webProcess `
+    -StdOutLog $webOutLog `
+    -StdErrLog $webErrLog `
+    -Attempts 180
+
+  Wait-UntilStable `
+    -Label 'Web' `
+    -Uri "$webBaseUrl/" `
+    -Port $WebPort `
     -Process $webProcess `
     -StdOutLog $webOutLog `
     -StdErrLog $webErrLog
@@ -214,7 +518,10 @@ try {
     & (Join-Path $repoRoot 'scripts/smoke-local-stack.ps1') `
       -ApiBaseUrl $apiBaseUrl `
       -WebBaseUrl $webBaseUrl `
-      -AdminToken $AdminToken
+      -AdminToken $effectiveAdminToken `
+      -WechatOfficialAccountToken $effectiveWechatOfficialAccountToken `
+      -WechatOfficialAccountAppId $effectiveWechatOfficialAccountAppId `
+      -WechatOfficialAccountEncodingAesKey $effectiveWechatOfficialAccountEncodingAesKey
   }
 
   Write-Host 'Local stack started successfully.' -ForegroundColor Green
@@ -231,11 +538,17 @@ try {
     web_port = $WebPort
     api_base_url = $apiBaseUrl
     web_base_url = $webBaseUrl
-    admin_token = $AdminToken
+    api_env_file_path = $resolvedApiEnvFilePath
+    web_env_file_path = $resolvedWebEnvFilePath
+    smart_analysis_mode = $effectiveSmartAnalysisMode
     database_path = $resolvedDatabasePath
     database_url = $resolvedDatabaseUrl
+    api_runner_pid = $apiProcess.Id
+    web_runner_pid = $webProcess.Id
     api_pid = $displayApiProcessId
     web_pid = $displayWebProcessId
+    api_runner_script = $apiRunnerScript
+    web_runner_script = $webRunnerScript
     api_stdout_log = $apiOutLog
     api_stderr_log = $apiErrLog
     web_stdout_log = $webOutLog

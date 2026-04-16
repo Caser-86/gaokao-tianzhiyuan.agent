@@ -35,8 +35,13 @@ import {
   getSmartAnalysisUser,
 } from '../../../lib/admin-smart-analysis-api';
 import {
+  type AdminMediaAnalysisEvent,
+  listMediaAnalysisEvents,
+} from '../../../lib/admin-media-analysis-api';
+import {
   approveReviewQueueAction,
   rejectReviewQueueAction,
+  retryMediaAnalysisEventAction,
   updateFeaturedMajorAction,
   updateFeaturedSchoolAction,
   updateMajorSectionsAction,
@@ -84,6 +89,9 @@ type AdminPageProps = {
     scheduled_missing_major_sections?: string;
     scheduled_gap_days?: string;
     smart_analysis_user_id?: string;
+    media_analysis_status?: string;
+    media_analysis_user_id?: string;
+    media_analysis_auto_routed?: string;
   }>;
 };
 
@@ -121,6 +129,9 @@ const buildAdminHrefBase = ({
   showScheduledMissingMajorSectionsOnly,
   showScheduledGapDaysOnly,
   suggestedSchoolImageSlug,
+  mediaAnalysisStatus,
+  mediaAnalysisUserId,
+  mediaAnalysisAutoRouted,
 }: {
   previewDate?: string;
   showMissingImageSchoolsOnly?: boolean;
@@ -143,6 +154,9 @@ const buildAdminHrefBase = ({
   showScheduledMissingMajorSectionsOnly?: boolean;
   showScheduledGapDaysOnly?: boolean;
   suggestedSchoolImageSlug?: string;
+  mediaAnalysisStatus?: string;
+  mediaAnalysisUserId?: string;
+  mediaAnalysisAutoRouted?: boolean;
 }): string => {
   const searchParams = new URLSearchParams();
 
@@ -254,6 +268,18 @@ const buildAdminHrefBase = ({
     searchParams.set('suggested_school_image_slug', suggestedSchoolImageSlug);
   }
 
+  if (mediaAnalysisStatus) {
+    searchParams.set('media_analysis_status', mediaAnalysisStatus);
+  }
+
+  if (mediaAnalysisUserId) {
+    searchParams.set('media_analysis_user_id', mediaAnalysisUserId);
+  }
+
+  if (mediaAnalysisAutoRouted) {
+    searchParams.set('media_analysis_auto_routed', '1');
+  }
+
   const queryString = searchParams.toString();
   return queryString ? `/admin?${queryString}` : '/admin';
 };
@@ -302,19 +328,36 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const showScheduledGapDaysOnly =
     resolvedSearchParams?.scheduled_gap_days?.trim() === '1';
   const smartAnalysisUserId = resolvedSearchParams?.smart_analysis_user_id?.trim() || undefined;
+  const mediaAnalysisStatus = resolvedSearchParams?.media_analysis_status?.trim() || undefined;
+  const mediaAnalysisUserId =
+    resolvedSearchParams?.media_analysis_user_id?.trim() || undefined;
+  const mediaAnalysisAutoRoutedOnly =
+    resolvedSearchParams?.media_analysis_auto_routed?.trim() === '1';
   const buildAdminHref = (
-    options: Omit<Parameters<typeof buildAdminHrefBase>[0], 'suggestedSchoolImageSlug'>,
+    options: Omit<
+      Parameters<typeof buildAdminHrefBase>[0],
+      'suggestedSchoolImageSlug' | 'mediaAnalysisStatus' | 'mediaAnalysisUserId' | 'mediaAnalysisAutoRouted'
+    >,
   ): string =>
     buildAdminHrefBase({
       ...options,
       suggestedSchoolImageSlug,
+      mediaAnalysisStatus,
+      mediaAnalysisUserId,
+      mediaAnalysisAutoRouted: mediaAnalysisAutoRoutedOnly,
     });
   const buildAdminHrefWithoutSuggestion = (
-    options: Omit<Parameters<typeof buildAdminHrefBase>[0], 'suggestedSchoolImageSlug'>,
+    options: Omit<
+      Parameters<typeof buildAdminHrefBase>[0],
+      'suggestedSchoolImageSlug' | 'mediaAnalysisStatus' | 'mediaAnalysisUserId' | 'mediaAnalysisAutoRouted'
+    >,
   ): string =>
     buildAdminHrefBase({
       ...options,
       suggestedSchoolImageSlug: undefined,
+      mediaAnalysisStatus,
+      mediaAnalysisUserId,
+      mediaAnalysisAutoRouted: mediaAnalysisAutoRoutedOnly,
     });
 
   const rankingSchoolFilterState =
@@ -896,6 +939,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   let majorRotation = defaultRotationRule();
   let smartAnalysisMode: AdminSmartAnalysisMode = 'off';
   let smartAnalysisUserEnabled = false;
+  let mediaAnalysisEvents: AdminMediaAnalysisEvent[] = [];
+  let mediaAnalysisError: string | undefined;
 
   try {
     queueItems = await listReviewQueue();
@@ -980,6 +1025,17 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     smartAnalysisMode = 'off';
   }
 
+  try {
+    mediaAnalysisEvents = await listMediaAnalysisEvents({
+      limit: 10,
+      status: mediaAnalysisStatus,
+      userId: mediaAnalysisUserId,
+      autoRoutedToChat: mediaAnalysisAutoRoutedOnly ? true : undefined,
+    });
+  } catch {
+    mediaAnalysisError = '媒体分析记录加载失败，请稍后重试';
+  }
+
   if (smartAnalysisUserId) {
     try {
       const user = await getSmartAnalysisUser(smartAnalysisUserId);
@@ -1020,10 +1076,79 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     ]),
   );
 
+  const buildMediaAnalysisHref = ({
+    status,
+    userId,
+    autoRouted,
+  }: {
+    status?: string;
+    userId?: string;
+    autoRouted?: boolean;
+  }): string =>
+    buildAdminHrefBase({
+      previewDate,
+      showMissingImageSchoolsOnly,
+      showScheduledMissingImageSchoolsOnly,
+      showMissingSchoolRankingsOnly: rankingSchoolFilterState,
+      showMissingMajorRankingsOnly: rankingMajorFilterState,
+      showScheduledMissingSchoolRankingsOnly: scheduledRankingSchoolFilterState,
+      showScheduledMissingMajorRankingsOnly: scheduledRankingMajorFilterState,
+      showMissingSchoolRelatedOnly: relatedSchoolFilterState,
+      showMissingMajorRelatedOnly: relatedMajorFilterState,
+      showScheduledMissingSchoolRelatedOnly: scheduledRelatedSchoolFilterState,
+      showScheduledMissingMajorRelatedOnly: scheduledRelatedMajorFilterState,
+      showMissingSchoolSummariesOnly: summarySchoolFilterState,
+      showMissingMajorSummariesOnly: summaryMajorFilterState,
+      showScheduledMissingSchoolSummariesOnly: scheduledSummarySchoolFilterState,
+      showScheduledMissingMajorSummariesOnly: scheduledSummaryMajorFilterState,
+      showMissingSchoolSectionsOnly: sectionSchoolFilterState,
+      showMissingMajorSectionsOnly: sectionMajorFilterState,
+      showScheduledMissingSchoolSectionsOnly: scheduledSectionSchoolFilterState,
+      showScheduledMissingMajorSectionsOnly: scheduledSectionMajorFilterState,
+      showScheduledGapDaysOnly,
+      suggestedSchoolImageSlug,
+      mediaAnalysisStatus: status,
+      mediaAnalysisUserId: userId,
+      mediaAnalysisAutoRouted: autoRouted,
+    });
+  const showFailedMediaAnalysisOnlyHref =
+    mediaAnalysisStatus === 'failed'
+      ? undefined
+      : buildMediaAnalysisHref({
+          status: 'failed',
+          userId: mediaAnalysisUserId,
+          autoRouted: mediaAnalysisAutoRoutedOnly,
+        });
+  const showAllMediaAnalysisStatusesHref =
+    mediaAnalysisStatus === 'failed'
+      ? buildMediaAnalysisHref({
+          status: undefined,
+          userId: mediaAnalysisUserId,
+          autoRouted: mediaAnalysisAutoRoutedOnly,
+        })
+      : undefined;
+  const clearMediaAnalysisFiltersHref =
+    mediaAnalysisStatus || mediaAnalysisUserId || mediaAnalysisAutoRoutedOnly
+      ? buildMediaAnalysisHref({
+          status: undefined,
+          userId: undefined,
+          autoRouted: false,
+        })
+      : undefined;
+
   return (
     <DashboardShell
       title="内容运营后台"
       queueItems={queueItems}
+      mediaAnalysisEvents={mediaAnalysisEvents}
+      mediaAnalysisError={mediaAnalysisError}
+      mediaAnalysisStatusFilter={mediaAnalysisStatus ?? ''}
+      mediaAnalysisUserIdFilter={mediaAnalysisUserId ?? ''}
+      mediaAnalysisAutoRoutedOnly={mediaAnalysisAutoRoutedOnly}
+      clearMediaAnalysisFiltersHref={clearMediaAnalysisFiltersHref}
+      showFailedMediaAnalysisOnlyHref={showFailedMediaAnalysisOnlyHref}
+      showAllMediaAnalysisStatusesHref={showAllMediaAnalysisStatusesHref}
+      retryMediaAnalysisEventAction={retryMediaAnalysisEventAction}
       featuredSchools={featuredSchools}
       featuredMajors={featuredMajors}
       schoolRotation={schoolRotation}
