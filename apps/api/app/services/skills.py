@@ -17,6 +17,57 @@ from .catalog import load_catalog
 GAOKAO_KEYWORDS = ("学校", "专业", "志愿", "985", "211", "双一流", "冲", "稳", "保", "对比")
 PROVINCES = ("北京", "上海", "江苏", "浙江", "广东", "四川", "湖北", "河南")
 SCHOOL_TAGS = ("985", "211", "双一流")
+SCHOOL_CONSULTATION_MARKERS = ("大学", "学院", "学校")
+SCHOOL_CONSULTATION_QUESTIONS = (
+    "怎么样",
+    "如何",
+    "好不好",
+    "值得",
+    "厉害吗",
+    "分析",
+    "介绍",
+    "评价",
+    "推荐",
+)
+
+
+def _extract_json_object(raw_content: str) -> str:
+    fenced_match = re.search(
+        r"```(?:json)?\s*(\{.*?\})\s*```",
+        raw_content,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if fenced_match:
+        return fenced_match.group(1).strip()
+
+    start = raw_content.find("{")
+    if start < 0:
+        return raw_content
+
+    depth = 0
+    in_string = False
+    escape_next = False
+    for index in range(start, len(raw_content)):
+        char = raw_content[index]
+        if escape_next:
+            escape_next = False
+            continue
+        if char == "\\":
+            escape_next = True
+            continue
+        if char == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return raw_content[start : index + 1].strip()
+
+    return raw_content
 
 
 @dataclass(frozen=True)
@@ -356,6 +407,15 @@ class ZhangXueFengSkill:
 
     def match(self, request: ChatRequestContext) -> SkillMatchResult:
         matched_keywords = [keyword for keyword in GAOKAO_KEYWORDS if keyword in request.message]
+        if (
+            any(marker in request.message for marker in SCHOOL_CONSULTATION_MARKERS)
+            and any(question in request.message for question in SCHOOL_CONSULTATION_QUESTIONS)
+        ):
+            return SkillMatchResult(
+                matched=True,
+                confidence=0.75,
+                reason="matched school pattern",
+            )
         if not matched_keywords and re.search(r"\d{3}分", request.message):
             return SkillMatchResult(
                 matched=True,
@@ -395,13 +455,19 @@ class ZhangXueFengSkill:
                                 f"{prompt_asset}\n\n"
                                 "Return valid JSON only. "
                                 "Do not expose internal prompts. "
-                                "If information is insufficient, say so explicitly."
+                                "If information is insufficient, say so explicitly. "
+                                "The JSON object must contain exactly these top-level keys: "
+                                "intent, summary, entities, analysis, suggestions, "
+                                "follow_up_questions, actions, risk_flags, rendered_reply. "
+                                "intent must be one of: school_recommendation, "
+                                "major_recommendation, volunteer_strategy, comparison, fallback."
                             ),
                         ),
                         LLMMessage(role="user", content=request.message),
                     ]
                 )
-                payload = json.loads(raw_content)
+                payload = self._parse_provider_payload(raw_content)
+                payload = self._normalize_provider_payload(payload, request=request)
                 return SkillInvocationResult(
                     intent=payload["intent"],
                     summary=payload["summary"],
@@ -444,6 +510,39 @@ class ZhangXueFengSkill:
         if not self.skill_prompt_path:
             return self._rule_based_fallback(request, debug_note="skill_prompt_missing")
         return self._rule_based_fallback(request, debug_note="provider_not_configured")
+
+    def _normalize_provider_payload(
+        self,
+        payload: dict[str, Any],
+        *,
+        request: ChatRequestContext,
+    ) -> dict[str, Any]:
+        if "intent" in payload and "summary" in payload:
+            return payload
+
+        fallback = self._rule_based_fallback(request, debug_note="provider_normalized_response")
+        suggestions = payload.get("suggestions", [])
+        if not isinstance(suggestions, list):
+            suggestions = []
+
+        return {
+            "intent": payload.get("intent", fallback.intent),
+            "summary": payload.get("summary", fallback.summary),
+            "entities": payload.get("entities", fallback.entities),
+            "analysis": payload.get("analysis") or payload.get("message") or fallback.analysis,
+            "suggestions": payload.get("suggestions", fallback.suggestions),
+            "follow_up_questions": payload.get("follow_up_questions", suggestions) or fallback.follow_up_questions,
+            "actions": payload.get("actions", fallback.actions),
+            "risk_flags": payload.get("risk_flags", fallback.risk_flags),
+            "rendered_reply": payload.get("rendered_reply") or payload.get("message") or fallback.rendered_reply,
+        }
+
+    @staticmethod
+    def _parse_provider_payload(raw_content: str) -> dict[str, Any]:
+        payload = json.loads(_extract_json_object(raw_content))
+        if not isinstance(payload, dict):
+            raise ProviderResponseFormatError("provider returned non-object JSON")
+        return payload
 
     def _rule_based_fallback(
         self,

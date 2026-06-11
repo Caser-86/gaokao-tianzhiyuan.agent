@@ -914,6 +914,12 @@ def test_wechat_official_account_direct_image_message_returns_picture_fallback_r
     original_token = chat_router_module.settings.wechat_official_account_token
     original_service = chat_router_module.conversation_service
     chat_router_module.settings.wechat_official_account_token = "wechat-token"
+    with Session(get_engine()) as session:
+        original_mode = get_effective_smart_analysis_mode(
+            session,
+            default_mode=chat_router_module.settings.smart_analysis_mode,
+        )
+        set_smart_analysis_mode(session, "off")
 
     class ShouldNotBeCalledConversationService:
         def handle_message(self, **kwargs) -> dict:
@@ -951,6 +957,8 @@ def test_wechat_official_account_direct_image_message_returns_picture_fallback_r
             headers={"Content-Type": "application/xml"},
         )
     finally:
+        with Session(get_engine()) as session:
+            set_smart_analysis_mode(session, original_mode)
         chat_router_module.settings.wechat_official_account_token = original_token
         chat_router_module.conversation_service = original_service
 

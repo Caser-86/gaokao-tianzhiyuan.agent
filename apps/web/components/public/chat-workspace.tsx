@@ -32,6 +32,24 @@ const resolveSuggestionHref = (
   return null;
 };
 
+const getGeneratedItemKey = (
+  namespace: string,
+  parts: Array<number | string | null | undefined>,
+  index: number,
+) =>
+  [namespace, ...parts.filter((part) => part !== null && part !== undefined), index]
+    .map(String)
+    .join("-");
+
+type ChatAction = NonNullable<
+  ChatMessageResponse["output"]["content"]["actions"]
+>[number];
+
+const hasActionTarget = (
+  action: ChatAction,
+): action is ChatAction & { target: string } =>
+  typeof action.target === "string" && action.target.trim().length > 0;
+
 export default function ChatWorkspace({
   apiBaseUrl,
   userId,
@@ -83,6 +101,7 @@ export default function ChatWorkspace({
   }, [initialPrompt]);
 
   const content = response?.output.content;
+  const actions = content?.actions?.filter(hasActionTarget) ?? [];
 
   return (
     <section className="panel">
@@ -160,11 +179,14 @@ export default function ChatWorkspace({
                   {"\u98ce\u9669\u63d0\u9192"}
                 </h3>
                 <div className="catalog-list">
-                  {content.risk_flags.map((riskFlag) => {
+                  {content.risk_flags.map((riskFlag, index) => {
                     const riskCopy = getChatRiskFlagCopy(riskFlag);
 
                     return (
-                      <article key={riskFlag} className="catalog-card">
+                      <article
+                        key={getGeneratedItemKey("risk", [riskFlag], index)}
+                        className="catalog-card"
+                      >
                         <strong>{riskCopy.title}</strong>
                         <p>{riskCopy.description}</p>
                         {isUnknownChatRiskFlag(riskFlag) ? (
@@ -184,12 +206,16 @@ export default function ChatWorkspace({
                   {"\u63a8\u8350\u5185\u5bb9"}
                 </h3>
                 <div className="catalog-list">
-                  {content.suggestions.map((suggestion) => {
+                  {content.suggestions.map((suggestion, index) => {
                     const href = resolveSuggestionHref(suggestion);
 
                     return (
                       <article
-                        key={`${suggestion.type ?? "suggestion"}-${suggestion.title}`}
+                        key={getGeneratedItemKey(
+                          "suggestion",
+                          [suggestion.type, suggestion.slug, suggestion.title],
+                          index,
+                        )}
                         className="catalog-card"
                       >
                         {href ? (
@@ -213,20 +239,28 @@ export default function ChatWorkspace({
             ) : null}
             {content.follow_up_questions?.length ? (
               <ul style={{ margin: "12px 0 0", paddingLeft: 20 }}>
-                {content.follow_up_questions.map((question) => (
-                  <li key={question}>{question}</li>
+                {content.follow_up_questions.map((question, index) => (
+                  <li
+                    key={getGeneratedItemKey("follow-up", [question], index)}
+                  >
+                    {question}
+                  </li>
                 ))}
               </ul>
             ) : null}
-            {content.actions?.length ? (
+            {actions.length ? (
               <section>
                 <h3 style={{ margin: "16px 0 8px" }}>
                   {"\u4e0b\u4e00\u6b65\u52a8\u4f5c"}
                 </h3>
                 <div className="link-row">
-                  {content.actions.map((action) => (
+                  {actions.map((action, index) => (
                     <Link
-                      key={`${action.type ?? "action"}-${action.label}`}
+                      key={getGeneratedItemKey(
+                        "action",
+                        [action.type, action.target, action.label],
+                        index,
+                      )}
                       href={action.target}
                       className="cta secondary"
                     >

@@ -81,6 +81,26 @@ class EmptyBalanceProvider:
         )
 
 
+class LooseJsonProvider:
+    def complete_text(self, *, messages: list) -> str:
+        return (
+            '{"message":"请补充你的省份和分数","suggestions":["补充分数","补充省份"]}'
+        )
+
+
+class FencedJsonProvider:
+    def complete_text(self, *, messages: list) -> str:
+        _ = messages
+        return (
+            "```json\n"
+            '{"intent":"school_recommendation","summary":"school summary",'
+            '"entities":{},"analysis":"school analysis","suggestions":[],'
+            '"follow_up_questions":[],"actions":[],"risk_flags":[],'
+            '"rendered_reply":"school reply"}'
+            "\n```"
+        )
+
+
 def build_chat_engine():
     return create_engine(
         "sqlite://",
@@ -417,6 +437,28 @@ def test_zhangxuefeng_skill_uses_provider_and_normalizes_json(tmp_path) -> None:
     assert "Return valid JSON only" in provider.messages[0].content
 
 
+def test_zhangxuefeng_skill_can_normalize_loose_json_payload(tmp_path) -> None:
+    skill_file = tmp_path / "SKILL.md"
+    skill_file.write_text("张雪峰测试提示词", encoding="utf-8")
+    skill = ZhangXueFengSkill(
+        provider=LooseJsonProvider(),
+        skill_prompt_path=str(skill_file),
+    )
+
+    result = skill.invoke(
+        ChatRequestContext(
+            channel="web",
+            user_id="web-user-2",
+            message="河南大学怎么样",
+        )
+    )
+
+    assert result.intent == "school_recommendation"
+    assert result.summary == "用户在咨询学校推荐建议"
+    assert result.analysis == "请补充你的省份和分数"
+    assert result.follow_up_questions == ["补充分数", "补充省份"]
+
+
 def test_zhangxuefeng_skill_falls_back_to_rule_based_response_on_provider_failure(
     tmp_path,
 ) -> None:
@@ -438,6 +480,27 @@ def test_zhangxuefeng_skill_falls_back_to_rule_based_response_on_provider_failur
     assert result.intent == "school_recommendation"
     assert result.summary == "用户在咨询江苏地区 985 冲刺建议"
     assert result.debug_notes == ["provider_request_failed"]
+
+
+def test_zhangxuefeng_skill_can_parse_fenced_json_payload(tmp_path) -> None:
+    skill_file = tmp_path / "SKILL.md"
+    skill_file.write_text("prompt", encoding="utf-8")
+    skill = ZhangXueFengSkill(
+        provider=FencedJsonProvider(),
+        skill_prompt_path=str(skill_file),
+    )
+
+    result = skill.invoke(
+        ChatRequestContext(
+            channel="web",
+            user_id="web-user-3",
+            message="\u6cb3\u5357\u5927\u5b66\u600e\u4e48\u6837",
+        )
+    )
+
+    assert result.summary == "school summary"
+    assert result.rendered_reply == "school reply"
+    assert result.debug_notes == []
 
 
 def test_zhangxuefeng_skill_marks_insufficient_balance_fallback(
@@ -480,6 +543,50 @@ def test_zhangxuefeng_skill_returns_low_confidence_for_irrelevant_message(
         matched=False,
         confidence=0.0,
         reason="no gaokao keyword matched",
+    )
+
+
+def test_zhangxuefeng_skill_matches_school_consultation_without_explicit_keyword(
+    tmp_path,
+) -> None:
+    skill_file = tmp_path / "SKILL.md"
+    skill_file.write_text("张雪峰测试提示词", encoding="utf-8")
+    skill = ZhangXueFengSkill(skill_prompt_path=str(skill_file))
+
+    match = skill.match(
+        ChatRequestContext(
+            channel="web",
+            user_id="web-user-1",
+            message="河南大学怎么样",
+        )
+    )
+
+    assert match == SkillMatchResult(
+        matched=True,
+        confidence=0.75,
+        reason="matched school pattern",
+    )
+
+
+def test_zhangxuefeng_skill_matches_school_analysis_request(
+    tmp_path,
+) -> None:
+    skill_file = tmp_path / "SKILL.md"
+    skill_file.write_text("prompt", encoding="utf-8")
+    skill = ZhangXueFengSkill(skill_prompt_path=str(skill_file))
+
+    match = skill.match(
+        ChatRequestContext(
+            channel="web",
+            user_id="web-user-analysis",
+            message="\u5e2e\u6211\u5206\u6790\u6cb3\u5357\u5927\u5b66",
+        )
+    )
+
+    assert match == SkillMatchResult(
+        matched=True,
+        confidence=0.75,
+        reason="matched school pattern",
     )
 
 

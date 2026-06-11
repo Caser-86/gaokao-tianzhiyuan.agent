@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 const { sendChatMessageMock } = vi.hoisted(() => ({
   sendChatMessageMock: vi.fn(),
@@ -47,6 +47,10 @@ beforeEach(() => {
       },
     },
   });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 test("auto-sends the initial prompt when the chat page opens from a quick prompt", async () => {
@@ -99,6 +103,92 @@ test("renders suggestion cards and action links from the chat response", async (
   expect(
     screen.getByRole("link", { name: "\u67e5\u770b\u5b66\u6821\u8be6\u60c5" }),
   ).toHaveAttribute("href", "/schools/southeast-university");
+});
+
+test("renders duplicate action labels without duplicate React key warnings", async () => {
+  const consoleErrorSpy = vi
+    .spyOn(console, "error")
+    .mockImplementation(() => undefined);
+
+  sendChatMessageMock.mockResolvedValueOnce({
+    request_id: "chat_duplicate_actions",
+    output: {
+      type: "structured_json",
+      content: {
+        rendered_reply: "\u53ef\u4ee5\u67e5\u770b\u4e24\u4e2a\u76f8\u5173\u94fe\u63a5\u3002",
+        actions: [
+          {
+            label: "\u67e5\u770b\u8be6\u60c5",
+            target: "/schools/henan-university",
+          },
+          {
+            label: "\u67e5\u770b\u8be6\u60c5",
+            target: "/majors/computer-science",
+          },
+        ],
+      },
+    },
+  });
+
+  render(
+    <ChatWorkspace
+      apiBaseUrl="https://api.gaokao.test"
+      initialPrompt={"\u6cb3\u5357\u5927\u5b66\u600e\u4e48\u6837"}
+    />,
+  );
+
+  await waitFor(() => {
+    expect(
+      screen.getAllByRole("link", { name: "\u67e5\u770b\u8be6\u60c5" }),
+    ).toHaveLength(2);
+  });
+
+  expect(consoleErrorSpy).not.toHaveBeenCalledWith(
+    expect.stringContaining("Encountered two children with the same key"),
+    expect.anything(),
+  );
+});
+
+test("ignores provider actions without link targets", async () => {
+  const consoleErrorSpy = vi
+    .spyOn(console, "error")
+    .mockImplementation(() => undefined);
+
+  sendChatMessageMock.mockResolvedValueOnce({
+    request_id: "chat_missing_action_target",
+    output: {
+      type: "structured_json",
+      content: {
+        rendered_reply: "\u6cb3\u5357\u5927\u5b66\u5206\u6790\u5df2\u751f\u6210\u3002",
+        actions: [
+          {
+            label: "\u7ee7\u7eed\u8ffd\u95ee",
+          },
+        ],
+      },
+    },
+  });
+
+  render(
+    <ChatWorkspace
+      apiBaseUrl="https://api.gaokao.test"
+      initialPrompt={"\u6cb3\u5357\u5927\u5b66\u600e\u4e48\u6837"}
+    />,
+  );
+
+  await waitFor(() => {
+    expect(
+      screen.getByText("\u6cb3\u5357\u5927\u5b66\u5206\u6790\u5df2\u751f\u6210\u3002"),
+    ).toBeInTheDocument();
+  });
+
+  expect(
+    screen.queryByRole("link", { name: "\u7ee7\u7eed\u8ffd\u95ee" }),
+  ).not.toBeInTheDocument();
+  expect(consoleErrorSpy).not.toHaveBeenCalledWith(
+    expect.stringContaining("The prop `href` expects a `string` or `object`"),
+    expect.anything(),
+  );
 });
 
 test("renders user-facing risk copy for known risk flags", async () => {

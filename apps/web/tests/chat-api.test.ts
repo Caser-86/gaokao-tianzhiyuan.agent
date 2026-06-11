@@ -40,7 +40,7 @@ test('sendChatMessage posts the normalized web chat payload', async () => {
     'https://api.gaokao.test',
   );
 
-  expect(fetchMock).toHaveBeenCalledWith('https://api.gaokao.test/api/chat/messages', {
+  expect(fetchMock).toHaveBeenCalledWith('https://api.gaokao.test/api/chat/skills/zhangxuefeng/invoke', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

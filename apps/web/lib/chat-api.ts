@@ -11,7 +11,7 @@ export type ChatMessageResponse = {
       actions?: Array<{
         type?: string;
         label: string;
-        target: string;
+        target?: string;
       }>;
       risk_flags?: string[];
       summary?: string;
@@ -39,7 +39,7 @@ export async function sendChatMessage(
   payload: ChatMessageRequest,
   apiBaseUrl?: string,
 ): Promise<ChatMessageResponse> {
-  const response = await fetch(`${getChatApiUrl(apiBaseUrl)}/api/chat/messages`, {
+  const response = await fetch(`${getChatApiUrl(apiBaseUrl)}/api/chat/skills/zhangxuefeng/invoke`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
