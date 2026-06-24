@@ -36,11 +36,7 @@ def test_openai_compatible_provider_posts_expected_payload(monkeypatch) -> None:
         return StubResponse(
             {
                 "choices": [
-                    {
-                        "message": {
-                            "content": '{"intent":"major_recommendation","summary":"ok"}'
-                        }
-                    }
+                    {"message": {"content": '{"intent":"major_recommendation","summary":"ok"}'}}
                 ]
             }
         )

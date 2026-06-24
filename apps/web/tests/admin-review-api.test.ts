@@ -21,7 +21,6 @@ import {
 } from '../lib/admin-featured-content-api';
 import {
   approveReviewQueueAction,
-  rejectReviewQueueAction,
   suggestSchoolImageAction,
   updateFeaturedMajorAction,
   updateFeaturedSchoolAction,

@@ -1284,17 +1284,6 @@ export default function DashboardShell({
 
     return `/admin?${searchParams.toString()}`;
   };
-  const withSelectedPreviewDate = (href: string): string => {
-    if (!selectedDatePreview) {
-      return href;
-    }
-
-    if (href.startsWith('#')) {
-      return `${buildPreviewDateHref(selectedDatePreview.date)}${href}`;
-    }
-
-    return href;
-  };
   const countScheduledGapItemsByKey = (
     itemKey: string,
     schoolSlugs: Set<string>,
@@ -1790,14 +1779,6 @@ export default function DashboardShell({
                   {nearestScheduledTopPriorityGap
                     ? ` · 优先处理${nearestScheduledTopPriorityGap.label}`
                     : ''}
-                </a>
-              </p>
-            ) : null}
-            {false && nearestScheduledGapDay && nearestScheduledTopPriorityGap ? (
-              <p>
-                <a href={nearestScheduledTopPriorityGap?.href ?? '#'}>
-                  {/* @ts-expect-error unreachable fallback branch */}
-                  {`最近待补日期（${nearestScheduledGapDay.date}）· 优先处理${nearestScheduledTopPriorityGap.label}`}
                 </a>
               </p>
             ) : null}

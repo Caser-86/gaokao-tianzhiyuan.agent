@@ -3,7 +3,6 @@ from sqlmodel import Session
 
 from app.main import app
 from app.services.access_control import SMART_ANALYSIS_ENTITLEMENT, set_user_entitlement
-from app.db import get_engine
 
 client = TestClient(app)
 
@@ -60,8 +59,8 @@ def test_entitlement_evaluation_is_decoupled_from_products() -> None:
     }
 
 
-def test_entitlement_evaluation_merges_persisted_user_entitlements() -> None:
-    with Session(get_engine()) as session:
+def test_entitlement_evaluation_merges_persisted_user_entitlements(engine) -> None:
+    with Session(engine) as session:
         set_user_entitlement(
             session,
             user_id="wx-openid-platform",

@@ -1,5 +1,5 @@
 from sqlalchemy.pool import StaticPool
-from sqlmodel import SQLModel, Session, create_engine
+from sqlmodel import Session, SQLModel, create_engine
 
 from app.services.access_control import (
     SMART_ANALYSIS_ENTITLEMENT,
@@ -22,9 +22,7 @@ def build_session() -> Session:
 
 def test_get_effective_smart_analysis_mode_defaults_to_bootstrap_value() -> None:
     with build_session() as session:
-        assert (
-            get_effective_smart_analysis_mode(session, default_mode="gated") == "gated"
-        )
+        assert get_effective_smart_analysis_mode(session, default_mode="gated") == "gated"
 
 
 def test_set_smart_analysis_mode_persists_and_overwrites_existing_value() -> None:

@@ -4,9 +4,10 @@ from collections.abc import Callable
 from typing import Any
 from uuid import uuid4
 
+from sqlmodel import Session
+
 from ..config import resolve_zhangxuefeng_skill_path, settings
 from ..db import get_engine
-from sqlmodel import Session
 from .access_control import (
     SMART_ANALYSIS_ENTITLEMENT,
     get_effective_smart_analysis_mode,
@@ -61,9 +62,7 @@ def build_default_registry() -> SkillRegistry:
         [
             ZhangXueFengSkill(
                 provider=provider,
-                skill_prompt_path=resolve_zhangxuefeng_skill_path(
-                    settings.zhangxuefeng_skill_path
-                ),
+                skill_prompt_path=resolve_zhangxuefeng_skill_path(settings.zhangxuefeng_skill_path),
             ),
             CatalogLookupSkill(),
         ]

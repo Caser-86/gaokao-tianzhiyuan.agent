@@ -1,15 +1,17 @@
+import json
 from dataclasses import dataclass
+from pathlib import Path
 
 import httpx
+import pytest
 from sqlalchemy.pool import StaticPool
-from sqlmodel import SQLModel, Session, create_engine
+from sqlmodel import Session, SQLModel, create_engine
 
 from app.services.access_control import (
     SMART_ANALYSIS_ENTITLEMENT,
     set_smart_analysis_mode,
     set_user_entitlement,
 )
-
 from app.services.chat import ConversationService
 from app.services.llm import ProviderRequestError
 from app.services.media_analysis import (
@@ -27,6 +29,14 @@ from app.services.skills import (
     SkillRegistry,
     ZhangXueFengSkill,
 )
+
+CATALOG_PATH = Path(__file__).resolve().parents[3] / "data" / "catalog.json"
+
+
+@pytest.fixture
+def catalog_seed(seed_catalog):
+    """从 data/catalog.json 注入完整 catalog 数据。"""
+    seed_catalog(json.loads(CATALOG_PATH.read_text(encoding="utf-8")))
 
 
 @dataclass(frozen=True)
@@ -83,9 +93,7 @@ class EmptyBalanceProvider:
 
 class LooseJsonProvider:
     def complete_text(self, *, messages: list) -> str:
-        return (
-            '{"message":"请补充你的省份和分数","suggestions":["补充分数","补充省份"]}'
-        )
+        return '{"message":"请补充你的省份和分数","suggestions":["补充分数","补充省份"]}'
 
 
 class FencedJsonProvider:
@@ -140,7 +148,7 @@ def test_skill_registry_can_register_catalog_lookup_skill() -> None:
     assert [item.describe().skill_id for item in enabled_for_web] == ["catalog_lookup"]
 
 
-def test_catalog_lookup_skill_matches_school_detail_questions() -> None:
+def test_catalog_lookup_skill_matches_school_detail_questions(catalog_seed) -> None:
     skill = CatalogLookupSkill()
     request = ChatRequestContext(
         channel="wechat",
@@ -171,7 +179,7 @@ def test_catalog_lookup_skill_matches_school_detail_questions() -> None:
     assert result.rendered_reply.startswith("\u4e1c\u5357\u5927\u5b66")
 
 
-def test_catalog_lookup_skill_matches_major_detail_questions() -> None:
+def test_catalog_lookup_skill_matches_major_detail_questions(catalog_seed) -> None:
     skill = CatalogLookupSkill()
     request = ChatRequestContext(
         channel="web",
@@ -210,13 +218,16 @@ def test_build_media_analysis_provider_defaults_to_pending_when_unconfigured() -
     )
 
     assert isinstance(provider, PendingMediaAnalysisProvider)
-    assert provider.analyze(
-        request=MediaAnalysisRequest(
-            media_type="image",
-            user_id="wx-openid-1",
-            payload={"MediaId": "media-1"},
-        )
-    ).status == "pending"
+    assert (
+        provider.analyze(
+            request=MediaAnalysisRequest(
+                media_type="image",
+                user_id="wx-openid-1",
+                payload={"MediaId": "media-1"},
+            )
+        ).status
+        == "pending"
+    )
 
 
 def test_build_media_analysis_provider_returns_openai_adapter_when_configured() -> None:
@@ -322,10 +333,7 @@ def test_openai_compatible_media_analysis_provider_posts_expected_image_payload(
     assert result.status == "success"
     assert result.summary == "已识别到图片里的高考志愿信息"
     assert result.extracted_fields == {"province": "河南", "score": 560}
-    assert (
-        result.rendered_reply
-        == "已识别到图片里的高考志愿信息，请继续补充分数和省份。"
-    )
+    assert result.rendered_reply == "已识别到图片里的高考志愿信息，请继续补充分数和省份。"
     assert captured["url"] == "https://relay.example/v1/chat/completions"
     assert captured["headers"]["Authorization"] == "Bearer secret-key"
     assert captured["json"]["model"] == "gpt-4o-mini"

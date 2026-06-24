@@ -1,6 +1,8 @@
 import json
 from datetime import date
+from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -8,108 +10,85 @@ from app.services import featured_content as featured_content_service
 
 client = TestClient(app)
 
+CATALOG_PATH = Path(__file__).resolve().parents[3] / "data" / "catalog.json"
 
-def _write_featured_content(path) -> None:
-    path.write_text(
-        json.dumps(
+
+def _load_catalog_data() -> dict:
+    return json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+
+
+def _featured_payload() -> dict:
+    return {
+        "schools": [
             {
-                "schools": [
-                    {
-                        "slug": "southeast-university",
-                        "is_featured": True,
-                        "hero_image_url": "https://cdn.example.com/southeast.jpg",
-                    },
-                    {
-                        "slug": "west-china-medical-center",
-                        "is_featured": True,
-                        "hero_image_url": "",
-                    },
-                ],
-                "majors": [
-                    {
-                        "slug": "clinical-medicine",
-                        "is_featured": True,
-                    },
-                    {
-                        "slug": "computer-science",
-                        "is_featured": True,
-                    },
-                ],
-                "rotation": {
-                    "schools": {
-                        "enabled": False,
-                        "frequency_days": 1,
-                        "window_size": 1,
-                        "ordered_slugs": [],
-                    },
-                    "majors": {
-                        "enabled": False,
-                        "frequency_days": 1,
-                        "window_size": 1,
-                        "ordered_slugs": [],
-                    },
-                },
+                "slug": "southeast-university",
+                "is_featured": True,
+                "hero_image_url": "https://cdn.example.com/southeast.jpg",
             },
-            ensure_ascii=False,
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-
-
-def test_list_schools_returns_current_rotation_window(tmp_path, monkeypatch) -> None:
-    featured_content_path = tmp_path / "featured-content.json"
-    featured_content_path.write_text(
-        json.dumps(
             {
-                "schools": [
-                    {
-                        "slug": "southeast-university",
-                        "is_featured": True,
-                        "hero_image_url": "",
-                    },
-                    {
-                        "slug": "west-china-medical-center",
-                        "is_featured": True,
-                        "hero_image_url": "",
-                    },
-                ],
-                "majors": [
-                    {
-                        "slug": "clinical-medicine",
-                        "is_featured": True,
-                    },
-                    {
-                        "slug": "computer-science",
-                        "is_featured": True,
-                    },
-                ],
-                "rotation": {
-                    "schools": {
-                        "enabled": True,
-                        "frequency_days": 1,
-                        "window_size": 1,
-                        "ordered_slugs": [
-                            "west-china-medical-center",
-                            "southeast-university",
-                        ],
-                    },
-                    "majors": {
-                        "enabled": False,
-                        "frequency_days": 1,
-                        "window_size": 1,
-                        "ordered_slugs": [],
-                    },
-                },
+                "slug": "west-china-medical-center",
+                "is_featured": True,
+                "hero_image_url": "",
             },
-            ensure_ascii=False,
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-    monkeypatch.setattr(featured_content_service, "FEATURED_CONTENT_PATH", featured_content_path)
+        ],
+        "majors": [
+            {
+                "slug": "clinical-medicine",
+                "is_featured": True,
+            },
+            {
+                "slug": "computer-science",
+                "is_featured": True,
+            },
+        ],
+        "rotation": {
+            "schools": {
+                "enabled": False,
+                "frequency_days": 1,
+                "window_size": 1,
+                "ordered_slugs": [],
+            },
+            "majors": {
+                "enabled": False,
+                "frequency_days": 1,
+                "window_size": 1,
+                "ordered_slugs": [],
+            },
+        },
+    }
+
+
+@pytest.fixture
+def catalog_seed(seed_catalog):
+    """从 data/catalog.json 注入完整 catalog 数据。"""
+    seed_catalog(_load_catalog_data())
+
+
+@pytest.fixture
+def featured_seed(seed_featured):
+    """注入默认 featured 数据。"""
+    seed_featured(_featured_payload())
+
+
+@pytest.fixture
+def featured_with_rotation(seed_featured):
+    """注入带轮播规则的 featured 数据。"""
+    payload = _featured_payload()
+    payload["rotation"]["schools"] = {
+        "enabled": True,
+        "frequency_days": 1,
+        "window_size": 1,
+        "ordered_slugs": [
+            "west-china-medical-center",
+            "southeast-university",
+        ],
+    }
+    seed_featured(payload)
+
+
+def test_list_schools_returns_current_rotation_window(
+    catalog_seed, featured_with_rotation, monkeypatch
+) -> None:
     monkeypatch.setattr(featured_content_service, "ROTATION_ANCHOR_DATE", date.today())
 
     response = client.get("/api/public/schools")
@@ -118,11 +97,7 @@ def test_list_schools_returns_current_rotation_window(tmp_path, monkeypatch) -> 
     assert [item["slug"] for item in response.json()["items"]] == ["west-china-medical-center"]
 
 
-def test_list_schools_only_returns_featured_items(tmp_path, monkeypatch) -> None:
-    featured_content_path = tmp_path / "featured-content.json"
-    _write_featured_content(featured_content_path)
-    monkeypatch.setattr(featured_content_service, "FEATURED_CONTENT_PATH", featured_content_path)
-
+def test_list_schools_only_returns_featured_items(catalog_seed, featured_seed) -> None:
     response = client.get("/api/public/schools")
 
     assert response.status_code == 200
@@ -130,21 +105,21 @@ def test_list_schools_only_returns_featured_items(tmp_path, monkeypatch) -> None
         "items": [
             {
                 "slug": "southeast-university",
-                "name": "\u4e1c\u5357\u5927\u5b66",
-                "region": "\u6c5f\u82cf",
-                "city": "\u5357\u4eac",
-                "tags": ["985", "\u53cc\u4e00\u6d41", "\u5de5\u79d1\u5f3a\u6821"],
-                "summary": "\u5efa\u7b51\u3001\u7535\u5b50\u3001\u5de5\u79d1\u5b9e\u529b\u5f3a\uff0c\u9002\u5408\u7406\u5de5\u57fa\u7840\u624e\u5b9e\u4e14\u60f3\u7559\u5728\u957f\u4e09\u89d2\u53d1\u5c55\u7684\u8003\u751f\u3002",
+                "name": "东南大学",
+                "region": "江苏",
+                "city": "南京",
+                "tags": ["985", "双一流", "工科强校"],
+                "summary": "建筑、电子、工科实力强，适合理工基础扎实且想留在长三角发展的考生。",
                 "hero_image_url": "https://cdn.example.com/southeast.jpg",
                 "has_ranking_references": True,
             },
             {
                 "slug": "west-china-medical-center",
-                "name": "\u534e\u897f\u533b\u5b66\u4e2d\u5fc3",
-                "region": "\u56db\u5ddd",
-                "city": "\u6210\u90fd",
-                "tags": ["\u533b\u5b66\u5f3a\u6821", "\u897f\u90e8\u9f99\u5934", "\u9644\u5c5e\u533b\u9662\u5f3a"],
-                "summary": "\u4e34\u5e8a\u533b\u5b66\u57f9\u517b\u5b9e\u529b\u5f3a\uff0c\u9002\u5408\u60f3\u8d70\u533b\u5b66\u957f\u7ebf\u53d1\u5c55\u3001\u80fd\u63a5\u53d7\u9ad8\u5f3a\u5ea6\u57f9\u517b\u7684\u8003\u751f\u3002",
+                "name": "华西医学中心",
+                "region": "四川",
+                "city": "成都",
+                "tags": ["医学强校", "西部龙头", "附属医院强"],
+                "summary": "临床医学培养实力强，适合想走医学长线发展、能接受高强度培养的考生。",
                 "hero_image_url": "",
                 "has_ranking_references": True,
             },
@@ -153,23 +128,19 @@ def test_list_schools_only_returns_featured_items(tmp_path, monkeypatch) -> None
     }
 
 
-def test_list_schools_filters_by_region(tmp_path, monkeypatch) -> None:
-    featured_content_path = tmp_path / "featured-content.json"
-    _write_featured_content(featured_content_path)
-    monkeypatch.setattr(featured_content_service, "FEATURED_CONTENT_PATH", featured_content_path)
-
-    response = client.get("/api/public/schools", params={"region": "\u6c5f\u82cf"})
+def test_list_schools_filters_by_region(catalog_seed, featured_seed) -> None:
+    response = client.get("/api/public/schools", params={"region": "江苏"})
 
     assert response.status_code == 200
     assert response.json() == {
         "items": [
             {
                 "slug": "southeast-university",
-                "name": "\u4e1c\u5357\u5927\u5b66",
-                "region": "\u6c5f\u82cf",
-                "city": "\u5357\u4eac",
-                "tags": ["985", "\u53cc\u4e00\u6d41", "\u5de5\u79d1\u5f3a\u6821"],
-                "summary": "\u5efa\u7b51\u3001\u7535\u5b50\u3001\u5de5\u79d1\u5b9e\u529b\u5f3a\uff0c\u9002\u5408\u7406\u5de5\u57fa\u7840\u624e\u5b9e\u4e14\u60f3\u7559\u5728\u957f\u4e09\u89d2\u53d1\u5c55\u7684\u8003\u751f\u3002",
+                "name": "东南大学",
+                "region": "江苏",
+                "city": "南京",
+                "tags": ["985", "双一流", "工科强校"],
+                "summary": "建筑、电子、工科实力强，适合理工基础扎实且想留在长三角发展的考生。",
                 "hero_image_url": "https://cdn.example.com/southeast.jpg",
                 "has_ranking_references": True,
             }
@@ -178,150 +149,152 @@ def test_list_schools_filters_by_region(tmp_path, monkeypatch) -> None:
     }
 
 
-def test_school_detail_returns_modular_sections() -> None:
+def test_school_detail_returns_modular_sections(catalog_seed) -> None:
     response = client.get("/api/public/schools/southeast-university")
 
     assert response.status_code == 200
     assert response.json() == {
         "slug": "southeast-university",
-        "name": "\u4e1c\u5357\u5927\u5b66",
-        "region": "\u6c5f\u82cf",
-        "city": "\u5357\u4eac",
-        "tags": ["985", "\u53cc\u4e00\u6d41", "\u5de5\u79d1\u5f3a\u6821"],
-        "summary": "\u5efa\u7b51\u3001\u7535\u5b50\u3001\u5de5\u79d1\u5b9e\u529b\u5f3a\uff0c\u9002\u5408\u7406\u5de5\u57fa\u7840\u624e\u5b9e\u4e14\u60f3\u7559\u5728\u957f\u4e09\u89d2\u53d1\u5c55\u7684\u8003\u751f\u3002",
+        "name": "东南大学",
+        "region": "江苏",
+        "city": "南京",
+        "tags": ["985", "双一流", "工科强校"],
+        "summary": "建筑、电子、工科实力强，适合理工基础扎实且想留在长三角发展的考生。",
         "sections": [
             {
                 "type": "highlights",
-                "title": "\u5b66\u6821\u4eae\u70b9",
+                "title": "学校亮点",
                 "items": [
-                    "\u5efa\u7b51\u3001\u571f\u6728\u3001\u7535\u5b50\u79d1\u5b66\u4e0e\u6280\u672f\u957f\u671f\u5f3a\u52bf\u3002",
-                    "\u5357\u4eac\u533a\u4f4d\u597d\uff0c\u5b9e\u4e60\u4e0e\u5347\u5b66\u8d44\u6e90\u5bc6\u96c6\u3002",
-                    "\u6574\u4f53\u5b66\u98ce\u504f\u786c\u6838\uff0c\u9002\u5408\u81ea\u9a71\u578b\u5b66\u751f\u3002",
+                    "建筑、土木、电子科学与技术长期强势。",
+                    "南京区位好，实习与升学资源密集。",
+                    "整体学风偏硬核，适合自驱型学生。",
                 ],
             },
             {
                 "type": "major_recommendations",
-                "title": "\u63a8\u8350\u4e13\u4e1a",
+                "title": "推荐专业",
                 "items": [
-                    "\u5efa\u7b51\u5b66\uff1a\u884c\u4e1a\u8ba4\u53ef\u5ea6\u9ad8\uff0c\u4f46\u5b66\u4e60\u5f3a\u5ea6\u5927\u3002",
-                    "\u7535\u5b50\u79d1\u5b66\u4e0e\u6280\u672f\uff1a\u9002\u914d\u82af\u7247\u4e0e\u786c\u79d1\u6280\u5c31\u4e1a\u65b9\u5411\u3002",
-                    "\u8ba1\u7b97\u673a\u7c7b\uff1a\u4fdd\u7814\u548c\u5c31\u4e1a\u90fd\u6bd4\u8f83\u7a33\u3002",
+                    "建筑学：行业认可度高，但学习强度大。",
+                    "电子科学与技术：适配芯片与硬科技就业方向。",
+                    "计算机类：保研和就业都比较稳。",
                 ],
             },
             {
                 "type": "pitfalls",
-                "title": "\u62a5\u8003\u5751\u70b9",
+                "title": "报考坑点",
                 "items": [
-                    "\u70ed\u95e8\u4e13\u4e1a\u5206\u6d41\u7ade\u4e89\u5f3a\uff0c\u4e0d\u80fd\u53ea\u770b\u5b66\u6821\u540d\u6c14\u3002",
-                    "\u90e8\u5206\u4e13\u4e1a\u57f9\u517b\u8282\u594f\u7d27\uff0c\u8bfb\u4e66\u538b\u529b\u4e0d\u5c0f\u3002",
-                    "\u5efa\u7b51\u7c7b\u9700\u8981\u957f\u671f\u6295\u5165\uff0c\u4e0d\u9002\u5408\u53ea\u56fe\u5b66\u6821\u724c\u5b50\u62a5\u8003\u3002",
+                    "热门专业分流竞争强，不能只看学校名气。",
+                    "部分专业培养节奏紧，读书压力不小。",
+                    "建筑类需要长期投入，不适合只图学校牌子报考。",
                 ],
             },
         ],
-        "related_majors": ["architecture", "microelectronics", "computer-science"],
+        "website": "",
+        "related_majors": [
+            "architecture",
+            "microelectronics",
+            "computer-science",
+            "clinical-medicine",
+        ],
         "ranking_references": [
             {
-                "source": "\u8f6f\u79d1\u4e2d\u56fd\u5927\u5b66\u6392\u540d",
+                "source": "软科中国大学排名",
                 "year": 2025,
-                "label": "\u5168\u56fd\u7b2c 15 \u540d",
-                "scope": "\u7efc\u5408\u7c7b\u9ad8\u6821",
-                "note": "\u7528\u4e8e\u7efc\u5408\u5b9e\u529b\u53c2\u8003\uff0c\u4e0d\u7b49\u540c\u4e8e\u5177\u4f53\u4e13\u4e1a\u4f18\u52bf\u3002",
+                "label": "全国第 15 名",
+                "scope": "综合类高校",
+                "note": "用于综合实力参考，不等同于具体专业优势。",
                 "url": "https://example.com/rankings/southeast-university",
             }
         ],
     }
 
 
-def test_major_detail_returns_career_and_risk_sections() -> None:
+def test_major_detail_returns_career_and_risk_sections(catalog_seed) -> None:
     response = client.get("/api/public/majors/clinical-medicine")
 
     assert response.status_code == 200
     assert response.json() == {
         "slug": "clinical-medicine",
-        "name": "\u4e34\u5e8a\u533b\u5b66",
-        "discipline": "\u533b\u5b66",
-        "recommended_regions": ["\u6c5f\u82cf", "\u6d59\u6c5f", "\u56db\u5ddd"],
-        "summary": "\u57f9\u517b\u5468\u671f\u957f\u3001\u5b66\u4e60\u538b\u529b\u9ad8\uff0c\u4f46\u804c\u4e1a\u58c1\u5792\u5f3a\uff0c\u9002\u5408\u6297\u538b\u5f3a\u4e14\u613f\u610f\u957f\u671f\u6295\u5165\u7684\u8003\u751f\u3002",
+        "name": "临床医学",
+        "discipline": "医学",
+        "recommended_regions": ["江苏", "浙江", "四川"],
+        "summary": "培养周期长、学习压力高，但职业壁垒强，适合抗压强且愿意长期投入的考生。",
         "sections": [
             {
                 "type": "fit_for",
-                "title": "\u9002\u5408\u4eba\u7fa4",
+                "title": "适合人群",
                 "items": [
-                    "\u80fd\u63a5\u53d7\u957f\u57f9\u517b\u5468\u671f\u548c\u6301\u7eed\u8003\u8bd5\u538b\u529b\u3002",
-                    "\u5bf9\u4e34\u5e8a\u4e00\u7ebf\u5de5\u4f5c\u6709\u771f\u5b9e\u5174\u8da3\uff0c\u4e0d\u53ea\u770b\u7a33\u5b9a\u6027\u3002",
-                    "\u5bb6\u5ead\u80fd\u63a5\u53d7\u524d\u671f\u6295\u5165\u5927\u3001\u56de\u62a5\u6765\u5f97\u6162\u3002",
+                    "能接受长培养周期和持续考试压力。",
+                    "对临床一线工作有真实兴趣，不只看稳定性。",
+                    "家庭能接受前期投入大、回报来得慢。",
                 ],
             },
             {
                 "type": "career_paths",
-                "title": "\u5c31\u4e1a\u53bb\u5411",
+                "title": "就业去向",
                 "items": [
-                    "\u4e09\u7532\u533b\u9662\u4e34\u5e8a\u5c97",
-                    "\u89c4\u57f9\u540e\u7ee7\u7eed\u4e13\u57f9\u6216\u8bfb\u7814\u6df1\u9020",
-                    "\u533b\u5b66\u79d1\u7814\u4e0e\u533b\u9662\u7ba1\u7406\u65b9\u5411",
+                    "三甲医院临床岗",
+                    "规培后继续专培或读研深造",
+                    "医学科研与医院管理方向",
                 ],
             },
             {
                 "type": "pitfalls",
-                "title": "\u5751\u70b9\u63d0\u9192",
+                "title": "坑点提醒",
                 "items": [
-                    "\u672c\u79d1\u6bd5\u4e1a\u76f4\u63a5\u9ad8\u8d28\u91cf\u5c31\u4e1a\u5e76\u4e0d\u8f7b\u677e\uff0c\u8bfb\u7814\u8bfb\u535a\u5f88\u5e38\u89c1\u3002",
-                    "\u503c\u73ed\u548c\u89c4\u57f9\u5f3a\u5ea6\u9ad8\uff0c\u4e0d\u80fd\u53ea\u770b\u793e\u4f1a\u5370\u8c61\u3002",
-                    "\u533b\u5b66\u53e3\u7891\u3001\u9644\u5c5e\u533b\u9662\u5b9e\u529b\u3001\u57ce\u5e02\u8d44\u6e90\u5dee\u5f02\u5f88\u5927\u3002",
+                    "本科毕业直接高质量就业并不轻松，读研读博很常见。",
+                    "值班和规培强度高，不能只看社会印象。",
+                    "医学口碑、附属医院实力、城市资源差异很大。",
                 ],
             },
         ],
-        "related_schools": ["southeast-university", "west-china-medical-center"],
+        "related_schools": ["west-china-medical-center", "southeast-university"],
         "ranking_references": [
             {
-                "source": "\u6559\u80b2\u90e8\u5b66\u79d1\u8bc4\u4f30",
+                "source": "教育部学科评估",
                 "year": 2023,
-                "label": "\u4e34\u5e8a\u533b\u5b66 A-",
-                "scope": "\u4e00\u7ea7\u5b66\u79d1",
-                "note": "\u9002\u5408\u4f5c\u4e3a\u533b\u5b66\u5b66\u79d1\u5b9e\u529b\u53c2\u8003\u3002",
+                "label": "临床医学 A-",
+                "scope": "一级学科",
+                "note": "适合作为医学学科实力参考。",
                 "url": "https://example.com/rankings/clinical-medicine",
             }
         ],
     }
 
 
-def test_school_detail_returns_ranking_references_for_west_china() -> None:
+def test_school_detail_returns_ranking_references_for_west_china(catalog_seed) -> None:
     response = client.get("/api/public/schools/west-china-medical-center")
 
     assert response.status_code == 200
     assert response.json()["ranking_references"] == [
         {
-            "source": "\u8f6f\u79d1\u4e2d\u56fd\u533b\u5b66\u9662\u6821\u6392\u540d",
+            "source": "软科中国医学院校排名",
             "year": 2025,
-            "label": "\u5168\u56fd\u524d 10",
-            "scope": "\u533b\u5b66\u9662\u6821",
-            "note": "\u9002\u5408\u4f5c\u4e3a\u4e34\u5e8a\u533b\u5b66\u57f9\u517b\u5e73\u53f0\u7684\u6a2a\u5411\u53c2\u8003\u3002",
+            "label": "全国前 10",
+            "scope": "医学院校",
+            "note": "适合作为临床医学培养平台的横向参考。",
             "url": "https://example.com/rankings/west-china-medical-center",
         }
     ]
 
 
-def test_major_detail_returns_ranking_references_for_computer_science() -> None:
+def test_major_detail_returns_ranking_references_for_computer_science(catalog_seed) -> None:
     response = client.get("/api/public/majors/computer-science")
 
     assert response.status_code == 200
     assert response.json()["ranking_references"] == [
         {
-            "source": "\u6559\u80b2\u90e8\u5b66\u79d1\u8bc4\u4f30",
+            "source": "教育部学科评估",
             "year": 2023,
-            "label": "\u8ba1\u7b97\u673a\u79d1\u5b66\u4e0e\u6280\u672f B+",
-            "scope": "\u4e00\u7ea7\u5b66\u79d1",
-            "note": "\u9002\u5408\u4f5c\u4e3a\u9662\u6821\u8ba1\u7b97\u673a\u5b66\u79d1\u5b9e\u529b\u53c2\u8003\u3002",
+            "label": "计算机科学与技术 B+",
+            "scope": "一级学科",
+            "note": "适合作为院校计算机学科实力参考。",
             "url": "https://example.com/rankings/computer-science",
         }
     ]
 
 
-def test_list_majors_returns_catalog_cards(tmp_path, monkeypatch) -> None:
-    featured_content_path = tmp_path / "featured-content.json"
-    _write_featured_content(featured_content_path)
-    monkeypatch.setattr(featured_content_service, "FEATURED_CONTENT_PATH", featured_content_path)
-
+def test_list_majors_returns_catalog_cards(catalog_seed, featured_seed) -> None:
     response = client.get("/api/public/majors")
 
     assert response.status_code == 200
@@ -330,14 +303,14 @@ def test_list_majors_returns_catalog_cards(tmp_path, monkeypatch) -> None:
     assert payload["total"] == 2
     assert payload["items"][0] == {
         "slug": "clinical-medicine",
-        "name": "\u4e34\u5e8a\u533b\u5b66",
-        "discipline": "\u533b\u5b66",
+        "name": "临床医学",
+        "discipline": "医学",
         "recommended_regions": [
-            "\u6c5f\u82cf",
-            "\u6d59\u6c5f",
-            "\u56db\u5ddd",
+            "江苏",
+            "浙江",
+            "四川",
         ],
-        "summary": "\u57f9\u517b\u5468\u671f\u957f\u3001\u5b66\u4e60\u538b\u529b\u9ad8\uff0c\u4f46\u804c\u4e1a\u58c1\u5792\u5f3a\uff0c\u9002\u5408\u6297\u538b\u5f3a\u4e14\u613f\u610f\u957f\u671f\u6295\u5165\u7684\u8003\u751f\u3002",
+        "summary": "培养周期长、学习压力高，但职业壁垒强，适合抗压强且愿意长期投入的考生。",
         "has_ranking_references": True,
     }
     assert payload["items"][-1]["slug"] == "computer-science"
@@ -345,13 +318,8 @@ def test_list_majors_returns_catalog_cards(tmp_path, monkeypatch) -> None:
 
 
 def test_list_majors_falls_back_to_all_featured_items_when_rotation_disabled(
-    tmp_path,
-    monkeypatch,
+    catalog_seed, featured_seed
 ) -> None:
-    featured_content_path = tmp_path / "featured-content.json"
-    _write_featured_content(featured_content_path)
-    monkeypatch.setattr(featured_content_service, "FEATURED_CONTENT_PATH", featured_content_path)
-
     response = client.get("/api/public/majors")
 
     assert response.status_code == 200

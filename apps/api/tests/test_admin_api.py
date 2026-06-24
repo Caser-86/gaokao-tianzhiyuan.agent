@@ -1,13 +1,10 @@
-import json
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.pool import StaticPool
-from sqlmodel import SQLModel, Session, create_engine
+from sqlmodel import Session, select
 
 from app.config import settings
-from app.db import get_session
 from app.main import app
 from app.models.ingestion import MediaAnalysisEvent, ReviewQueue
 from app.routers import admin as admin_router_module
@@ -15,83 +12,112 @@ from app.services import featured_content as featured_content_service
 
 
 @pytest.fixture
-def admin_client():
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    SQLModel.metadata.create_all(engine)
-
-    def override_get_session():
-        with Session(engine) as session:
-            yield session
-
-    app.dependency_overrides[get_session] = override_get_session
-
+def admin_client(engine):
+    """复用 conftest 的内存数据库引擎。"""
     with TestClient(app) as client:
         yield client, engine
 
-    app.dependency_overrides.clear()
-
 
 @pytest.fixture
-def featured_content_file(tmp_path, monkeypatch):
-    path = tmp_path / "featured-content.json"
-    path.write_text(
-        json.dumps(
-            {
-                "schools": [
-                    {
-                        "slug": "southeast-university",
-                        "is_featured": True,
-                        "hero_image_url": "",
-                    },
-                    {
-                        "slug": "west-china-medical-center",
-                        "is_featured": True,
-                        "hero_image_url": "",
-                    },
-                ],
-                "majors": [
-                    {
-                        "slug": "clinical-medicine",
-                        "is_featured": True,
-                    },
-                    {
-                        "slug": "computer-science",
-                        "is_featured": True,
-                    },
-                ],
-                "rotation": {
-                    "schools": {
-                        "enabled": True,
-                        "frequency_days": 1,
-                        "window_size": 1,
-                        "ordered_slugs": [
-                            "southeast-university",
-                            "west-china-medical-center",
-                        ],
-                    },
-                    "majors": {
-                        "enabled": True,
-                        "frequency_days": 1,
-                        "window_size": 1,
-                        "ordered_slugs": [
-                            "clinical-medicine",
-                            "computer-science",
-                        ],
-                    },
+def featured_content_file(seed_catalog, seed_featured):
+    """注入 catalog 和 featured 数据到测试数据库。"""
+    seed_catalog(
+        {
+            "search_entry": {
+                "title": "高考志愿助手",
+                "description": "测试入口",
+                "quick_prompts": ["查学校"],
+            },
+            "schools": [
+                {
+                    "slug": "southeast-university",
+                    "name": "东南大学",
+                    "region": "江苏",
+                    "city": "南京",
+                    "tags": ["985"],
+                    "summary": "测试学校",
+                    "sections": [],
+                    "related_majors": [],
+                },
+                {
+                    "slug": "west-china-medical-center",
+                    "name": "华西医学中心",
+                    "region": "四川",
+                    "city": "成都",
+                    "tags": ["医学强校"],
+                    "summary": "测试医学中心",
+                    "sections": [],
+                    "related_majors": [],
+                },
+            ],
+            "majors": [
+                {
+                    "slug": "clinical-medicine",
+                    "name": "临床医学",
+                    "discipline": "医学",
+                    "recommended_regions": ["江苏"],
+                    "summary": "测试专业",
+                    "sections": [],
+                    "related_schools": [],
+                },
+                {
+                    "slug": "computer-science",
+                    "name": "计算机科学与技术",
+                    "discipline": "工学",
+                    "recommended_regions": ["江苏"],
+                    "summary": "测试计算机专业",
+                    "sections": [],
+                    "related_schools": [],
+                },
+            ],
+        }
+    )
+    seed_featured(
+        {
+            "schools": [
+                {
+                    "slug": "southeast-university",
+                    "is_featured": True,
+                    "hero_image_url": "",
+                },
+                {
+                    "slug": "west-china-medical-center",
+                    "is_featured": True,
+                    "hero_image_url": "",
+                },
+            ],
+            "majors": [
+                {
+                    "slug": "clinical-medicine",
+                    "is_featured": True,
+                },
+                {
+                    "slug": "computer-science",
+                    "is_featured": True,
+                },
+            ],
+            "rotation": {
+                "schools": {
+                    "enabled": True,
+                    "frequency_days": 1,
+                    "window_size": 1,
+                    "ordered_slugs": [
+                        "southeast-university",
+                        "west-china-medical-center",
+                    ],
+                },
+                "majors": {
+                    "enabled": True,
+                    "frequency_days": 1,
+                    "window_size": 1,
+                    "ordered_slugs": [
+                        "clinical-medicine",
+                        "computer-science",
+                    ],
                 },
             },
-            ensure_ascii=False,
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
+        }
     )
-    monkeypatch.setattr(featured_content_service, "FEATURED_CONTENT_PATH", path)
-    return path
 
 
 def test_review_queue_endpoint_requires_admin_header() -> None:
@@ -106,7 +132,7 @@ def test_review_queue_endpoint_returns_pending_items_for_valid_admin_token(
     admin_client,
 ) -> None:
     client, engine = admin_client
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     with Session(engine) as session:
         session.add(
@@ -381,12 +407,15 @@ def test_update_featured_school_persists_is_featured_and_image_url(
         "is_featured": False,
         "hero_image_url": "https://cdn.example.com/southeast.jpg",
     }
-    saved = json.loads(featured_content_file.read_text(encoding="utf-8"))
-    assert saved["schools"][0] == {
-        "slug": "southeast-university",
-        "is_featured": False,
-        "hero_image_url": "https://cdn.example.com/southeast.jpg",
-    }
+    from app.models.catalog import FeaturedSchool
+
+    with Session(_engine) as session:
+        stored = session.exec(
+            select(FeaturedSchool).where(FeaturedSchool.slug == "southeast-university")
+        ).first()
+        assert stored is not None
+        assert stored.is_featured is False
+        assert stored.hero_image_url == "https://cdn.example.com/southeast.jpg"
 
 
 def test_suggest_featured_school_image_returns_candidate(
@@ -517,16 +546,20 @@ def test_update_school_rotation_rule_persists_configuration(
         ],
     }
 
-    saved = json.loads(featured_content_file.read_text(encoding="utf-8"))
-    assert saved["rotation"]["schools"] == {
-        "enabled": True,
-        "frequency_days": 2,
-        "window_size": 2,
-        "ordered_slugs": [
+    from app.models.catalog import FeaturedRotationRule
+
+    with Session(_engine) as session:
+        stored = session.exec(
+            select(FeaturedRotationRule).where(FeaturedRotationRule.entity_type == "schools")
+        ).first()
+        assert stored is not None
+        assert stored.enabled is True
+        assert stored.frequency_days == 2
+        assert stored.window_size == 2
+        assert stored.ordered_slugs == [
             "west-china-medical-center",
             "southeast-university",
-        ],
-    }
+        ]
 
 
 def test_update_major_rotation_rule_rejects_unknown_slug(
@@ -656,7 +689,7 @@ def test_review_action_returns_409_for_non_pending_item(admin_client) -> None:
             priority="normal",
             review_status="approved",
             reviewed_by="editor@example.com",
-            reviewed_at=datetime.now(timezone.utc),
+            reviewed_at=datetime.now(UTC),
         )
         session.add(queue_item)
         session.commit()
@@ -728,7 +761,7 @@ def test_media_analysis_events_endpoint_returns_recent_items_for_valid_admin_tok
     admin_client,
 ) -> None:
     client, engine = admin_client
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     with Session(engine) as session:
         session.add(
@@ -813,9 +846,7 @@ def test_media_analysis_events_endpoint_returns_recent_items_for_valid_admin_tok
                 "retryable": True,
                 "retry_block_reason": None,
                 "auto_routed_to_chat": True,
-                "created_at": (now + timedelta(minutes=1))
-                .isoformat()
-                .replace("+00:00", "Z"),
+                "created_at": (now + timedelta(minutes=1)).isoformat().replace("+00:00", "Z"),
             }
         ]
     }
@@ -825,7 +856,7 @@ def test_media_analysis_events_endpoint_supports_status_user_and_auto_route_filt
     admin_client,
 ) -> None:
     client, engine = admin_client
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     with Session(engine) as session:
         session.add(
@@ -941,7 +972,7 @@ def test_media_analysis_events_endpoint_reports_blocked_retry_reason_for_video_r
     admin_client,
 ) -> None:
     client, engine = admin_client
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     with Session(engine) as session:
         session.add(
@@ -1122,9 +1153,7 @@ def test_retry_media_analysis_endpoint_rejects_image_records_without_pic_url(
     )
 
     assert response.status_code == 422
-    assert response.json() == {
-        "detail": "图片记录缺少 pic_url，暂不支持手动重试"
-    }
+    assert response.json() == {"detail": "图片记录缺少 pic_url，暂不支持手动重试"}
 
 
 def test_retry_media_analysis_endpoint_rejects_non_image_records(
@@ -1158,9 +1187,7 @@ def test_retry_media_analysis_endpoint_rejects_non_image_records(
     )
 
     assert response.status_code == 422
-    assert response.json() == {
-        "detail": "非图片媒体记录暂不支持手动重试"
-    }
+    assert response.json() == {"detail": "非图片媒体记录暂不支持手动重试"}
 
 
 def test_retry_media_analysis_endpoint_persists_failure_reason(

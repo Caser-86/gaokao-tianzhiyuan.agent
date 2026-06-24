@@ -1,15 +1,17 @@
-import json
 import base64
+import json
 import struct
-from hashlib import sha1
 from dataclasses import dataclass
+from hashlib import sha1
+from pathlib import Path
 
-from fastapi.testclient import TestClient
 import pyaes
+import pytest
+from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
-from app.main import app
 from app.db import create_all_models, get_engine
+from app.main import app
 from app.models.ingestion import MediaAnalysisEvent
 from app.routers import chat as chat_router_module
 from app.services.access_control import (
@@ -20,7 +22,6 @@ from app.services.access_control import (
 )
 from app.services.chat import ConversationService
 from app.services.skills import (
-    CatalogLookupSkill,
     ChatRequestContext,
     SkillInvocationResult,
     SkillMatchResult,
@@ -28,6 +29,15 @@ from app.services.skills import (
     SkillRegistry,
     ZhangXueFengSkill,
 )
+
+CATALOG_PATH = Path(__file__).resolve().parents[3] / "data" / "catalog.json"
+
+
+@pytest.fixture
+def catalog_seed(seed_catalog):
+    """从 data/catalog.json 注入完整 catalog 数据。"""
+    seed_catalog(json.loads(CATALOG_PATH.read_text(encoding="utf-8")))
+
 
 client = TestClient(app)
 
@@ -120,7 +130,8 @@ def test_chat_skills_list_includes_catalog_lookup() -> None:
 
     assert response.status_code == 200
     assert any(
-        item == {
+        item
+        == {
             "skill_id": "catalog_lookup",
             "name": "Catalog Lookup",
             "version": "v1",
@@ -132,7 +143,7 @@ def test_chat_skills_list_includes_catalog_lookup() -> None:
     )
 
 
-def test_chat_messages_can_route_to_catalog_lookup_skill_for_school_queries() -> None:
+def test_chat_messages_can_route_to_catalog_lookup_skill_for_school_queries(catalog_seed) -> None:
     response = client.post(
         "/api/chat/messages",
         json={
@@ -163,7 +174,7 @@ def test_chat_messages_can_route_to_catalog_lookup_skill_for_school_queries() ->
     assert payload["debug"] == {"used_fallback": False, "notes": []}
 
 
-def test_chat_skill_invoke_supports_catalog_lookup_direct_calls() -> None:
+def test_chat_skill_invoke_supports_catalog_lookup_direct_calls(catalog_seed) -> None:
     response = client.post(
         "/api/chat/skills/catalog_lookup/invoke",
         json={
@@ -311,7 +322,10 @@ def test_chat_skill_invoke_allows_direct_skill_call(tmp_path) -> None:
     assert response.status_code == 200
     assert response.json()["matched_skill"]["skill_id"] == "zhangxuefeng"
     assert response.json()["output"]["type"] == "structured_json"
-    assert response.json()["output"]["content"]["analysis"] == "当前使用规则降级结果，建议补充省份、分数和专业意向。"
+    assert (
+        response.json()["output"]["content"]["analysis"]
+        == "当前使用规则降级结果，建议补充省份、分数和专业意向。"
+    )
     assert response.json()["debug"] == {
         "used_fallback": True,
         "notes": ["provider_not_configured"],
@@ -507,9 +521,7 @@ def build_wechat_signature(*, token: str, timestamp: str, nonce: str) -> str:
     return sha1(payload.encode("utf-8")).hexdigest()
 
 
-def build_wechat_msg_signature(
-    *, token: str, timestamp: str, nonce: str, encrypted: str
-) -> str:
+def build_wechat_msg_signature(*, token: str, timestamp: str, nonce: str, encrypted: str) -> str:
     payload = "".join(sorted([token, timestamp, nonce, encrypted]))
     return sha1(payload.encode("utf-8")).hexdigest()
 
@@ -600,9 +612,7 @@ def test_wechat_official_account_verify_returns_plain_echostr_for_valid_aes_sign
     encoding_aes_key = base64.b64encode(raw_key).decode("utf-8")[:-1]
     chat_router_module.settings.wechat_official_account_token = "wechat-token"
     chat_router_module.settings.wechat_official_account_app_id = "wx-test-appid"
-    chat_router_module.settings.wechat_official_account_encoding_aes_key = (
-        encoding_aes_key
-    )
+    chat_router_module.settings.wechat_official_account_encoding_aes_key = encoding_aes_key
     timestamp = "1710000000"
     nonce = "nonce-123"
     echostr = encrypt_wechat_message(
@@ -631,9 +641,7 @@ def test_wechat_official_account_verify_returns_plain_echostr_for_valid_aes_sign
     finally:
         chat_router_module.settings.wechat_official_account_token = original_token
         chat_router_module.settings.wechat_official_account_app_id = original_app_id
-        chat_router_module.settings.wechat_official_account_encoding_aes_key = (
-            original_aes_key
-        )
+        chat_router_module.settings.wechat_official_account_encoding_aes_key = original_aes_key
 
     assert response.status_code == 200
     assert response.text == "echo-me-aes"
@@ -660,7 +668,9 @@ def test_wechat_official_account_verify_rejects_invalid_signature() -> None:
     assert response.json() == {"detail": "wechat signature verification failed"}
 
 
-def test_wechat_official_account_aes_text_message_reuses_chat_flow_and_returns_encrypted_reply() -> None:
+def test_wechat_official_account_aes_text_message_reuses_chat_flow_and_returns_encrypted_reply() -> (
+    None
+):
     original_token = chat_router_module.settings.wechat_official_account_token
     original_app_id = getattr(
         chat_router_module.settings,
@@ -677,9 +687,7 @@ def test_wechat_official_account_aes_text_message_reuses_chat_flow_and_returns_e
     encoding_aes_key = base64.b64encode(raw_key).decode("utf-8")[:-1]
     chat_router_module.settings.wechat_official_account_token = "wechat-token"
     chat_router_module.settings.wechat_official_account_app_id = "wx-test-appid"
-    chat_router_module.settings.wechat_official_account_encoding_aes_key = (
-        encoding_aes_key
-    )
+    chat_router_module.settings.wechat_official_account_encoding_aes_key = encoding_aes_key
 
     class FakeConversationService:
         def handle_message(
@@ -758,9 +766,7 @@ def test_wechat_official_account_aes_text_message_reuses_chat_flow_and_returns_e
     finally:
         chat_router_module.settings.wechat_official_account_token = original_token
         chat_router_module.settings.wechat_official_account_app_id = original_app_id
-        chat_router_module.settings.wechat_official_account_encoding_aes_key = (
-            original_aes_key
-        )
+        chat_router_module.settings.wechat_official_account_encoding_aes_key = original_aes_key
         chat_router_module.conversation_service = original_service
 
     assert response.status_code == 200
@@ -970,7 +976,9 @@ def test_wechat_official_account_direct_image_message_returns_picture_fallback_r
     )
 
 
-def test_wechat_official_account_direct_image_message_returns_media_pending_reply_when_smart_analysis_is_on() -> None:
+def test_wechat_official_account_direct_image_message_returns_media_pending_reply_when_smart_analysis_is_on() -> (
+    None
+):
     original_token = chat_router_module.settings.wechat_official_account_token
     original_service = chat_router_module.conversation_service
     chat_router_module.settings.wechat_official_account_token = "wechat-token"
@@ -1086,7 +1094,9 @@ def test_wechat_official_account_video_messages_return_video_guidance_reply() ->
     chat_router_module.conversation_service = original_service
 
 
-def test_wechat_official_account_video_messages_record_failed_unsupported_reason_for_entitled_gated_user() -> None:
+def test_wechat_official_account_video_messages_record_failed_unsupported_reason_for_entitled_gated_user() -> (
+    None
+):
     original_token = chat_router_module.settings.wechat_official_account_token
     original_service = chat_router_module.conversation_service
     original_provider = chat_router_module.media_analysis_provider
@@ -1142,9 +1152,7 @@ def test_wechat_official_account_video_messages_record_failed_unsupported_reason
 
             with Session(get_engine()) as session:
                 existing = session.exec(
-                    select(MediaAnalysisEvent).where(
-                        MediaAnalysisEvent.user_id == user_id
-                    )
+                    select(MediaAnalysisEvent).where(MediaAnalysisEvent.user_id == user_id)
                 ).all()
                 for item in existing:
                     session.delete(item)
@@ -1215,7 +1223,9 @@ def test_wechat_official_account_video_messages_record_failed_unsupported_reason
         chat_router_module.media_analysis_provider = original_provider
 
 
-def test_wechat_official_account_image_message_can_use_media_analysis_provider_reply_when_enabled() -> None:
+def test_wechat_official_account_image_message_can_use_media_analysis_provider_reply_when_enabled() -> (
+    None
+):
     original_token = chat_router_module.settings.wechat_official_account_token
     original_service = chat_router_module.conversation_service
     original_provider = chat_router_module.media_analysis_provider
@@ -1522,7 +1532,9 @@ def test_wechat_official_account_image_message_records_failed_media_reason_event
     )
 
 
-def test_wechat_official_account_image_message_can_fall_back_to_media_summary_when_reply_missing() -> None:
+def test_wechat_official_account_image_message_can_fall_back_to_media_summary_when_reply_missing() -> (
+    None
+):
     original_token = chat_router_module.settings.wechat_official_account_token
     original_service = chat_router_module.conversation_service
     original_provider = chat_router_module.media_analysis_provider

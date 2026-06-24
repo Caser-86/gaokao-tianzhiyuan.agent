@@ -33,9 +33,7 @@ def entitlement_evaluation(
     session: Session = Depends(get_session),
 ) -> dict[str, list[str]]:
     persisted_entitlements = (
-        get_user_entitlements(session, payload.user_id)
-        if isinstance(payload.user_id, str)
-        else []
+        get_user_entitlements(session, payload.user_id) if isinstance(payload.user_id, str) else []
     )
     return evaluate_entitlements(
         payload.product_slugs,

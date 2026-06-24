@@ -1,11 +1,12 @@
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
-from sqlmodel import SQLModel, Session, select
+from sqlmodel import Session, SQLModel, select
 
 from ..config import settings
 from ..db import get_session
 from ..models.ingestion import MediaAnalysisEvent, ReviewQueue
+from ..services import featured_content as featured_content_service
 from ..services.access_control import (
     SMART_ANALYSIS_ENTITLEMENT,
     get_effective_smart_analysis_mode,
@@ -13,7 +14,23 @@ from ..services.access_control import (
     set_smart_analysis_mode,
     set_user_entitlement,
 )
-from ..services import featured_content as featured_content_service
+from ..services.catalog import (
+    list_admin_content_sections,
+    list_admin_content_summaries,
+    list_admin_ranking_references,
+    list_admin_related_content,
+    update_content_sections,
+    update_content_summary,
+    update_ranking_references,
+    update_related_content,
+)
+from ..services.featured_content import (
+    build_featured_content_preview,
+    list_featured_content,
+    update_featured_major,
+    update_featured_school,
+    update_rotation_rule,
+)
 from ..services.media_analysis import (
     MediaAnalysisRequest,
     MediaAnalysisResult,
@@ -22,23 +39,6 @@ from ..services.media_analysis import (
 from ..services.media_analysis_events import (
     create_media_analysis_event,
     list_media_analysis_events,
-)
-from ..services.featured_content import (
-    build_featured_content_preview,
-    list_featured_content,
-    update_featured_major,
-    update_rotation_rule,
-    update_featured_school,
-)
-from ..services.catalog import (
-    list_admin_content_sections,
-    list_admin_related_content,
-    list_admin_content_summaries,
-    list_admin_ranking_references,
-    update_content_sections,
-    update_content_summary,
-    update_related_content,
-    update_ranking_references,
 )
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -305,7 +305,7 @@ class SmartAnalysisUserEntitlementsRequest(SQLModel):
 def serialize_review_queue_item(item: ReviewQueue) -> ReviewQueueItemResponse:
     created_at = item.created_at
     if created_at.tzinfo is None:
-        created_at = created_at.replace(tzinfo=timezone.utc)
+        created_at = created_at.replace(tzinfo=UTC)
 
     return ReviewQueueItemResponse(
         id=item.id,
@@ -327,7 +327,7 @@ def serialize_media_analysis_event(
 ) -> MediaAnalysisEventResponse:
     created_at = item.created_at
     if created_at.tzinfo is None:
-        created_at = created_at.replace(tzinfo=timezone.utc)
+        created_at = created_at.replace(tzinfo=UTC)
     retryable, retry_block_reason = get_media_analysis_retryability(item)
 
     return MediaAnalysisEventResponse(
@@ -393,7 +393,7 @@ def build_media_analysis_retry_payload(
     retryable, retry_block_reason = get_media_analysis_retryability(item)
     if not retryable:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=retry_block_reason or "media analysis retry is not available",
         )
     pic_url = str(context.get("pic_url", "")).strip()
@@ -467,7 +467,7 @@ def finalize_review_queue_item(
 
     queue_item.review_status = decision
     queue_item.reviewed_by = payload.reviewed_by
-    queue_item.reviewed_at = datetime.now(timezone.utc)
+    queue_item.reviewed_at = datetime.now(UTC)
     queue_item.review_note = payload.review_note
     return queue_item
 
@@ -488,8 +488,7 @@ def build_smart_analysis_user_response(
     return SmartAnalysisUserEntitlementsResponse(
         user_id=user_id,
         entitlements=[
-            UserEntitlementStatusResponse(name=name, enabled=True)
-            for name in entitlements
+            UserEntitlementStatusResponse(name=name, enabled=True) for name in entitlements
         ],
     )
 
@@ -504,12 +503,12 @@ def normalize_ranking_references(
         label = item.label.strip()
         if not source or not label:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="ranking reference source and label are required",
             )
         if item.year < 1:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="ranking reference year must be positive",
             )
 
@@ -531,7 +530,7 @@ def normalize_content_summary(summary: str) -> str:
     normalized = summary.strip()
     if not normalized:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="summary is required",
         )
     return normalized
@@ -552,7 +551,7 @@ def normalize_content_sections(
 
         if not type_value or not title_value or not items:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="content section row is invalid",
             )
 
@@ -571,7 +570,7 @@ def normalize_related_slugs(related_slugs: list[str]) -> list[str]:
     normalized = [slug.strip() for slug in related_slugs if slug.strip()]
     if any(not slug for slug in normalized):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="related content slug is invalid",
         )
     return normalized
@@ -588,9 +587,7 @@ def list_review_queue(
         .order_by(ReviewQueue.created_at)
     )
     items = session.exec(stmt).all()
-    return ReviewQueueListResponse(
-        items=[serialize_review_queue_item(item) for item in items]
-    )
+    return ReviewQueueListResponse(items=[serialize_review_queue_item(item) for item in items])
 
 
 @router.get(
@@ -654,7 +651,7 @@ def update_smart_analysis_settings(
         mode = set_smart_analysis_mode(session, payload.mode)
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
         ) from exc
 
@@ -696,7 +693,7 @@ def update_smart_analysis_user_entitlements(
         )
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
         ) from exc
 
@@ -821,7 +818,7 @@ def update_school_content_summary(
         ) from exc
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
         ) from exc
 
@@ -850,7 +847,7 @@ def update_major_content_summary(
         ) from exc
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
         ) from exc
 
@@ -928,7 +925,7 @@ def update_school_related_content(
         ) from exc
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
         ) from exc
 
@@ -958,7 +955,7 @@ def update_major_related_content(
         ) from exc
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
         ) from exc
 
@@ -982,14 +979,8 @@ def get_featured_content(
 
     preview = build_featured_content_preview(preview_date=selected_preview_date)
     return FeaturedContentResponse(
-        schools=[
-            FeaturedSchoolConfigResponse(**school)
-            for school in payload["schools"]
-        ],
-        majors=[
-            FeaturedMajorConfigResponse(**major)
-            for major in payload["majors"]
-        ],
+        schools=[FeaturedSchoolConfigResponse(**school) for school in payload["schools"]],
+        majors=[FeaturedMajorConfigResponse(**major) for major in payload["majors"]],
         rotation=FeaturedContentRotationResponse(
             schools=FeaturedRotationRuleResponse(**payload["rotation"]["schools"]),
             majors=FeaturedRotationRuleResponse(**payload["rotation"]["majors"]),
@@ -997,36 +988,26 @@ def get_featured_content(
         preview=FeaturedContentPreviewResponse(
             today=FeaturedTodayPreviewResponse(
                 schools=[
-                    FeaturedPreviewItemResponse(**school)
-                    for school in preview["today"]["schools"]
+                    FeaturedPreviewItemResponse(**school) for school in preview["today"]["schools"]
                 ],
                 majors=[
-                    FeaturedPreviewItemResponse(**major)
-                    for major in preview["today"]["majors"]
+                    FeaturedPreviewItemResponse(**major) for major in preview["today"]["majors"]
                 ],
             ),
             next=FeaturedTodayPreviewResponse(
                 schools=[
-                    FeaturedPreviewItemResponse(**school)
-                    for school in preview["next"]["schools"]
+                    FeaturedPreviewItemResponse(**school) for school in preview["next"]["schools"]
                 ],
                 majors=[
-                    FeaturedPreviewItemResponse(**major)
-                    for major in preview["next"]["majors"]
+                    FeaturedPreviewItemResponse(**major) for major in preview["next"]["majors"]
                 ],
             ),
             schedule=[
                 FeaturedPreviewDayResponse(
                     date=day["date"],
                     weekday=day["weekday"],
-                    schools=[
-                        FeaturedPreviewItemResponse(**school)
-                        for school in day["schools"]
-                    ],
-                    majors=[
-                        FeaturedPreviewItemResponse(**major)
-                        for major in day["majors"]
-                    ],
+                    schools=[FeaturedPreviewItemResponse(**school) for school in day["schools"]],
+                    majors=[FeaturedPreviewItemResponse(**major) for major in day["majors"]],
                 )
                 for day in preview["schedule"]
             ],
@@ -1135,12 +1116,12 @@ def update_school_rotation_rule(
         )
     except KeyError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="featured rotation slug not found",
         ) from exc
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
         ) from exc
 
@@ -1165,12 +1146,12 @@ def update_major_rotation_rule(
         )
     except KeyError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="featured rotation slug not found",
         ) from exc
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
         ) from exc
 

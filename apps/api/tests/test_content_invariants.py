@@ -1,8 +1,9 @@
 import pytest
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import SQLModel, Session, create_engine
+from sqlmodel import Session, SQLModel, create_engine
 
-from app.models.content import School, SchoolContentVersion, VersionStatus
+from app.models.catalog import School
+from app.models.content import SchoolContentVersion, VersionStatus
 
 
 def test_school_version_must_be_unique_per_school_post_commit() -> None:
@@ -10,7 +11,12 @@ def test_school_version_must_be_unique_per_school_post_commit() -> None:
     SQLModel.metadata.create_all(engine)
 
     with Session(engine) as session:
-        school = School(name="Example University", slug="example-university-invariants")
+        school = School(
+            name="Example University",
+            slug="example-university-invariants",
+            region="江苏",
+            city="南京",
+        )
         session.add(school)
         session.commit()
         session.refresh(school)
@@ -45,7 +51,12 @@ def test_only_one_published_version_per_school_post_commit() -> None:
     SQLModel.metadata.create_all(engine)
 
     with Session(engine) as session:
-        school = School(name="Second Example University", slug="example-university-published")
+        school = School(
+            name="Second Example University",
+            slug="example-university-published",
+            region="江苏",
+            city="南京",
+        )
         session.add(school)
         session.commit()
         session.refresh(school)

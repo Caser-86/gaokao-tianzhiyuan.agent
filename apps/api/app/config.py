@@ -1,6 +1,6 @@
 import json
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -82,9 +82,7 @@ class Settings(BaseSettings):
 
     @field_validator("cors_allowed_origins", mode="before")
     @classmethod
-    def validate_cors_allowed_origins(
-        cls, value: str | Sequence[str] | None
-    ) -> tuple[str, ...]:
+    def validate_cors_allowed_origins(cls, value: str | Sequence[str] | None) -> tuple[str, ...]:
         if value is None:
             return DEFAULT_CORS_ALLOWED_ORIGINS
 
@@ -99,9 +97,7 @@ class Settings(BaseSettings):
                     raise ValueError("cors_allowed_origins JSON value must be a list")
                 return tuple(str(item).strip() for item in parsed if str(item).strip())
 
-            return tuple(
-                item.strip() for item in normalized.split(",") if item.strip()
-            )
+            return tuple(item.strip() for item in normalized.split(",") if item.strip())
 
         return tuple(str(item).strip() for item in value if str(item).strip())
 
@@ -120,9 +116,7 @@ class Settings(BaseSettings):
             self.admin_token == DEFAULT_ADMIN_TOKEN
             and environment not in SAFE_DEFAULT_ADMIN_TOKEN_ENVIRONMENTS
         ):
-            raise ValueError(
-                "default admin token is only allowed in development/test mode"
-            )
+            raise ValueError("default admin token is only allowed in development/test mode")
         return self
 
 

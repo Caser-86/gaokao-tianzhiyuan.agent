@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 from typing import Any, Literal, Protocol
 
 import httpx
@@ -102,7 +102,7 @@ class OpenAICompatibleMediaAnalysisProvider:
                         "You are a concise Chinese gaokao admissions assistant. "
                         "Read the uploaded image if it contains score sheets, chat "
                         "screenshots, school tables, or major lists. Return valid "
-                        'JSON only with keys: summary, extracted_fields, rendered_reply. '
+                        "JSON only with keys: summary, extracted_fields, rendered_reply. "
                         "Use Chinese. summary should be short. extracted_fields should "
                         "contain only clearly supported fields from the image."
                     ),
@@ -144,9 +144,7 @@ class OpenAICompatibleMediaAnalysisProvider:
             return MediaAnalysisResult(
                 status="failed",
                 provider="openai_compatible",
-                failure_reason=(
-                    f"上游媒体分析请求失败：HTTP {exc.response.status_code}"
-                ),
+                failure_reason=(f"上游媒体分析请求失败：HTTP {exc.response.status_code}"),
             )
         except httpx.HTTPError as exc:
             return MediaAnalysisResult(

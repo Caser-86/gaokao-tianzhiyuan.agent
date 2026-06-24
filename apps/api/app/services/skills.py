@@ -6,13 +6,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
+from .catalog import load_catalog
 from .llm import (
     LLMMessage,
     LLMProvider,
     ProviderRequestError,
     ProviderResponseFormatError,
 )
-from .catalog import load_catalog
 
 GAOKAO_KEYWORDS = ("学校", "专业", "志愿", "985", "211", "双一流", "冲", "稳", "保", "对比")
 PROVINCES = ("北京", "上海", "江苏", "浙江", "广东", "四川", "湖北", "河南")
@@ -264,7 +264,9 @@ class CatalogLookupSkill:
                 entities={},
                 analysis="\u8bf7\u76f4\u63a5\u53d1\u9001\u5b66\u6821\u540d\u6216\u4e13\u4e1a\u540d\uff0c\u6211\u53ef\u4ee5\u5148\u8fd4\u56de\u76ee\u5f55\u91cc\u7684\u57fa\u7840\u4fe1\u606f\u6458\u8981\u3002",
                 suggestions=[],
-                follow_up_questions=["\u4f60\u60f3\u67e5\u5b66\u6821\u8be6\u60c5\uff0c\u8fd8\u662f\u4e13\u4e1a\u4ecb\u7ecd\uff1f"],
+                follow_up_questions=[
+                    "\u4f60\u60f3\u67e5\u5b66\u6821\u8be6\u60c5\uff0c\u8fd8\u662f\u4e13\u4e1a\u4ecb\u7ecd\uff1f"
+                ],
                 actions=[],
                 risk_flags=[],
                 rendered_reply="\u8bf7\u76f4\u63a5\u53d1\u9001\u5b66\u6821\u540d\u6216\u4e13\u4e1a\u540d\uff0c\u6211\u53ef\u4ee5\u5148\u8fd4\u56de\u76ee\u5f55\u91cc\u7684\u57fa\u7840\u4fe1\u606f\u6458\u8981\u3002",
@@ -315,9 +317,7 @@ class CatalogLookupSkill:
             },
             analysis=analysis,
             suggestions=suggestions,
-            follow_up_questions=(
-                ["想继续看这所学校相关专业的目录摘要吗？"] if suggestions else []
-            ),
+            follow_up_questions=(["想继续看这所学校相关专业的目录摘要吗？"] if suggestions else []),
             actions=[
                 {
                     "type": "open_school",
@@ -370,9 +370,7 @@ class CatalogLookupSkill:
             },
             analysis=analysis,
             suggestions=suggestions,
-            follow_up_questions=(
-                ["想继续看这个专业可关联的院校吗？"] if suggestions else []
-            ),
+            follow_up_questions=(["想继续看这个专业可关联的院校吗？"] if suggestions else []),
             actions=[
                 {
                     "type": "open_major",
@@ -407,9 +405,8 @@ class ZhangXueFengSkill:
 
     def match(self, request: ChatRequestContext) -> SkillMatchResult:
         matched_keywords = [keyword for keyword in GAOKAO_KEYWORDS if keyword in request.message]
-        if (
-            any(marker in request.message for marker in SCHOOL_CONSULTATION_MARKERS)
-            and any(question in request.message for question in SCHOOL_CONSULTATION_QUESTIONS)
+        if any(marker in request.message for marker in SCHOOL_CONSULTATION_MARKERS) and any(
+            question in request.message for question in SCHOOL_CONSULTATION_QUESTIONS
         ):
             return SkillMatchResult(
                 matched=True,
@@ -531,10 +528,13 @@ class ZhangXueFengSkill:
             "entities": payload.get("entities", fallback.entities),
             "analysis": payload.get("analysis") or payload.get("message") or fallback.analysis,
             "suggestions": payload.get("suggestions", fallback.suggestions),
-            "follow_up_questions": payload.get("follow_up_questions", suggestions) or fallback.follow_up_questions,
+            "follow_up_questions": payload.get("follow_up_questions", suggestions)
+            or fallback.follow_up_questions,
             "actions": payload.get("actions", fallback.actions),
             "risk_flags": payload.get("risk_flags", fallback.risk_flags),
-            "rendered_reply": payload.get("rendered_reply") or payload.get("message") or fallback.rendered_reply,
+            "rendered_reply": payload.get("rendered_reply")
+            or payload.get("message")
+            or fallback.rendered_reply,
         }
 
     @staticmethod
@@ -559,7 +559,9 @@ class ZhangXueFengSkill:
         elif "专业" in request.message and "学校" not in request.message:
             intent = "major_recommendation"
             summary = "用户在咨询专业选择建议"
-        elif any(keyword in request.message for keyword in ("志愿", "稳", "保")) and not school_tags:
+        elif (
+            any(keyword in request.message for keyword in ("志愿", "稳", "保")) and not school_tags
+        ):
             intent = "volunteer_strategy"
             summary = "用户在咨询志愿填报策略"
         else:

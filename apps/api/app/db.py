@@ -2,7 +2,7 @@ from collections.abc import Generator
 from functools import lru_cache
 
 from sqlalchemy import inspect, text
-from sqlmodel import SQLModel, Session, create_engine
+from sqlmodel import Session, SQLModel, create_engine
 
 from .config import settings
 from .models.ingestion import MediaAnalysisEvent

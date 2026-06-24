@@ -1,5 +1,5 @@
 import pytest
-from sqlmodel import SQLModel, Session, create_engine
+from sqlmodel import Session, SQLModel, create_engine
 
 from app.models.ingestion import ReviewQueue
 from app.services.ingestion import build_review_candidate, build_review_queue_payload

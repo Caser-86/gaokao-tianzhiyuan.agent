@@ -7,9 +7,7 @@ from app.config import Settings, resolve_zhangxuefeng_skill_path
 def test_default_admin_token_is_rejected_outside_safe_modes() -> None:
     with pytest.raises(ValidationError) as exc_info:
         Settings(environment="production", admin_token="dev-admin-token")
-    assert "default admin token is only allowed in development/test mode" in str(
-        exc_info.value
-    )
+    assert "default admin token is only allowed in development/test mode" in str(exc_info.value)
 
 
 def test_default_admin_token_is_allowed_in_development_and_test_modes() -> None:
@@ -84,9 +82,7 @@ def test_smart_analysis_mode_rejects_unknown_values() -> None:
 
 
 def test_cors_allowed_origins_accept_comma_separated_values() -> None:
-    settings = Settings(
-        cors_allowed_origins="http://127.0.0.1:3000, http://localhost:3000"
-    )
+    settings = Settings(cors_allowed_origins="http://127.0.0.1:3000, http://localhost:3000")
 
     assert settings.cors_allowed_origins == (
         "http://127.0.0.1:3000",
@@ -105,13 +101,10 @@ def test_resolve_zhangxuefeng_skill_path_prefers_existing_configured_path(
     fallback_skill.parent.mkdir(parents=True, exist_ok=True)
     fallback_skill.write_text("fallback", encoding="utf-8")
 
-    assert (
-        resolve_zhangxuefeng_skill_path(
-            str(configured_skill),
-            default_candidates=(fallback_skill,),
-        )
-        == str(configured_skill)
-    )
+    assert resolve_zhangxuefeng_skill_path(
+        str(configured_skill),
+        default_candidates=(fallback_skill,),
+    ) == str(configured_skill)
 
 
 def test_resolve_zhangxuefeng_skill_path_falls_back_to_first_existing_candidate(
@@ -121,10 +114,7 @@ def test_resolve_zhangxuefeng_skill_path_falls_back_to_first_existing_candidate(
     fallback_skill.parent.mkdir(parents=True, exist_ok=True)
     fallback_skill.write_text("fallback", encoding="utf-8")
 
-    assert (
-        resolve_zhangxuefeng_skill_path(
-            str(tmp_path / "missing" / "SKILL.md"),
-            default_candidates=(fallback_skill,),
-        )
-        == str(fallback_skill)
-    )
+    assert resolve_zhangxuefeng_skill_path(
+        str(tmp_path / "missing" / "SKILL.md"),
+        default_candidates=(fallback_skill,),
+    ) == str(fallback_skill)

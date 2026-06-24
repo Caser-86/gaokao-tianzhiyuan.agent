@@ -58,9 +58,7 @@ def list_media_analysis_events(
     if user_id:
         stmt = stmt.where(MediaAnalysisEvent.user_id == user_id)
     if auto_routed_to_chat is not None:
-        stmt = stmt.where(
-            MediaAnalysisEvent.auto_routed_to_chat == auto_routed_to_chat
-        )
+        stmt = stmt.where(MediaAnalysisEvent.auto_routed_to_chat == auto_routed_to_chat)
 
     stmt = stmt.order_by(
         MediaAnalysisEvent.created_at.desc(),

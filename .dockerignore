@@ -1,0 +1,30 @@
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/.pytest_cache/
+**/.venv/
+**/.coverage
+**/htmlcov/
+
+# Node
+**/node_modules/
+**/.next/
+**/coverage/
+
+# 环境与密钥
+**/.env
+**/.env.local
+**/.env.*.local
+
+# 数据库与临时文件
+**/*.db
+**/*.db-journal
+**/*.log
+
+# 版本控制与工具
+.git/
+.gitignore
+.superpowers/
+.tmp/
+**/.vscode/

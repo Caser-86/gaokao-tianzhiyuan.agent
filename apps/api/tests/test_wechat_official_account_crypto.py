@@ -23,7 +23,7 @@ APP_ID = "wx-test-appid"
 
 
 def test_build_wechat_msg_signature_sorts_parts() -> None:
-    expected = sha1("aabbccdd".encode("utf-8")).hexdigest()
+    expected = sha1(b"aabbccdd").hexdigest()
 
     assert build_wechat_msg_signature("dd", "aa", "cc", "bb") == expected
 

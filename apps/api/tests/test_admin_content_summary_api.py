@@ -1,58 +1,47 @@
-import json
-
 import pytest
 from fastapi.testclient import TestClient
+from sqlmodel import Session, select
 
 from app.config import settings
 from app.main import app
-from app.services import catalog as catalog_service
+from app.models.catalog import School
 
 
 @pytest.fixture
-def summary_catalog_file(tmp_path, monkeypatch):
-    path = tmp_path / "catalog.json"
-    path.write_text(
-        json.dumps(
-            {
-                "search_entry": {
-                    "title": "高考志愿助手",
-                    "description": "测试入口",
-                    "quick_prompts": ["查学校"],
-                },
-                "schools": [
-                    {
-                        "slug": "southeast-university",
-                        "name": "东南大学",
-                        "region": "江苏",
-                        "city": "南京",
-                        "tags": ["985"],
-                        "summary": "测试学校摘要",
-                        "sections": [],
-                        "related_majors": [],
-                    }
-                ],
-                "majors": [
-                    {
-                        "slug": "clinical-medicine",
-                        "name": "临床医学",
-                        "discipline": "医学",
-                        "recommended_regions": ["江苏"],
-                        "summary": "测试专业摘要",
-                        "sections": [],
-                        "related_schools": [],
-                    }
-                ],
+def summary_catalog_file(seed_catalog):
+    """注入 catalog 数据到测试数据库。"""
+    seed_catalog(
+        {
+            "search_entry": {
+                "title": "高考志愿助手",
+                "description": "测试入口",
+                "quick_prompts": ["查学校"],
             },
-            ensure_ascii=False,
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
+            "schools": [
+                {
+                    "slug": "southeast-university",
+                    "name": "东南大学",
+                    "region": "江苏",
+                    "city": "南京",
+                    "tags": ["985"],
+                    "summary": "测试学校摘要",
+                    "sections": [],
+                    "related_majors": [],
+                }
+            ],
+            "majors": [
+                {
+                    "slug": "clinical-medicine",
+                    "name": "临床医学",
+                    "discipline": "医学",
+                    "recommended_regions": ["江苏"],
+                    "summary": "测试专业摘要",
+                    "sections": [],
+                    "related_schools": [],
+                }
+            ],
+        }
     )
-    monkeypatch.setattr(catalog_service, "CATALOG_PATH", path)
-    catalog_service.load_catalog.cache_clear()
-    yield path
-    catalog_service.load_catalog.cache_clear()
 
 
 def test_content_summary_endpoint_returns_school_and_major_entries(summary_catalog_file):
@@ -80,7 +69,7 @@ def test_content_summary_endpoint_returns_school_and_major_entries(summary_catal
     ]
 
 
-def test_update_school_summary(summary_catalog_file):
+def test_update_school_summary(summary_catalog_file, engine):
     with TestClient(app) as client:
         response = client.post(
             "/api/admin/content-summaries/schools/southeast-university",
@@ -95,8 +84,10 @@ def test_update_school_summary(summary_catalog_file):
         "summary": "更新后的学校摘要",
     }
 
-    stored_payload = json.loads(summary_catalog_file.read_text(encoding="utf-8"))
-    assert stored_payload["schools"][0]["summary"] == "更新后的学校摘要"
+    with Session(engine) as session:
+        stored = session.exec(select(School).where(School.slug == "southeast-university")).first()
+        assert stored is not None
+        assert stored.summary == "更新后的学校摘要"
 
 
 def test_update_major_summary_rejects_blank_summary(summary_catalog_file):

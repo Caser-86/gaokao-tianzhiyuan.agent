@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlmodel import Session, select
 
@@ -26,7 +26,7 @@ def publish_school_version(
 
     version.status = VersionStatus.published
     version.published_by = operator
-    version.published_at = datetime.now(timezone.utc)
+    version.published_at = datetime.now(UTC)
 
     session.add(version)
     session.flush()

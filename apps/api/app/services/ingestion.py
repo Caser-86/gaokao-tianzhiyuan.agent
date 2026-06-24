@@ -1,4 +1,4 @@
-from typing import Mapping
+from collections.abc import Mapping
 
 TRACKED_FIELDS = ("summary", "strengths", "suitable_for", "risks")
 

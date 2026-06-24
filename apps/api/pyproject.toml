@@ -10,12 +10,15 @@ dependencies = [
     "pydantic-settings>=2.5.0,<3.0.0",
     "sqlmodel>=0.0.8,<0.8",
     "httpx>=0.24.0,<0.30.0",
-    "pyaes>=1.6.1,<2.0.0"
+    "pyaes>=1.6.1,<2.0.0",
+    "alembic>=1.13.0,<2.0.0"
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.0,<10.0"
+    "pytest>=8.0,<10.0",
+    "ruff>=0.6.0,<0.10.0",
+    "black>=24.0,<26.0"
 ]
 
 [build-system]
@@ -28,3 +31,44 @@ packages = ["app"]
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]
+
+# Ruff: linter + formatter（替代 flake8/isort/pyupgrade 等）
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+# 启用规则集：
+# E/W  - pycodestyle（PEP 8）
+# F    - pyflakes（未使用导入/变量等）
+# I    - isort（导入排序）
+# B    - bugbear（常见陷阱）
+# UP   - pyupgrade（现代化语法）
+# N    - pep8-naming
+# SIM  - simplify（简化写法）
+# RUF  - ruff 特有规则
+select = ["E", "W", "F", "I", "B", "UP", "N", "SIM", "RUF"]
+ignore = [
+    "E501",   # 行长度由 formatter 管理
+    "B008",   # FastAPI 依赖注入常用默认值调用（如 Depends()）
+    "SIM117", # 允许嵌套 with 以提升可读性
+    "RUF001", # 中文全角标点误报（项目含大量中文内容）
+    "RUF002", # 中文全角标点误报
+    "RUF003", # 中文全角标点误报
+    "SIM108", # 三元表达式会降低多行 if-else 可读性
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B017"]  # 测试允许 assertRaises 通配
+"app/scripts/*" = ["T201"]  # 脚本允许 print
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# Black: 代码格式化（与 ruff format 兼容）
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+extend-exclude = "/alembic/versions/"

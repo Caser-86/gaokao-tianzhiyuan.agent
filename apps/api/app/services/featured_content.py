@@ -1,14 +1,22 @@
 from __future__ import annotations
 
-import json
 from datetime import date, timedelta
 from html.parser import HTMLParser
-from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
-FEATURED_CONTENT_PATH = Path(__file__).resolve().parents[4] / "data" / "featured-content.json"
+from sqlmodel import Session, select
+
+from ..db import get_engine
+from ..models.catalog import (
+    FeaturedMajor,
+    FeaturedRotationRule,
+    FeaturedSchool,
+    Major,
+    School,
+)
+
 ROTATION_ANCHOR_DATE = date(2026, 4, 14)
 WEEKDAY_LABELS = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
 
@@ -42,42 +50,36 @@ def _default_rotation_rule() -> dict[str, Any]:
     }
 
 
-def _normalize_rotation(payload: dict[str, Any]) -> dict[str, Any]:
-    rotation = payload.setdefault("rotation", {})
-    rotation.setdefault("schools", _default_rotation_rule())
-    rotation.setdefault("majors", _default_rotation_rule())
-    return rotation
+def _serialize_rotation_rule(rule: FeaturedRotationRule | None) -> dict[str, Any]:
+    if rule is None:
+        return _default_rotation_rule()
+    return {
+        "enabled": rule.enabled,
+        "frequency_days": rule.frequency_days,
+        "window_size": rule.window_size,
+        "ordered_slugs": list(rule.ordered_slugs or []),
+    }
 
 
-def _read_featured_content() -> dict[str, Any]:
-    if not FEATURED_CONTENT_PATH.exists():
-        payload = {"schools": [], "majors": []}
-        _normalize_rotation(payload)
-        return payload
-
-    payload = json.loads(FEATURED_CONTENT_PATH.read_text(encoding="utf-8"))
-    payload.setdefault("schools", [])
-    payload.setdefault("majors", [])
-    _normalize_rotation(payload)
-    return payload
+def _read_rotation_rules(session: Session) -> dict[str, dict[str, Any]]:
+    rules: dict[str, dict[str, Any]] = {
+        "schools": _default_rotation_rule(),
+        "majors": _default_rotation_rule(),
+    }
+    for rule in session.exec(select(FeaturedRotationRule)).all():
+        rules[rule.entity_type] = _serialize_rotation_rule(rule)
+    return rules
 
 
-def _write_featured_content(payload: dict[str, Any]) -> None:
-    FEATURED_CONTENT_PATH.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+def _catalog_entities(session: Session, entity_key: str) -> list[dict[str, Any]]:
+    if entity_key == "schools":
+        return [{"slug": s.slug, "name": s.name} for s in session.exec(select(School)).all()]
+    return [{"slug": m.slug, "name": m.name} for m in session.exec(select(Major)).all()]
 
 
-def _catalog_entities(entity_key: str) -> list[dict[str, Any]]:
-    from .catalog import load_catalog
-
-    return load_catalog()[entity_key]
-
-
-def _catalog_entity_by_slug(entity_key: str, slug: str) -> dict[str, Any]:
+def _catalog_entity_by_slug(session: Session, entity_key: str, slug: str) -> dict[str, Any]:
     entity = next(
-        (item for item in _catalog_entities(entity_key) if item["slug"] == slug),
+        (item for item in _catalog_entities(session, entity_key) if item["slug"] == slug),
         None,
     )
     if entity is None:
@@ -85,8 +87,8 @@ def _catalog_entity_by_slug(entity_key: str, slug: str) -> dict[str, Any]:
     return entity
 
 
-def _validate_rotation_rule(entity_key: str, ordered_slugs: list[str]) -> None:
-    catalog_slugs = {item["slug"] for item in _catalog_entities(entity_key)}
+def _validate_rotation_rule(session: Session, entity_key: str, ordered_slugs: list[str]) -> None:
+    catalog_slugs = {item["slug"] for item in _catalog_entities(session, entity_key)}
     if len(ordered_slugs) != len(set(ordered_slugs)):
         raise ValueError("featured rotation contains duplicate slugs")
 
@@ -156,28 +158,36 @@ def fetch_school_image_candidate(slug: str) -> dict[str, Any]:
 
 
 def list_featured_content() -> dict[str, Any]:
-    payload = _read_featured_content()
-    school_config = {item["slug"]: item for item in payload["schools"]}
-    major_config = {item["slug"]: item for item in payload["majors"]}
-    rotation = _normalize_rotation(payload)
+    with Session(get_engine()) as session:
+        school_config = {item.slug: item for item in session.exec(select(FeaturedSchool)).all()}
+        major_config = {item.slug: item for item in session.exec(select(FeaturedMajor)).all()}
+        rotation = _read_rotation_rules(session)
 
-    schools = [
-        {
-            "slug": school["slug"],
-            "name": school["name"],
-            "is_featured": bool(school_config.get(school["slug"], {}).get("is_featured", False)),
-            "hero_image_url": school_config.get(school["slug"], {}).get("hero_image_url", ""),
-        }
-        for school in _catalog_entities("schools")
-    ]
-    majors = [
-        {
-            "slug": major["slug"],
-            "name": major["name"],
-            "is_featured": bool(major_config.get(major["slug"], {}).get("is_featured", False)),
-        }
-        for major in _catalog_entities("majors")
-    ]
+        schools = [
+            {
+                "slug": school["slug"],
+                "name": school["name"],
+                "is_featured": bool(
+                    school_config.get(school["slug"]) and school_config[school["slug"]].is_featured
+                ),
+                "hero_image_url": (
+                    school_config.get(school["slug"]).hero_image_url
+                    if school_config.get(school["slug"])
+                    else ""
+                ),
+            }
+            for school in _catalog_entities(session, "schools")
+        ]
+        majors = [
+            {
+                "slug": major["slug"],
+                "name": major["name"],
+                "is_featured": bool(
+                    major_config.get(major["slug"]) and major_config[major["slug"]].is_featured
+                ),
+            }
+            for major in _catalog_entities(session, "majors")
+        ]
 
     return {"schools": schools, "majors": majors, "rotation": rotation}
 
@@ -188,23 +198,31 @@ def update_featured_school(
     is_featured: bool,
     hero_image_url: str | None,
 ) -> dict[str, Any]:
-    school = _catalog_entity_by_slug("schools", slug)
-    payload = _read_featured_content()
-    entry = next((item for item in payload["schools"] if item["slug"] == slug), None)
+    with Session(get_engine()) as session:
+        school = _catalog_entity_by_slug(session, "schools", slug)
+        entry = session.exec(select(FeaturedSchool).where(FeaturedSchool.slug == slug)).first()
 
-    if entry is None:
-        entry = {"slug": slug}
-        payload["schools"].append(entry)
+        if entry is None:
+            entry = FeaturedSchool(
+                slug=slug,
+                is_featured=is_featured,
+                hero_image_url=(hero_image_url or "").strip(),
+            )
+        else:
+            entry.is_featured = is_featured
+            entry.hero_image_url = (hero_image_url or "").strip()
 
-    entry["is_featured"] = is_featured
-    entry["hero_image_url"] = (hero_image_url or "").strip()
-    _write_featured_content(payload)
+        session.add(entry)
+        session.commit()
+
+        name = school["name"]
+        hero_image = entry.hero_image_url
 
     return {
         "slug": slug,
-        "name": school["name"],
+        "name": name,
         "is_featured": is_featured,
-        "hero_image_url": entry["hero_image_url"],
+        "hero_image_url": hero_image,
     }
 
 
@@ -213,20 +231,23 @@ def update_featured_major(
     *,
     is_featured: bool,
 ) -> dict[str, Any]:
-    major = _catalog_entity_by_slug("majors", slug)
-    payload = _read_featured_content()
-    entry = next((item for item in payload["majors"] if item["slug"] == slug), None)
+    with Session(get_engine()) as session:
+        major = _catalog_entity_by_slug(session, "majors", slug)
+        entry = session.exec(select(FeaturedMajor).where(FeaturedMajor.slug == slug)).first()
 
-    if entry is None:
-        entry = {"slug": slug}
-        payload["majors"].append(entry)
+        if entry is None:
+            entry = FeaturedMajor(slug=slug, is_featured=is_featured)
+        else:
+            entry.is_featured = is_featured
 
-    entry["is_featured"] = is_featured
-    _write_featured_content(payload)
+        session.add(entry)
+        session.commit()
+
+        name = major["name"]
 
     return {
         "slug": slug,
-        "name": major["name"],
+        "name": name,
         "is_featured": is_featured,
     }
 
@@ -243,18 +264,37 @@ def update_rotation_rule(
         raise ValueError("featured rotation values must be positive")
 
     entity_key = "schools" if rotation_key == "schools" else "majors"
-    _validate_rotation_rule(entity_key, ordered_slugs)
 
-    payload = _read_featured_content()
-    rotation = _normalize_rotation(payload)
-    rotation[rotation_key] = {
+    with Session(get_engine()) as session:
+        _validate_rotation_rule(session, entity_key, ordered_slugs)
+
+        rule = session.exec(
+            select(FeaturedRotationRule).where(FeaturedRotationRule.entity_type == rotation_key)
+        ).first()
+
+        if rule is None:
+            rule = FeaturedRotationRule(
+                entity_type=rotation_key,
+                enabled=enabled,
+                frequency_days=frequency_days,
+                window_size=window_size,
+                ordered_slugs=ordered_slugs,
+            )
+        else:
+            rule.enabled = enabled
+            rule.frequency_days = frequency_days
+            rule.window_size = window_size
+            rule.ordered_slugs = ordered_slugs
+
+        session.add(rule)
+        session.commit()
+
+    return {
         "enabled": enabled,
         "frequency_days": frequency_days,
         "window_size": window_size,
         "ordered_slugs": ordered_slugs,
     }
-    _write_featured_content(payload)
-    return rotation[rotation_key]
 
 
 def _current_rotation_window(
@@ -361,13 +401,10 @@ def build_featured_content_preview(
         ),
     }
     schedule = [
-        _preview_entry_for_date(payload, today + timedelta(days=offset))
-        for offset in range(7)
+        _preview_entry_for_date(payload, today + timedelta(days=offset)) for offset in range(7)
     ]
     selected_date_entry = (
-        _preview_entry_for_date(payload, preview_date)
-        if preview_date is not None
-        else None
+        _preview_entry_for_date(payload, preview_date) if preview_date is not None else None
     )
     return {
         "today": {
