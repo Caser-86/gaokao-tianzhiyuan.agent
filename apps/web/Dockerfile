@@ -16,10 +16,11 @@ COPY --from=deps /app/apps/web/node_modules ./node_modules
 COPY apps/web/ . .
 
 # 构建时环境变量（Next.js 内联到客户端）
-ARG NEXT_PUBLIC_GAOKAO_AGENT_API_URL=http://localhost:8000
+ARG NEXT_PUBLIC_GAOKAO_AGENT_API_URL
 ENV NEXT_PUBLIC_GAOKAO_AGENT_API_URL=$NEXT_PUBLIC_GAOKAO_AGENT_API_URL
 
-RUN npm run build
+RUN test -n "$NEXT_PUBLIC_GAOKAO_AGENT_API_URL" \
+    && npm run build
 
 # 3. 运行层（仅生产依赖，最小化镜像）
 FROM node:20-alpine AS runner

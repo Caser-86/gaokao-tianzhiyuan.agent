@@ -18,7 +18,7 @@ The current workspace includes:
 
 ## Prerequisites
 
-- Python 3.12+ available as `python`
+- Python 3.11+ available as `python`
 - Node.js 20+ and `npm`
 - PowerShell
 - Optional network access if you want model-backed smart analysis through an
@@ -50,6 +50,9 @@ Optional:
 - `GAOKAO_AGENT_WECHAT_OFFICIAL_ACCOUNT_APP_ID`
 - `GAOKAO_AGENT_WECHAT_OFFICIAL_ACCOUNT_ENCODING_AES_KEY`
 - `GAOKAO_AGENT_ZHANGXUEFENG_SKILL_PATH`
+- `GAOKAO_AGENT_CHAT_SESSION_RETENTION_DAYS`
+- `GAOKAO_AGENT_MEDIA_ANALYSIS_RETENTION_DAYS`
+- `GAOKAO_AGENT_AGENT_TRACE_RETENTION_DAYS`
 
 ### Web
 
@@ -85,11 +88,14 @@ structured rule-based output instead of crashing.
 
 ## Smart Analysis Control Model
 
-The current smart-analysis gate has three layers:
+The current smart-analysis gate has two authorization layers:
 
 1. Global runtime mode in SQLite
 2. Per-user `smart_analysis` entitlement in SQLite
-3. Legacy request metadata entitlement during the transition period
+
+Request metadata cannot grant `smart_analysis` or change the mode. Development/test
+fixtures may still provide an explicit `user_id` as an identity compatibility hint;
+production-like chat requests require the API-issued session context.
 
 Supported global modes:
 
@@ -367,6 +373,15 @@ npm run build
 
 - The database is SQLite in the current MVP, so keep file paths stable and back
   up the DB file before major admin changes.
+- Chat sessions and media-analysis events default to 30 days; API startup and
+  request paths remove expired rows. `DELETE /api/privacy/me` requires an
+  existing session cookie or Bearer token and removes the current subject's
+  chat and media records.
+- Agent traces are redacted structured logs, not database records. For Linux
+  systemd deployments, configure journald retention (for example with
+  `SystemMaxUse`/`MaxRetentionSec`) to match the 7-day
+  `GAOKAO_AGENT_AGENT_TRACE_RETENTION_DAYS` policy; container deployments must
+  apply the equivalent runtime log rotation.
 - The Next.js build may warn that native SWC binaries are blocked on Windows.
   The project is configured to fall back to wasm builds through
   `experimental.useWasmBinary`, so a successful build is still acceptable.

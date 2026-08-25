@@ -254,3 +254,196 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+.admin-shell {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0 72px;
+}
+
+.admin-shell > h1 {
+  margin: 0;
+  color: var(--ink);
+  font-family: "Source Han Serif SC", "STSong", serif;
+  font-size: clamp(32px, 5vw, 48px);
+  line-height: 1.1;
+}
+
+.admin-shell > section {
+  margin-top: 22px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: rgba(255, 250, 241, 0.9);
+  box-shadow: 0 10px 24px rgba(80, 54, 28, 0.06);
+}
+
+.admin-shell > section[role="alert"] {
+  border-color: rgba(168, 70, 45, 0.28);
+  background: linear-gradient(135deg, rgba(255, 244, 239, 0.96), rgba(255, 231, 220, 0.9));
+}
+
+.admin-shell h2,
+.admin-shell h3 {
+  color: var(--ink);
+}
+
+.admin-shell h2 {
+  margin: 0 0 14px;
+  font-family: "Source Han Serif SC", "STSong", serif;
+  font-size: 22px;
+}
+
+.admin-shell h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.admin-shell p {
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.admin-shell a {
+  color: var(--accent-strong);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: rgba(168, 70, 45, 0.28);
+  text-underline-offset: 3px;
+}
+
+.admin-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.admin-summary-grid > article {
+  min-height: 112px;
+  padding: 18px;
+  border: 1px solid rgba(104, 48, 31, 0.12);
+  border-radius: 20px;
+  background: linear-gradient(145deg, rgba(255, 253, 248, 0.96), rgba(255, 244, 226, 0.86));
+  box-shadow: 0 12px 24px rgba(80, 54, 28, 0.06);
+}
+
+.admin-shell form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.admin-shell label {
+  display: grid;
+  min-width: 160px;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.admin-shell input:not([type="checkbox"]),
+.admin-shell select,
+.admin-shell textarea {
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid rgba(29, 31, 29, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--ink);
+  font: inherit;
+}
+
+.admin-shell textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.admin-shell input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
+.admin-shell button {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff9f4;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+
+.admin-shell button:hover {
+  background: var(--accent-strong);
+}
+
+.admin-shell article {
+  padding: 16px;
+  border: 1px solid rgba(104, 48, 31, 0.1);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.54);
+}
+
+.admin-shell article + article {
+  margin-top: 12px;
+}
+
+.admin-shell ul {
+  display: grid;
+  gap: 8px;
+  padding-left: 20px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.admin-shell pre {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(29, 31, 29, 0.06);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.admin-shell details {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(104, 48, 31, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 250, 241, 0.7);
+}
+
+.admin-shell summary {
+  cursor: pointer;
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .admin-shell {
+    width: min(100% - 20px, 1180px);
+    padding-top: 20px;
+  }
+
+  .admin-shell > section {
+    padding: 18px;
+    border-radius: 20px;
+  }
+
+  .admin-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-shell label {
+    width: 100%;
+  }
+}

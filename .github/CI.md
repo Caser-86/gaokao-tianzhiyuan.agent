@@ -11,9 +11,9 @@
 | Job | 说明 | 依赖 |
 |-----|------|------|
 | `api-lint` | ruff check + ruff format check + black check | - |
-| `api-test` | alembic 迁移冒烟测试 + pytest | - |
-| `web-lint` | ESLint 检查 | - |
-| `web-test` | vitest 单元测试 | - |
+| `api-test` | JSON 数据资产校验 + alembic 迁移冒烟测试 + pytest/pytest-cov（含 Agent trace 回归） | - |
+| `web-lint` | ESLint + TypeScript typecheck | - |
+| `web-test` | vitest 单元测试 + V8 覆盖率报告 | - |
 | `web-build` | Next.js 生产构建 | `web-lint`, `web-test` |
 | `docker-build` | 构建前后端 Docker 镜像（不推送） | `api-test`, `web-build` |
 
@@ -66,14 +66,23 @@ pip install -e ".[dev]"
 ruff check .
 ruff format --check .
 black --check .
-pytest tests/
+pytest tests/ --cov=app --cov-report=term-missing
+
+cd ../..
+python scripts/verify-data-assets.py --fail-on-legacy-duplicate
+python scripts/tests/test_verify_data_assets.py
 ```
+
+The Windows project verifier also runs synthetic release checks for run-scoped
+WeChat replay fixtures and the `start-local-stack.ps1 -ReleaseVersion` override
+before running the API/Web suites.
 
 ### Web
 ```bash
 cd apps/web
 npm ci
 npm run lint
-npm test
+npm run typecheck
+npm run test:coverage
 npm run build
 ```

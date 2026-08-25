@@ -7,6 +7,7 @@ param(
   [string]$WechatOfficialAccountAppId = '',
   [string]$WechatOfficialAccountEncodingAesKey = '',
   [string]$SmartAnalysisMode = '',
+  [string]$ReleaseVersion = '',
   [string]$DatabasePath = '',
   [string]$StateFilePath = '',
   [string]$ApiEnvFilePath = '',
@@ -364,6 +365,11 @@ $effectiveSmartAnalysisMode = Resolve-SettingValue `
   -EnvMaps @($apiEnvValues) `
   -Name 'GAOKAO_AGENT_SMART_ANALYSIS_MODE' `
   -Fallback 'off'
+$effectiveReleaseVersion = Resolve-SettingValue `
+  -ExplicitValue $ReleaseVersion `
+  -EnvMaps @($apiEnvValues) `
+  -Name 'GAOKAO_AGENT_RELEASE_VERSION' `
+  -Fallback 'dev'
 $resolvedDatabaseUrl = if (-not [string]::IsNullOrWhiteSpace($DatabasePath)) {
   'sqlite:///' + ($DatabasePath -replace '\\', '/')
 }
@@ -401,6 +407,7 @@ Write-PlanLine -Label 'Web env file' -Value $(if ($resolvedWebEnvFilePath) { $re
 Write-PlanLine -Label 'Database URL' -Value $resolvedDatabaseUrl
 Write-PlanLine -Label 'Admin token' -Value (Get-MaskedValue -Value $effectiveAdminToken)
 Write-PlanLine -Label 'Smart analysis mode' -Value $effectiveSmartAnalysisMode
+Write-PlanLine -Label 'Release version' -Value $effectiveReleaseVersion
 Write-PlanLine -Label 'WeChat callback token' -Value (Get-MaskedValue -Value $effectiveWechatOfficialAccountToken)
 Write-PlanLine -Label 'WeChat app id' -Value $effectiveWechatOfficialAccountAppId
 Write-PlanLine -Label 'WeChat AES key configured' -Value (-not [string]::IsNullOrWhiteSpace($effectiveWechatOfficialAccountEncodingAesKey)).ToString()
@@ -423,6 +430,7 @@ foreach ($name in $apiEnvValues.Keys) {
 $apiRuntimeEnv['GAOKAO_AGENT_ADMIN_TOKEN'] = $effectiveAdminToken
 $apiRuntimeEnv['GAOKAO_AGENT_DATABASE_URL'] = $resolvedDatabaseUrl
 $apiRuntimeEnv['GAOKAO_AGENT_SMART_ANALYSIS_MODE'] = $effectiveSmartAnalysisMode
+$apiRuntimeEnv['GAOKAO_AGENT_RELEASE_VERSION'] = $effectiveReleaseVersion
 $apiRuntimeEnv['GAOKAO_AGENT_WECHAT_OFFICIAL_ACCOUNT_TOKEN'] = $effectiveWechatOfficialAccountToken
 $apiRuntimeEnv['GAOKAO_AGENT_WECHAT_OFFICIAL_ACCOUNT_APP_ID'] = $effectiveWechatOfficialAccountAppId
 $apiRuntimeEnv['GAOKAO_AGENT_WECHAT_OFFICIAL_ACCOUNT_ENCODING_AES_KEY'] = $effectiveWechatOfficialAccountEncodingAesKey
@@ -438,7 +446,7 @@ $webRuntimeEnv['GAOKAO_AGENT_ADMIN_TOKEN'] = $effectiveAdminToken
 $webEnvAssignmentBlock = ConvertTo-EnvAssignmentBlock -Variables $webRuntimeEnv
 
 $apiCommand = @"
-python -m uvicorn app.main:app --host $BindHost --port $ApiPort
+.venv\Scripts\python.exe -m uvicorn app.main:app --host $BindHost --port $ApiPort
 "@
 
 $webCommand = @"
@@ -521,7 +529,8 @@ try {
       -AdminToken $effectiveAdminToken `
       -WechatOfficialAccountToken $effectiveWechatOfficialAccountToken `
       -WechatOfficialAccountAppId $effectiveWechatOfficialAccountAppId `
-      -WechatOfficialAccountEncodingAesKey $effectiveWechatOfficialAccountEncodingAesKey
+      -WechatOfficialAccountEncodingAesKey $effectiveWechatOfficialAccountEncodingAesKey `
+      -ExpectedReleaseVersion $effectiveReleaseVersion
   }
 
   Write-Host 'Local stack started successfully.' -ForegroundColor Green
@@ -541,6 +550,7 @@ try {
     api_env_file_path = $resolvedApiEnvFilePath
     web_env_file_path = $resolvedWebEnvFilePath
     smart_analysis_mode = $effectiveSmartAnalysisMode
+    release_version = $effectiveReleaseVersion
     database_path = $resolvedDatabasePath
     database_url = $resolvedDatabaseUrl
     api_runner_pid = $apiProcess.Id

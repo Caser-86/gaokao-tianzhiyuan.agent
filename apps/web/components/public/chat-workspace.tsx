@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 
-import { type ChatMessageResponse, sendChatMessage } from "../../lib/chat-api";
+import {
+  type ChatMessageResponse,
+  type ChatSessionMessage,
+  getChatSessionMessages,
+  sendChatMessage,
+} from "../../lib/chat-api";
 import {
   getChatRiskFlagCopy,
   isUnknownChatRiskFlag,
@@ -11,8 +16,8 @@ import {
 
 type ChatWorkspaceProps = {
   apiBaseUrl: string;
-  userId?: string;
   initialPrompt?: string;
+  sessionId?: string;
 };
 
 const resolveSuggestionHref = (
@@ -50,16 +55,52 @@ const hasActionTarget = (
 ): action is ChatAction & { target: string } =>
   typeof action.target === "string" && action.target.trim().length > 0;
 
+const getSessionMessageText = (message: ChatSessionMessage): string => {
+  if (message.role === "assistant" && message.payload) {
+    const renderedReply = message.payload.rendered_reply;
+    if (typeof renderedReply === "string" && renderedReply.trim()) {
+      return renderedReply;
+    }
+  }
+  return message.content;
+};
+
 export default function ChatWorkspace({
   apiBaseUrl,
-  userId,
   initialPrompt,
+  sessionId: initialSessionId,
 }: ChatWorkspaceProps) {
   const [draft, setDraft] = useState(initialPrompt ?? "");
+  const [activeSessionId, setActiveSessionId] = useState(initialSessionId);
+  const [history, setHistory] = useState<ChatSessionMessage[]>([]);
   const [response, setResponse] = useState<ChatMessageResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const didAutoSendInitialPrompt = useRef(false);
+
+  useEffect(() => {
+    if (!initialSessionId) {
+      return;
+    }
+
+    let isCurrent = true;
+    void getChatSessionMessages(initialSessionId, apiBaseUrl)
+      .then((historyResponse) => {
+        if (isCurrent) {
+          setHistory(historyResponse.items);
+          setActiveSessionId(historyResponse.session_id);
+        }
+      })
+      .catch(() => {
+        if (isCurrent) {
+          setError("历史会话暂时无法加载，请稍后重试。");
+        }
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [apiBaseUrl, initialSessionId]);
 
   const submitMessage = async (message: string) => {
     const normalized = message.trim();
@@ -71,13 +112,17 @@ export default function ChatWorkspace({
     setError(null);
 
     try {
+      const request = {
+        message: normalized,
+        ...(activeSessionId ? { sessionId: activeSessionId } : {}),
+      };
       const nextResponse = await sendChatMessage(
-        {
-          userId,
-          message: normalized,
-        },
+        request,
         apiBaseUrl,
       );
+      if (nextResponse.session_id) {
+        setActiveSessionId(nextResponse.session_id);
+      }
       setResponse(nextResponse);
     } catch {
       setError(
@@ -154,6 +199,30 @@ export default function ChatWorkspace({
       <section className="panel" style={{ marginTop: 20 }}>
         <h2 className="panel-title">{"\u5206\u6790\u7ed3\u679c"}</h2>
         {error ? <p>{error}</p> : null}
+        {history.length ? (
+          <section style={{ marginBottom: 20 }}>
+            <h3 style={{ margin: "0 0 8px" }}>历史会话</h3>
+            <div className="catalog-list">
+              {history.map((message, index) => (
+                <article
+                  key={getGeneratedItemKey(
+                    "history",
+                    [message.id, message.request_id, message.role],
+                    index,
+                  )}
+                  className="catalog-card"
+                >
+                  <div className="meta">
+                    {message.role === "assistant" ? "Agent" : "你"}
+                  </div>
+                  <p style={{ margin: "6px 0 0" }}>
+                    {getSessionMessageText(message)}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
         {!error && !content ? (
           <p>
             {
@@ -163,6 +232,9 @@ export default function ChatWorkspace({
         ) : null}
         {content ? (
           <div className="feature-list">
+            {activeSessionId ? (
+              <p className="meta">{"本轮会话已保存，可继续追问。"}</p>
+            ) : null}
             <div>
               <strong>
                 {content.rendered_reply ??

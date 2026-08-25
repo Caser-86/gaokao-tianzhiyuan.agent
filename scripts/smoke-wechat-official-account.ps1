@@ -14,6 +14,7 @@ Set-StrictMode -Version Latest
 Add-Type -AssemblyName System.Net.Http
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
+$apiVenvPython = Join-Path $repoRoot 'apps/api/.venv/Scripts/python.exe'
 
 function Read-EnvFile {
   param(
@@ -135,6 +136,22 @@ function Get-WechatSignature {
   }
 }
 
+function New-WechatPlaintextPostUri {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$BaseUrl,
+    [Parameter(Mandatory = $true)]
+    [string]$Token,
+    [Parameter(Mandatory = $true)]
+    [string]$Timestamp,
+    [Parameter(Mandatory = $true)]
+    [string]$Nonce
+  )
+
+  $signature = Get-WechatSignature -Token $Token -Timestamp $Timestamp -Nonce $Nonce
+  return "$BaseUrl/api/chat/channels/wechat/official-account?signature=$signature&timestamp=$Timestamp&nonce=$Nonce"
+}
+
 function Get-WechatMsgSignature {
   param(
     [Parameter(Mandatory = $true)]
@@ -148,7 +165,7 @@ function Get-WechatMsgSignature {
   )
 
   $helperPath = Join-Path $repoRoot 'scripts/wechat_aes_helper.py'
-  $output = & python $helperPath sign --value $Encrypted --token $Token --timestamp $Timestamp --nonce $Nonce
+  $output = & $apiVenvPython $helperPath sign --value $Encrypted --token $Token --timestamp $Timestamp --nonce $Nonce
   if ($LASTEXITCODE -ne 0) {
     throw "WeChat AES helper failed while running 'sign'."
   }
@@ -169,7 +186,7 @@ function Invoke-WechatCryptoHelper {
   )
 
   $helperPath = Join-Path $repoRoot 'scripts/wechat_aes_helper.py'
-  $output = & python $helperPath $Operation --value $Value --app-id $AppId --encoding-aes-key $EncodingAesKey
+  $output = & $apiVenvPython $helperPath $Operation --value $Value --app-id $AppId --encoding-aes-key $EncodingAesKey
   if ($LASTEXITCODE -ne 0) {
     throw "WeChat AES helper failed while running '$Operation'."
   }
@@ -306,13 +323,22 @@ if ($SkipPlaintextProbes -and $SkipAesProbes) {
 }
 
 $normalizedApiBaseUrl = $ApiBaseUrl.TrimEnd('/')
-$timestamp = '1710000000'
-$plaintextNonce = 'smoke-nonce-1'
+$timestamp = ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds()).ToString()
+$smokeRunId = [Guid]::NewGuid().ToString('N').Substring(0, 12)
+$plaintextNonce = "smoke-$smokeRunId-verify"
 $plaintextSignature = Get-WechatSignature `
   -Token $effectiveWechatOfficialAccountToken `
   -Timestamp $timestamp `
   -Nonce $plaintextNonce
 $plaintextPostUri = "$normalizedApiBaseUrl/api/chat/channels/wechat/official-account?signature=$plaintextSignature&timestamp=$timestamp&nonce=$plaintextNonce"
+$textPostUri = New-WechatPlaintextPostUri -BaseUrl $normalizedApiBaseUrl -Token $effectiveWechatOfficialAccountToken -Timestamp $timestamp -Nonce "smoke-$smokeRunId-text"
+$subscribePostUri = New-WechatPlaintextPostUri -BaseUrl $normalizedApiBaseUrl -Token $effectiveWechatOfficialAccountToken -Timestamp $timestamp -Nonce "smoke-$smokeRunId-subscribe"
+$clickPostUri = New-WechatPlaintextPostUri -BaseUrl $normalizedApiBaseUrl -Token $effectiveWechatOfficialAccountToken -Timestamp $timestamp -Nonce "smoke-$smokeRunId-click"
+$directImagePostUri = New-WechatPlaintextPostUri -BaseUrl $normalizedApiBaseUrl -Token $effectiveWechatOfficialAccountToken -Timestamp $timestamp -Nonce "smoke-$smokeRunId-direct-image"
+$videoPostUri = New-WechatPlaintextPostUri -BaseUrl $normalizedApiBaseUrl -Token $effectiveWechatOfficialAccountToken -Timestamp $timestamp -Nonce "smoke-$smokeRunId-video"
+$voicePostUri = New-WechatPlaintextPostUri -BaseUrl $normalizedApiBaseUrl -Token $effectiveWechatOfficialAccountToken -Timestamp $timestamp -Nonce "smoke-$smokeRunId-voice"
+$locationPostUri = New-WechatPlaintextPostUri -BaseUrl $normalizedApiBaseUrl -Token $effectiveWechatOfficialAccountToken -Timestamp $timestamp -Nonce "smoke-$smokeRunId-location"
+$linkPostUri = New-WechatPlaintextPostUri -BaseUrl $normalizedApiBaseUrl -Token $effectiveWechatOfficialAccountToken -Timestamp $timestamp -Nonce "smoke-$smokeRunId-link"
 
 $client = [System.Net.Http.HttpClient]::new()
 try {
@@ -335,7 +361,7 @@ try {
   <CreateTime>1710000001</CreateTime>
   <MsgType><![CDATA[text]]></MsgType>
   <Content><![CDATA[Smoke test question]]></Content>
-  <MsgId>1234567890</MsgId>
+  <MsgId>1234567890-$smokeRunId</MsgId>
 </xml>
 "@
     $subscribeBody = @"
@@ -365,7 +391,7 @@ try {
   <MsgType><![CDATA[image]]></MsgType>
   <PicUrl><![CDATA[https://example.com/direct-image.png]]></PicUrl>
   <MediaId><![CDATA[direct-image-media-1]]></MediaId>
-  <MsgId>2234567891</MsgId>
+  <MsgId>2234567891-$smokeRunId</MsgId>
 </xml>
 "@
     $videoBody = @"
@@ -376,7 +402,7 @@ try {
   <MsgType><![CDATA[video]]></MsgType>
   <MediaId><![CDATA[video-media-1]]></MediaId>
   <ThumbMediaId><![CDATA[video-thumb-1]]></ThumbMediaId>
-  <MsgId>2234567892</MsgId>
+  <MsgId>2234567892-$smokeRunId</MsgId>
 </xml>
 "@
     $voiceBody = @"
@@ -388,7 +414,7 @@ try {
   <MediaId><![CDATA[voice-media-1]]></MediaId>
   <Format><![CDATA[amr]]></Format>
   <Recognition><![CDATA[Henan 560 recommend majors]]></Recognition>
-  <MsgId>3234567890</MsgId>
+  <MsgId>3234567890-$smokeRunId</MsgId>
 </xml>
 "@
     $locationBody = @"
@@ -401,7 +427,7 @@ try {
   <Location_Y>116.307490</Location_Y>
   <Scale>15</Scale>
   <Label><![CDATA[Beijing Haidian District]]></Label>
-  <MsgId>4234567893</MsgId>
+  <MsgId>4234567893-$smokeRunId</MsgId>
 </xml>
 "@
     $linkBody = @"
@@ -413,53 +439,53 @@ try {
   <Title><![CDATA[Henan admission report]]></Title>
   <Description><![CDATA[2025 analysis report]]></Description>
   <Url><![CDATA[https://example.com/report]]></Url>
-  <MsgId>4234567894</MsgId>
+  <MsgId>4234567894-$smokeRunId</MsgId>
 </xml>
 "@
 
-    $textContent = Invoke-WechatXmlPostProbe -Client $client -Label 'WeChat official account text probe' -Uri $plaintextPostUri -Body $textBody
+    $textContent = Invoke-WechatXmlPostProbe -Client $client -Label 'WeChat official account text probe' -Uri $textPostUri -Body $textBody
     if (-not $DryRun) {
       Assert-True ($textContent -match '<ToUserName><!\[CDATA\[smoke-openid\]\]></ToUserName>') 'WeChat official account text probe did not target the text user'
       Assert-True ($textContent -match '<MsgType><!\[CDATA\[text\]\]></MsgType>') 'WeChat official account text probe did not return a text passive reply'
     }
 
-    $subscribeContent = Invoke-WechatXmlPostProbe -Client $client -Label 'WeChat official account subscribe probe' -Uri $plaintextPostUri -Body $subscribeBody
+    $subscribeContent = Invoke-WechatXmlPostProbe -Client $client -Label 'WeChat official account subscribe probe' -Uri $subscribePostUri -Body $subscribeBody
     if (-not $DryRun) {
       Assert-True ($subscribeContent -match '<ToUserName><!\[CDATA\[smoke-subscriber\]\]></ToUserName>') 'WeChat official account subscribe probe did not target the subscriber'
       Assert-True ($subscribeContent -match 'Agent') 'WeChat official account subscribe probe did not return the welcome reply'
     }
 
-    $clickContent = Invoke-WechatXmlPostProbe -Client $client -Label 'WeChat official account click probe' -Uri $plaintextPostUri -Body $clickBody
+    $clickContent = Invoke-WechatXmlPostProbe -Client $client -Label 'WeChat official account click probe' -Uri $clickPostUri -Body $clickBody
     if (-not $DryRun) {
       Assert-True ($clickContent -match '<ToUserName><!\[CDATA\[smoke-menu-user\]\]></ToUserName>') 'WeChat official account click probe did not target the menu user'
       Assert-True ($clickContent -match '<MsgType><!\[CDATA\[text\]\]></MsgType>') 'WeChat official account click probe did not return a text passive reply'
     }
 
-    $directImageContent = Invoke-WechatXmlPostProbe -Client $client -Label 'WeChat official account direct image probe' -Uri $plaintextPostUri -Body $directImageBody
+    $directImageContent = Invoke-WechatXmlPostProbe -Client $client -Label 'WeChat official account direct image probe' -Uri $directImagePostUri -Body $directImageBody
     if (-not $DryRun) {
       Assert-True ($directImageContent -match '<ToUserName><!\[CDATA\[smoke-direct-image-user\]\]></ToUserName>') 'WeChat official account direct image probe did not target the image user'
       Assert-True ($directImageContent -match '<MsgType><!\[CDATA\[text\]\]></MsgType>') 'WeChat official account direct image probe did not return a text passive reply'
     }
 
-    $videoContent = Invoke-WechatXmlPostProbe -Client $client -Label 'WeChat official account video probe' -Uri $plaintextPostUri -Body $videoBody
+    $videoContent = Invoke-WechatXmlPostProbe -Client $client -Label 'WeChat official account video probe' -Uri $videoPostUri -Body $videoBody
     if (-not $DryRun) {
       Assert-True ($videoContent -match '<ToUserName><!\[CDATA\[smoke-video-user\]\]></ToUserName>') 'WeChat official account video probe did not target the video user'
       Assert-True ($videoContent -match '<MsgType><!\[CDATA\[text\]\]></MsgType>') 'WeChat official account video probe did not return a text passive reply'
     }
 
-    $voiceContent = Invoke-WechatXmlPostProbe -Client $client -Label 'WeChat official account voice probe' -Uri $plaintextPostUri -Body $voiceBody
+    $voiceContent = Invoke-WechatXmlPostProbe -Client $client -Label 'WeChat official account voice probe' -Uri $voicePostUri -Body $voiceBody
     if (-not $DryRun) {
       Assert-True ($voiceContent -match '<ToUserName><!\[CDATA\[smoke-voice-user\]\]></ToUserName>') 'WeChat official account voice probe did not target the voice user'
       Assert-True ($voiceContent -match '<MsgType><!\[CDATA\[text\]\]></MsgType>') 'WeChat official account voice probe did not return a text passive reply'
     }
 
-    $locationContent = Invoke-WechatXmlPostProbe -Client $client -Label 'WeChat official account location probe' -Uri $plaintextPostUri -Body $locationBody
+    $locationContent = Invoke-WechatXmlPostProbe -Client $client -Label 'WeChat official account location probe' -Uri $locationPostUri -Body $locationBody
     if (-not $DryRun) {
       Assert-True ($locationContent -match '<ToUserName><!\[CDATA\[smoke-location-user\]\]></ToUserName>') 'WeChat official account location probe did not target the location user'
       Assert-True ($locationContent -match '<MsgType><!\[CDATA\[text\]\]></MsgType>') 'WeChat official account location probe did not return a text passive reply'
     }
 
-    $linkContent = Invoke-WechatXmlPostProbe -Client $client -Label 'WeChat official account link probe' -Uri $plaintextPostUri -Body $linkBody
+    $linkContent = Invoke-WechatXmlPostProbe -Client $client -Label 'WeChat official account link probe' -Uri $linkPostUri -Body $linkBody
     if (-not $DryRun) {
       Assert-True ($linkContent -match '<ToUserName><!\[CDATA\[smoke-link-user\]\]></ToUserName>') 'WeChat official account link probe did not target the link user'
       Assert-True ($linkContent -match '<MsgType><!\[CDATA\[text\]\]></MsgType>') 'WeChat official account link probe did not return a text passive reply'
@@ -467,7 +493,7 @@ try {
   }
 
   if (-not $SkipAesProbes) {
-    $aesVerifyNonce = 'smoke-aes-nonce-1'
+    $aesVerifyNonce = "smoke-$smokeRunId-aes-verify"
     $aesEchostrPlaintext = 'smoke-echo-aes'
     $aesEchostrEncrypted = Protect-WechatMessage `
       -Plaintext $aesEchostrPlaintext `
@@ -496,14 +522,14 @@ try {
   <CreateTime>1710000006</CreateTime>
   <MsgType><![CDATA[text]]></MsgType>
   <Content><![CDATA[Smoke AES test question]]></Content>
-  <MsgId>2234567890</MsgId>
+  <MsgId>2234567890-$smokeRunId</MsgId>
 </xml>
 "@
     $aesEncryptedBody = Protect-WechatMessage `
       -Plaintext $aesInnerBody `
       -AppId $effectiveWechatOfficialAccountAppId `
       -EncodingAesKey $effectiveWechatOfficialAccountEncodingAesKey
-    $aesMessageNonce = 'smoke-aes-nonce-2'
+    $aesMessageNonce = "smoke-$smokeRunId-aes-message"
     $aesMessageSignature = Get-WechatMsgSignature `
       -Token $effectiveWechatOfficialAccountToken `
       -Timestamp $timestamp `

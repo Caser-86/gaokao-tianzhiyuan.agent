@@ -1,6 +1,10 @@
 .worktrees/
 node_modules/
 .next/
+*.tsbuildinfo
+.coverage
+coverage/
+htmlcov/
 __pycache__/
 .pytest_cache/
 .venv/
@@ -10,4 +14,7 @@ __pycache__/
 *.db
 .superpowers/
 /.tmp/
+/.playwright-cli/
+**/.playwright-cli/
+/output/
 /vendor/zhangxuefeng-skill/

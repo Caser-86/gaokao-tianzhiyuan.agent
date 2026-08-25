@@ -190,7 +190,7 @@ test('home page renders an explicit error state on public API failure', async ()
   expect(screen.getByText(PUBLIC_ERROR_TEXT)).toBeInTheDocument();
 });
 
-test('home page accepts openid query params for platform entitlement lookup', async () => {
+test('home page ignores URL identity hints for platform entitlement lookup', async () => {
   getSearchEntryMock.mockResolvedValue({
     title: HOME_TITLE,
     description: HOME_DESCRIPTION,
@@ -251,7 +251,6 @@ test('home page accepts openid query params for platform entitlement lookup', as
     expect(evaluatePlatformEntitlementsMock).toHaveBeenCalledWith(
       ['insight-weekly'],
       'http://127.0.0.1:8000',
-      'wx-openid-homepage',
     );
   });
 });

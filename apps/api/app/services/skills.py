@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
+
+from sqlmodel import Session
 
 from .catalog import load_catalog
 from .llm import (
@@ -87,6 +91,7 @@ class SkillMetadata:
     description: str
     enabled: bool = True
     supports_channels: tuple[str, ...] = ("wechat", "web")
+    prompt_hash: str | None = None
 
 
 @dataclass(frozen=True)
@@ -108,6 +113,8 @@ class SkillInvocationResult:
     risk_flags: list[str] = field(default_factory=list)
     rendered_reply: str = ""
     debug_notes: list[str] = field(default_factory=list)
+    provider: str = "rule_based"
+    model_called: bool = False
 
     def as_content(self) -> dict[str, Any]:
         return {
@@ -155,6 +162,16 @@ class SkillRegistry:
         return enabled
 
 
+def _hash_prompt_file(path: str) -> str | None:
+    normalized = path.strip()
+    if not normalized:
+        return None
+    try:
+        return hashlib.sha256(Path(normalized).read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
 CATALOG_LOOKUP_HINTS = (
     "\u600e\u4e48\u6837",
     "\u4ecb\u7ecd",
@@ -166,8 +183,12 @@ CATALOG_LOOKUP_HINTS = (
 )
 
 
-def _catalog_lookup_candidates(entity_key: str) -> list[dict[str, Any]]:
-    catalog = load_catalog()
+def _catalog_lookup_candidates(
+    entity_key: str,
+    *,
+    session_factory: Callable[[], Session] | None = None,
+) -> list[dict[str, Any]]:
+    catalog = load_catalog(session_factory)
     entities = catalog.get(entity_key, [])
     return sorted(
         [item for item in entities if str(item.get("name", "")).strip()],
@@ -186,9 +207,13 @@ def _catalog_lookup_has_hint(message: str) -> bool:
     return any(hint in message for hint in CATALOG_LOOKUP_HINTS)
 
 
-def _resolve_catalog_lookup_entity(message: str) -> tuple[str, dict[str, Any]] | None:
+def _resolve_catalog_lookup_entity(
+    message: str,
+    *,
+    session_factory: Callable[[], Session] | None = None,
+) -> tuple[str, dict[str, Any]] | None:
     for entity_key in ("majors", "schools"):
-        for item in _catalog_lookup_candidates(entity_key):
+        for item in _catalog_lookup_candidates(entity_key, session_factory=session_factory):
             name = str(item.get("name", "")).strip()
             if not name or name not in message:
                 continue
@@ -204,8 +229,9 @@ def _build_catalog_lookup_related_suggestions(
     related_entity_key: str,
     suggestion_type: str,
     related_slugs: list[str],
+    session_factory: Callable[[], Session] | None = None,
 ) -> list[dict[str, Any]]:
-    catalog = load_catalog()
+    catalog = load_catalog(session_factory)
     related_by_slug = {
         item["slug"]: item
         for item in catalog.get(related_entity_key, [])
@@ -228,6 +254,9 @@ def _build_catalog_lookup_related_suggestions(
 
 
 class CatalogLookupSkill:
+    def __init__(self, *, session_factory: Callable[[], Session] | None = None) -> None:
+        self.session_factory = session_factory
+
     def describe(self) -> SkillMetadata:
         return SkillMetadata(
             skill_id="catalog_lookup",
@@ -239,7 +268,10 @@ class CatalogLookupSkill:
         )
 
     def match(self, request: ChatRequestContext) -> SkillMatchResult:
-        matched_entity = _resolve_catalog_lookup_entity(request.message)
+        matched_entity = _resolve_catalog_lookup_entity(
+            request.message,
+            session_factory=self.session_factory,
+        )
         if matched_entity is None:
             return SkillMatchResult(
                 matched=False,
@@ -256,7 +288,10 @@ class CatalogLookupSkill:
         )
 
     def invoke(self, request: ChatRequestContext) -> SkillInvocationResult:
-        matched_entity = _resolve_catalog_lookup_entity(request.message)
+        matched_entity = _resolve_catalog_lookup_entity(
+            request.message,
+            session_factory=self.session_factory,
+        )
         if matched_entity is None:
             return SkillInvocationResult(
                 intent="catalog_lookup_fallback",
@@ -294,6 +329,7 @@ class CatalogLookupSkill:
                 for related_slug in item.get("related_majors", [])
                 if str(related_slug).strip()
             ],
+            session_factory=self.session_factory,
         )
         analysis_parts = []
         if region or city:
@@ -348,6 +384,7 @@ class CatalogLookupSkill:
                 for related_slug in item.get("related_schools", [])
                 if str(related_slug).strip()
             ],
+            session_factory=self.session_factory,
         )
         analysis_parts = []
         if discipline:
@@ -401,6 +438,7 @@ class ZhangXueFengSkill:
             description="使用本地 SKILL.md 和模型中转的高考咨询 skill",
             enabled=True,
             supports_channels=("wechat", "web"),
+            prompt_hash=_hash_prompt_file(self.skill_prompt_path),
         )
 
     def match(self, request: ChatRequestContext) -> SkillMatchResult:
@@ -475,18 +513,28 @@ class ZhangXueFengSkill:
                     actions=payload.get("actions", []),
                     risk_flags=payload.get("risk_flags", []),
                     rendered_reply=payload.get("rendered_reply", ""),
+                    provider="openai_compatible",
+                    model_called=True,
                 )
             except (FileNotFoundError, OSError):
-                return self._rule_based_fallback(request, debug_note="skill_prompt_missing")
+                return self._rule_based_fallback(
+                    request,
+                    debug_note="skill_prompt_missing",
+                    provider="openai_compatible" if self.provider else "rule_based",
+                )
             except json.JSONDecodeError:
                 return self._rule_based_fallback(
                     request,
                     debug_note="provider_invalid_response",
+                    provider="openai_compatible",
+                    model_called=True,
                 )
             except KeyError:
                 return self._rule_based_fallback(
                     request,
                     debug_note="provider_invalid_response",
+                    provider="openai_compatible",
+                    model_called=True,
                 )
             except ProviderRequestError as exc:
                 debug_note = (
@@ -497,11 +545,15 @@ class ZhangXueFengSkill:
                 return self._rule_based_fallback(
                     request,
                     debug_note=debug_note,
+                    provider="openai_compatible",
+                    model_called=True,
                 )
             except ProviderResponseFormatError:
                 return self._rule_based_fallback(
                     request,
                     debug_note="provider_invalid_response",
+                    provider="openai_compatible",
+                    model_called=True,
                 )
 
         if not self.skill_prompt_path:
@@ -549,6 +601,8 @@ class ZhangXueFengSkill:
         request: ChatRequestContext,
         *,
         debug_note: str,
+        provider: str = "rule_based",
+        model_called: bool = False,
     ) -> SkillInvocationResult:
         province = next((item for item in PROVINCES if item in request.message), None)
         school_tags = [tag for tag in SCHOOL_TAGS if tag in request.message]
@@ -611,4 +665,6 @@ class ZhangXueFengSkill:
             risk_flags=[],
             rendered_reply=summary,
             debug_notes=[debug_note],
+            provider=provider,
+            model_called=model_called,
         )

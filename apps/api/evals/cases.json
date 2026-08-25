@@ -1,0 +1,84 @@
+[
+  {
+    "id": "catalog-school",
+    "message": "\u4e1c\u5357\u5927\u5b66\u600e\u4e48\u6837",
+    "mode": "auto",
+    "expected_skill_id": "catalog_lookup",
+    "expected_intent": "catalog_lookup_school",
+    "expected_fallback": false
+  },
+  {
+    "id": "catalog-major",
+    "message": "\u4e34\u5e8a\u533b\u5b66\u4e13\u4e1a\u4ecb\u7ecd",
+    "mode": "auto",
+    "expected_skill_id": "catalog_lookup",
+    "expected_intent": "catalog_lookup_major",
+    "expected_fallback": false
+  },
+  {
+    "id": "score-strategy",
+    "message": "\u5e2e\u6211\u770b\u770b\u6c5f\u82cf\u9002\u5408\u51b2\u54ea\u4e9b985",
+    "mode": "auto",
+    "expected_skill_id": "zhangxuefeng",
+    "expected_intent": "school_recommendation",
+    "expected_fallback": true,
+    "expected_fallback_reason": "provider_not_configured"
+  },
+  {
+    "id": "ambiguous",
+    "message": "\u6211\u4e0d\u77e5\u9053\u600e\u4e48\u586b",
+    "mode": "auto",
+    "expected_skill_id": "fallback",
+    "expected_intent": "fallback",
+    "expected_fallback": true,
+    "expected_fallback_reason": "no_enabled_skill_above_threshold"
+  },
+  {
+    "id": "out-of-domain",
+    "message": "\u4eca\u5929\u5929\u6c14\u600e\u4e48\u6837",
+    "mode": "auto",
+    "expected_skill_id": "fallback",
+    "expected_intent": "fallback",
+    "expected_fallback": true,
+    "expected_fallback_reason": "no_enabled_skill_above_threshold"
+  },
+  {
+    "id": "provider-failure",
+    "message": "\u5e2e\u6211\u770b\u770b\u6c5f\u82cf\u9002\u5408\u51b2\u54ea\u4e9b985",
+    "mode": "direct",
+    "provider_behavior": "request_failed",
+    "expected_skill_id": "zhangxuefeng",
+    "expected_intent": "school_recommendation",
+    "expected_fallback": true,
+    "expected_fallback_reason": "provider_request_failed"
+  },
+  {
+    "id": "provider-balance",
+    "message": "\u6c5f\u82cf985\u5fd7\u613f\u600e\u4e48\u586b",
+    "mode": "direct",
+    "provider_behavior": "insufficient_balance",
+    "expected_skill_id": "zhangxuefeng",
+    "expected_intent": "school_recommendation",
+    "expected_fallback": true,
+    "expected_fallback_reason": "provider_insufficient_balance"
+  },
+  {
+    "id": "provider-invalid-json",
+    "message": "\u6cb3\u5357\u5927\u5b66\u600e\u4e48\u6837",
+    "mode": "direct",
+    "provider_behavior": "invalid_json",
+    "expected_skill_id": "zhangxuefeng",
+    "expected_intent": "school_recommendation",
+    "expected_fallback": true,
+    "expected_fallback_reason": "provider_invalid_response"
+  },
+  {
+    "id": "provider-success",
+    "message": "\u6c5f\u82cf\u4e13\u4e1a\u9009\u62e9\u5efa\u8bae",
+    "mode": "direct",
+    "provider_behavior": "success",
+    "expected_skill_id": "zhangxuefeng",
+    "expected_intent": "school_recommendation",
+    "expected_fallback": false
+  }
+]
