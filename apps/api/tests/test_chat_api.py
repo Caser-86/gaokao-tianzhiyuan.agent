@@ -446,6 +446,7 @@ def test_wechat_chat_adapter_merges_persisted_user_entitlements(tmp_path) -> Non
     skill_file = tmp_path / "SKILL.md"
     skill_file.write_text("寮犻洩宄版祴璇曟彁绀鸿瘝", encoding="utf-8")
     with Session(get_engine()) as session:
+        set_smart_analysis_mode(session, "gated")
         set_user_entitlement(
             session,
             user_id="wx-openid-entitled",
