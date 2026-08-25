@@ -83,6 +83,7 @@ jobs:
         env:
           GAOKAO_AGENT_ENVIRONMENT: test
           GAOKAO_AGENT_ADMIN_TOKEN: ci-admin-token
+          GAOKAO_AGENT_DATABASE_URL: sqlite:///./ci-test.db
 
   # ============ Web（Node.js）============
   web-lint:
