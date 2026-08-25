@@ -11,6 +11,20 @@
 证据：[`skills.py`](../../apps/api/app/services/skills.py)、
 [`chat.py`](../../apps/api/app/services/chat.py)。
 
+## 加分题：和直接询问 GPT/豆包相比，这个项目新增了什么价值？
+
+底层模型可以相同，但调用方式和责任边界不同。直接询问通用模型通常得到一次泛化回答，
+考生仍要自己提供完整上下文、核对年份和来源、判断建议是否满足约束；本项目把这些工作
+放进了业务系统：结构化高考数据负责确定性查询，SkillRegistry 负责路由，服务端负责权益
+和身份边界，LLM 负责开放问题的解释增强，模型失败则回到规则化结果。trace、固定离线评测、
+会话保留/删除、微信公众号适配和运营后台，则让这条链路可以被验证和运营。
+
+要诚实补充：这不是训练了新的基础模型，也不能承诺招生建议绝对正确；项目的面试价值在于
+展示如何把通用模型约束成一个领域 LLM 应用，并对数据、成本、隐私、失败和人工介入负责。
+证据：[`README 差异化定位`](../../README.md)、[`skills.py`](../../apps/api/app/services/skills.py)、
+[`chat.py`](../../apps/api/app/services/chat.py)、[`access_control.py`](../../apps/api/app/services/access_control.py)、
+[`tracing.py`](../../apps/api/app/services/tracing.py) 和 [`离线评测`](../verification/2026-08-25-phase3.3-3.5-evaluation.md)。
+
 ## 2. 为什么没有直接引入 LangChain、向量数据库或 Agent 编排框架？
 
 当前核心知识是学校、专业、榜单来源和关联关系，SQL 查询更确定、更容易测量，
