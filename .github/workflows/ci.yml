@@ -66,10 +66,10 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Validate JSON data assets
-        run: python ../scripts/verify-data-assets.py --fail-on-legacy-duplicate
+        run: python ../../scripts/verify-data-assets.py --fail-on-legacy-duplicate
 
       - name: Test JSON data asset validator
-        run: python ../scripts/tests/test_verify_data_assets.py
+        run: python ../../scripts/tests/test_verify_data_assets.py
 
       - name: Run migrations (smoke test)
         run: alembic upgrade head
