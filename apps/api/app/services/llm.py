@@ -30,6 +30,13 @@ class LLMProvider(Protocol):
     def complete_text(self, *, messages: list[LLMMessage]) -> str: ...
 
 
+def _chat_completions_url(base_url: str) -> str:
+    normalized_base_url = base_url.rstrip("/")
+    if normalized_base_url.endswith(("/v1", "/api/v3")):
+        return f"{normalized_base_url}/chat/completions"
+    return f"{normalized_base_url}/v1/chat/completions"
+
+
 class OpenAICompatibleProvider:
     def __init__(
         self,
@@ -62,7 +69,7 @@ class OpenAICompatibleProvider:
         try:
             with httpx.Client(timeout=self.timeout_seconds) as client:
                 response = client.post(
-                    f"{self.base_url}/v1/chat/completions",
+                    _chat_completions_url(self.base_url),
                     headers=headers,
                     json=payload,
                 )
