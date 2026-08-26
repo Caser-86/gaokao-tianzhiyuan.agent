@@ -32,7 +32,7 @@ class LLMProvider(Protocol):
 
 def _chat_completions_url(base_url: str) -> str:
     normalized_base_url = base_url.rstrip("/")
-    if normalized_base_url.endswith(("/v1", "/api/v3")):
+    if normalized_base_url.endswith(("/v1", "/v3")):
         return f"{normalized_base_url}/chat/completions"
     return f"{normalized_base_url}/v1/chat/completions"
 
