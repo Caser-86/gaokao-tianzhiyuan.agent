@@ -12,6 +12,9 @@
 
 本轮更新（2026-08-30）已让离线评测默认使用项目内置 Prompt，并扩展到 13 个固定样本；本地 API 最新验证为 `213 passed`，Web 最新验证为 `129 passed`。这些结果只代表本地工作树和固定样本，不代表线上模型质量或生产 SLA，完整记录见 [`evaluation-and-data-trust verification`](docs/verification/2026-08-30-evaluation-and-data-trust.md)。
 
+2026-08-31 继续补齐了数据可信度的可执行边界：根目录 `data/catalog.json`
+新增顶层 `data_provenance` 契约，资产校验器检查状态、来源、更新时间、适用范围和免责声明；公开搜索/列表/详情 API 返回该元数据，学校与专业详情页展示演示数据声明。该能力只标注来源边界，不把样例内容变成官方招生数据。本轮 API `215 passed`、Web `130 passed`，完整结果见 [`data provenance contract verification`](docs/verification/2026-08-31-data-provenance-contract.md)。
+
 ## 评审范围
 
 评审覆盖 `git ls-files` 返回的 256 个跟踪文件，并额外核对了当前工作区未提交内容：
@@ -122,7 +125,7 @@ flowchart LR
 
 ### 4. 测试覆盖业务路径而非只测健康检查
 
-源码静态统计包含 194 个后端测试函数；pytest 当前收集并通过 205 个后端用例（含参数化展开），另有 129 个前端 `test/it` 用例。测试覆盖 Skill 路由、LLM 错误、公众号 AES、内容不变量、后台筛选、会话隔离、离线评测、检索边界、权益扩权回归、可信身份、平台权益主体、公众号重放、URL/媒体输入安全、隐私删除、Action 状态、版本探针和页面交互。源码函数数与参数化后的用例数分开记录，避免把两者混为一谈。
+源码静态统计包含 194 个后端测试函数；pytest 当前收集并通过 215 个后端用例（含参数化展开），另有 130 个前端 `test/it` 用例。测试覆盖 Skill 路由、LLM 错误、公众号 AES、内容不变量、后台筛选、会话隔离、离线评测、检索边界、权益扩权回归、可信身份、平台权益主体、公众号重放、URL/媒体输入安全、隐私删除、Action 状态、版本探针、数据来源契约和页面交互。源码函数数与参数化后的用例数分开记录，避免把两者混为一谈。
 
 ### 5. 有可复现交付意识
 
@@ -151,7 +154,7 @@ flowchart LR
 2. 原 README 的测试通过数、构建和审计结果没有日期与 commit，不能当作当前验证事实；当前验证结果单独记录在 `docs/verification/`。
 3. Python 运行时文档已统一为 3.11+；CI、API Dockerfile 和 `pyproject.toml` 均以 Python 3.11 作为最低基线。
 4. Release Web 镜像原先默认把浏览器 API 地址构建为 `http://localhost:8000`；当前工作树已要求生产 Environment 显式提供 API 根地址，并让 Dockerfile/Compose 在构建时校验该值。
-5. 根目录 `data/` 已被播种脚本、测试和校验器定义为权威源；未跟踪的 `apps/data/` 当前内容相同但仍会产生未来漂移风险，尚未擅自删除。
+5. 根目录 `data/` 已被播种脚本、测试和校验器定义为权威源，并新增顶层 `data_provenance` 契约；公开 API/详情页会展示该来源边界。未跟踪的 `apps/data/` 当前内容相同但仍会产生未来漂移风险，尚未擅自删除。
 6. Phase 3.1 已新增 `AgentTraceRecorder`；默认只写结构化日志，不持久化消息、Prompt、API Key、openid 或用户 ID 原值，详细 schema 见 [`agent-trace-design.md`](docs/superpowers/specs/2026-08-25-agent-trace-design.md)。
 7. Phase 3.2 已新增 `ChatSession`/`ChatMessage`、Alembic 迁移和按用户读取/删除接口；消息默认 30 天滚动保留，页面支持用 `session_id` 恢复展示，详细设计见 [`chat-session-persistence-design.md`](docs/superpowers/specs/2026-08-25-chat-session-persistence-design.md)。
 8. Phase 3.3—3.5 已新增 9 个固定离线评测样本、Provider stub、路由/schema/fallback 指标和报告；当前 9/9 通过，详细结果见 [`2026-08-25-phase3.3-3.5-evaluation.md`](docs/verification/2026-08-25-phase3.3-3.5-evaluation.md)。

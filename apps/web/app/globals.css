@@ -278,6 +278,44 @@ a {
   box-shadow: 0 10px 24px rgba(80, 54, 28, 0.06);
 }
 
+.data-provenance {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 16px 18px;
+  border: 1px solid rgba(168, 70, 45, 0.2);
+  border-radius: 18px;
+  background: rgba(255, 245, 229, 0.86);
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.data-provenance p {
+  margin: 0;
+}
+
+.data-provenance-heading,
+.data-provenance-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+}
+
+.data-provenance-heading strong {
+  color: var(--accent-strong);
+}
+
+.data-provenance-meta {
+  font-size: 13px;
+}
+
+.data-provenance-meta a {
+  color: var(--accent-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .admin-shell > section[role="alert"] {
   border-color: rgba(168, 70, 45, 0.28);
   background: linear-gradient(135deg, rgba(255, 244, 239, 0.96), rgba(255, 231, 220, 0.9));

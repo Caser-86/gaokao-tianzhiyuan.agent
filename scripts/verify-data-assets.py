@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import date
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -14,6 +16,9 @@ DEFAULT_DATA_DIR = REPO_ROOT / "data"
 
 class DataAssetValidationError(ValueError):
     """Raised when a JSON data asset violates the repository contract."""
+
+
+PROVENANCE_STATUSES = {"demo", "secondary", "official"}
 
 
 def _is_non_empty_string(value: Any) -> bool:
@@ -111,6 +116,56 @@ def _validate_ranking_references(
                 errors.append(f"{reference_label}.year must be an integer")
 
 
+def _validate_data_provenance(provenance: Any, errors: list[str]) -> None:
+    label = "catalog.data_provenance"
+    if not isinstance(provenance, dict):
+        errors.append(f"{label} must be an object")
+        return
+
+    status = provenance.get("status")
+    if status not in PROVENANCE_STATUSES:
+        errors.append(f"{label}.status must be one of: demo, secondary, official")
+
+    for field in ("source_name", "region", "disclaimer"):
+        if not _is_non_empty_string(provenance.get(field)):
+            errors.append(f"{label}.{field} must be a non-empty string")
+
+    updated_at = provenance.get("updated_at")
+    if not _is_non_empty_string(updated_at):
+        errors.append(f"{label}.updated_at must be an ISO date")
+    else:
+        try:
+            date.fromisoformat(updated_at)
+        except ValueError:
+            errors.append(f"{label}.updated_at must be an ISO date")
+
+    official = provenance.get("official")
+    if not isinstance(official, bool):
+        errors.append(f"{label}.official must be boolean")
+    elif status == "demo" and official:
+        errors.append(f"{label}.official must be false for demo data")
+
+    source_url = provenance.get("source_url")
+    if source_url is not None and not _is_non_empty_string(source_url):
+        errors.append(f"{label}.source_url must be null or a non-empty HTTP(S) URL")
+    elif isinstance(source_url, str):
+        parsed_url = urlparse(source_url.strip())
+        if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
+            errors.append(f"{label}.source_url must be null or a non-empty HTTP(S) URL")
+
+    applicable_year = provenance.get("applicable_year")
+    if applicable_year is not None and (
+        not isinstance(applicable_year, int) or isinstance(applicable_year, bool)
+    ):
+        errors.append(f"{label}.applicable_year must be null or an integer")
+
+    if status != "demo":
+        if source_url is None:
+            errors.append(f"{label}.source_url is required for non-demo data")
+        if applicable_year is None:
+            errors.append(f"{label}.applicable_year is required for non-demo data")
+
+
 def _validate_featured(
     featured: dict[str, Any],
     school_slugs: set[str],
@@ -172,6 +227,7 @@ def _validate_featured(
 def validate_data(catalog: dict[str, Any], featured: dict[str, Any]) -> None:
     """Validate catalog and featured payloads, raising one actionable error."""
     errors: list[str] = []
+    _validate_data_provenance(catalog.get("data_provenance"), errors)
 
     search_entry = catalog.get("search_entry")
     if not isinstance(search_entry, dict):

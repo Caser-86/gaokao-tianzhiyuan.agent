@@ -7,7 +7,7 @@ requires a deployment owner, a host, or an external provider account.
 |---|---|---|
 | API/Web config | `apps/api/.env.example`, `deploy/*/*.env.example`, Compose and systemd templates | Real relay, database path, public HTTPS origin and host-specific values |
 | Secret policy | `.env*` ignored, production-like config rejects default admin/session values, no real keys in fixtures | Secret manager/GitHub Environment provisioning and rotation |
-| Data source | [`data/README.md`](../../data/README.md), root `data/` validator, source/year/region boundary | Authoritative source agreement and data refresh owner |
+| Data source | [`data/README.md`](../../data/README.md), root `data/` validator, `data_provenance` API/UI contract, source/year/region boundary | Authoritative source agreement, data refresh owner and source-truth review |
 | Database | Alembic is the schema entry point; upgrade/downgrade/upgrade has been rehearsed in a temporary DB | Production migration window and backup confirmation |
 | Backup/restore | [`backup-restore-runbook.md`](backup-restore-runbook.md), standard-library SQLite backup/restore scripts | Off-host encrypted backup, retention, restore drill and access review |
 | Release | CI workflow and Release workflow share the verification gate; production Web API URL is required | GitHub tag workflow, Docker daemon build, approval and artifact promotion |

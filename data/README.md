@@ -14,6 +14,28 @@ an authoritative admissions, ranking or recommendation dataset.
 | `ranking_references[].url` | Placeholder URL in the fixture; never present it as an official source |
 | `featured-content.json` | Editorial display and rotation fixture, not a recommendation rank |
 
+## Public provenance contract
+
+The root `data/catalog.json` contains a top-level `data_provenance` object.
+The asset validator checks this contract, and the public search/list/detail API
+responses expose it as `data_provenance`; school and major detail pages render
+the same boundary for users.
+
+| Field | Required shape | Demo value / rule |
+|---|---|---|
+| `status` | `demo`, `secondary` or `official` | Current fixture is `demo` |
+| `source_name` | Non-empty string | `项目手工编写演示数据` |
+| `source_url` | HTTP(S) URL or `null` | `null` for demo data |
+| `updated_at` | ISO date | `2026-08-30` |
+| `applicable_year` | Integer or `null` | `null` for demo data |
+| `region` | Non-empty scope string | `多地区示例` |
+| `official` | Boolean | Demo data must be `false` |
+| `disclaimer` | Non-empty user-facing string | Must explain the non-authoritative boundary |
+
+Non-demo data must provide both a source URL and applicable year. This
+contract records provenance metadata; it does not verify the truth of an
+external source or make a recommendation authoritative.
+
 ## Rules for adding real data
 
 Every non-demo record must carry, at minimum, a source URL, source name, source

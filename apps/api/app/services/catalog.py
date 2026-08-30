@@ -14,6 +14,7 @@ from ..models.catalog import (
     SchoolRankingReference,
     SearchEntry,
 )
+from .data_provenance import get_data_provenance
 from .featured_content import (
     list_current_featured_majors,
     list_current_featured_schools,
@@ -147,6 +148,7 @@ def _build_catalog_dict(session: Session) -> dict[str, Any]:
         "search_entry": search_entry_data,
         "schools": schools_data,
         "majors": majors_data,
+        "data_provenance": get_data_provenance(),
     }
 
 
@@ -161,11 +163,16 @@ def load_catalog(session_factory: Callable[[], Session] | None = None) -> dict[s
 
 
 def get_search_entry() -> dict[str, Any]:
-    return load_catalog()["search_entry"]
+    catalog = load_catalog()
+    return {
+        **catalog["search_entry"],
+        "data_provenance": catalog["data_provenance"],
+    }
 
 
 def list_schools(*, region: str | None = None, keyword: str | None = None) -> dict[str, Any]:
-    schools = load_catalog()["schools"]
+    catalog = load_catalog()
+    schools = catalog["schools"]
     featured_schools = {school["slug"]: school for school in list_current_featured_schools()}
     filtered = []
 
@@ -206,11 +213,13 @@ def list_schools(*, region: str | None = None, keyword: str | None = None) -> di
     return {
         "items": filtered,
         "total": len(filtered),
+        "data_provenance": catalog["data_provenance"],
     }
 
 
 def list_majors() -> dict[str, Any]:
-    majors = load_catalog()["majors"]
+    catalog = load_catalog()
+    majors = catalog["majors"]
     featured_majors = {major["slug"] for major in list_current_featured_majors()}
     items = [
         {
@@ -228,12 +237,16 @@ def list_majors() -> dict[str, Any]:
     return {
         "items": items,
         "total": len(items),
+        "data_provenance": catalog["data_provenance"],
     }
 
 
 def get_school_detail(slug: str) -> dict[str, Any] | None:
-    schools = load_catalog()["schools"]
-    return next((school for school in schools if school["slug"] == slug), None)
+    catalog = load_catalog()
+    school = next((school for school in catalog["schools"] if school["slug"] == slug), None)
+    if school is None:
+        return None
+    return {**school, "data_provenance": catalog["data_provenance"]}
 
 
 def get_school_website(slug: str) -> str | None:
@@ -250,8 +263,11 @@ def get_school_website(slug: str) -> str | None:
 
 
 def get_major_detail(slug: str) -> dict[str, Any] | None:
-    majors = load_catalog()["majors"]
-    return next((major for major in majors if major["slug"] == slug), None)
+    catalog = load_catalog()
+    major = next((major for major in catalog["majors"] if major["slug"] == slug), None)
+    if major is None:
+        return None
+    return {**major, "data_provenance": catalog["data_provenance"]}
 
 
 def list_admin_ranking_references() -> dict[str, Any]:

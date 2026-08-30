@@ -4,6 +4,16 @@
     "description": "帮考生和家长看学校、专业、地域、就业和坑点，适合微信公众号查询与推送场景。",
     "quick_prompts": ["查学校", "查专业", "看地域对比"]
   },
+  "data_provenance": {
+    "status": "demo",
+    "source_name": "项目手工编写演示数据",
+    "source_url": null,
+    "updated_at": "2026-08-30",
+    "applicable_year": null,
+    "region": "多地区示例",
+    "official": false,
+    "disclaimer": "仅用于功能演示，不构成招生、排名或志愿决策依据。"
+  },
   "schools": [
     {
       "slug": "southeast-university",

@@ -47,7 +47,7 @@
 
 ## 数据可信度边界
 
-根目录 [`data/`](data/) 是用于开发、测试和面试演示的少量 JSON 资产，不是实时招生数据库。当前示例中的榜单链接和内容均不能作为官方录取依据；未来接入真实数据时，每条记录至少需要来源名称、来源 URL、发布日期/更新时间、适用年份、地区和“官方/二手资料”标记。发布前运行 `python scripts/verify-data-assets.py`，并在后台或页面展示数据更新时间与免责声明。详细规则见 [`data/README.md`](data/README.md)。
+根目录 [`data/`](data/) 是用于开发、测试和面试演示的少量 JSON 资产，不是实时招生数据库。当前示例中的榜单链接和内容均不能作为官方录取依据；顶层 `data_provenance` 契约会被资产校验器检查，并由公开 API 返回、由学校/专业详情页展示。未来接入真实数据时，每条记录至少需要来源名称、来源 URL、发布日期/更新时间、适用年份、地区和“官方/二手资料”标记。发布前运行 `python scripts/verify-data-assets.py`，并在后台或页面展示数据更新时间与免责声明。详细规则见 [`data/README.md`](data/README.md)。
 
 ## 和直接询问 GPT/豆包有什么区别？
 
@@ -147,6 +147,7 @@ sequenceDiagram
 | 微信公众号 | URL 验证、明文/AES、文本/图片/语音/位置/链接和菜单事件 | [`routers/chat.py`](apps/api/app/routers/chat.py) |
 | 媒体分析 | 图片 Provider、字段提取、审计记录、失败原因和重试入口 | [`media_analysis.py`](apps/api/app/services/media_analysis.py) |
 | 内容运营 | 审核、精选轮换、榜单、摘要、正文、关联内容和图片建议 | [`routers/admin.py`](apps/api/app/routers/admin.py) |
+| 数据来源边界 | `data_provenance` 契约、资产校验、公开 API 字段和详情页声明 | [`data_provenance.py`](apps/api/app/services/data_provenance.py)、[`data-provenance-notice.tsx`](apps/web/components/public/data-provenance-notice.tsx) |
 | 前端产品面 | 公开目录、Agent 聊天、权益入口和运营后台 | [`apps/web/app`](apps/web/app) |
 | 工程交付 | 测试、CI、Docker、PowerShell、systemd/nginx 和运维手册 | [`.github/workflows`](.github/workflows) |
 
@@ -175,7 +176,7 @@ Web、通用微信渠道和微信公众号只负责协议适配，核心请求�
 
 建议按下面顺序演示，而不是逐页介绍所有功能：
 
-1. 打开 `/`，说明结构化学校/专业内容不依赖 LLM。
+1. 打开 `/`，说明结构化学校/专业内容不依赖 LLM，并在详情页指出当前是演示数据而非权威招生数据。
 2. 从首页快捷问题进入 `/chat`，说明当前 Web 主界面直接调用 `zhangxuefeng` Skill。
 3. 通过 `/api/chat/messages` 演示自动 Skill 匹配，再询问“某省某分数如何定位”，对比自动路由与直接调用两条入口。
 4. 临时不配置 LLM 或使用测试故障场景，展示聊天仍返回规则降级结果。
@@ -366,6 +367,8 @@ npm audit --audit-level=moderate
 2026-08-25 本地验证记录（基线 HEAD `772948a6f6fe28b353007b009658e277f07475ed`，工作树未提交）已执行：API `205 passed`、后端总覆盖率 `85%`、Web `129 passed`、Web 语句/分支/函数覆盖率 `86.64% / 84.21% / 72.34%`、Web typecheck 和生产构建通过；会话与微信幂等迁移经过 upgrade/downgrade/upgrade 往返验证；离线评测 9/9 样本通过；SQL 覆盖 spike 为 6/6 标签一致；客户端权益伪造、可信身份、平台权益主体、公众号重放、URL/媒体输入安全、隐私删除、后台 Action 失败反馈、并发加载和 `/version` 版本探针回归通过；隔离本地栈的完整 HTTP smoke（含公众号明文/AES 多类型回调和 `dev` 版本断言）通过，随后在同一持久化 SQLite 上完成 `release-old → release-new → release-old` 三段版本 smoke/回滚演练；首页/聊天/后台脱敏截图已生成；三分钟 Demo 脚本和面试问答包的文档链接、敏感模式与 diff 检查通过。详细结果见 [`docs/verification/2026-08-25-phase2-verification.md`](docs/verification/2026-08-25-phase2-verification.md)、[`docs/verification/2026-08-25-phase3.1-verification.md`](docs/verification/2026-08-25-phase3.1-verification.md)、[`docs/verification/2026-08-25-phase3.2-verification.md`](docs/verification/2026-08-25-phase3.2-verification.md)、[`docs/verification/2026-08-25-phase3.3-3.5-evaluation.md`](docs/verification/2026-08-25-phase3.3-3.5-evaluation.md)、[`docs/verification/2026-08-25-phase3.6-3.7-verification.md`](docs/verification/2026-08-25-phase3.6-3.7-verification.md)、[`docs/verification/2026-08-25-phase4.1-verification.md`](docs/verification/2026-08-25-phase4.1-verification.md)、[`docs/verification/2026-08-25-phase4.2-verification.md`](docs/verification/2026-08-25-phase4.2-verification.md)、[`docs/verification/2026-08-25-phase4.3-verification.md`](docs/verification/2026-08-25-phase4.3-verification.md)、[`docs/verification/2026-08-25-phase4.4-verification.md`](docs/verification/2026-08-25-phase4.4-verification.md)、[`docs/verification/2026-08-25-phase4.5-verification.md`](docs/verification/2026-08-25-phase4.5-verification.md)、[`docs/verification/2026-08-25-phase4.6-verification.md`](docs/verification/2026-08-25-phase4.6-verification.md)、[`docs/verification/2026-08-25-phase4.7-4.9-verification.md`](docs/verification/2026-08-25-phase4.7-4.9-verification.md)、[`docs/verification/2026-08-25-phase5.5-5.6-verification.md`](docs/verification/2026-08-25-phase5.5-5.6-verification.md) 和 [`docs/verification/2026-08-25-phase5.7-5.8-verification.md`](docs/verification/2026-08-25-phase5.7-5.8-verification.md)。
 
 2026-08-30 本轮验证基线（工作树基于 `f5a8340`）：API `213 passed`、Web `129 passed`、离线评测 13/13 通过、数据资产结构校验通过。详细命令、Prompt 一致性和数据可信度边界见 [`evaluation-and-data-trust verification`](docs/verification/2026-08-30-evaluation-and-data-trust.md)；本轮仍未声称完成生产部署、公开 HTTPS smoke、监控告警或外部回滚演练。
+
+2026-08-31 数据来源契约验证（基于 `ce72eb5` 工作树）：API `215 passed`、Web `130 passed`、数据资产结构与来源契约校验通过、Web typecheck/lint 通过。公开搜索/列表/详情 API 返回 `data_provenance`，学校和专业详情页展示演示数据、更新时间、来源范围和免责声明。完整命令与边界见 [`data provenance contract verification`](docs/verification/2026-08-31-data-provenance-contract.md)；生产权威数据接入、刷新责任和 HTTPS smoke 仍需外部确认。
 
 ## 目录结构
 
