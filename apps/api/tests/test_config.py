@@ -1,7 +1,13 @@
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
-from app.config import Settings, resolve_zhangxuefeng_skill_path
+from app.config import (
+    DEFAULT_ZHANGXUEFENG_SKILL_CANDIDATES,
+    Settings,
+    resolve_zhangxuefeng_skill_path,
+)
 
 
 def test_default_admin_token_is_rejected_outside_safe_modes() -> None:
@@ -149,3 +155,12 @@ def test_resolve_zhangxuefeng_skill_path_falls_back_to_first_existing_candidate(
         str(tmp_path / "missing" / "SKILL.md"),
         default_candidates=(fallback_skill,),
     ) == str(fallback_skill)
+
+
+def test_project_default_zhangxuefeng_skill_asset_is_available() -> None:
+    skill_path = Path(__file__).resolve().parents[3] / "skills" / "zhangxuefeng" / "SKILL.md"
+
+    assert skill_path.is_file()
+    assert "不编造" in skill_path.read_text(encoding="utf-8")
+    assert DEFAULT_ZHANGXUEFENG_SKILL_CANDIDATES[0] == skill_path
+    assert resolve_zhangxuefeng_skill_path("") == str(skill_path)

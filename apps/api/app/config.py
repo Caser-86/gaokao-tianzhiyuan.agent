@@ -20,6 +20,7 @@ DEFAULT_CORS_ALLOWED_ORIGINS = (
     "http://localhost:3000",
 )
 DEFAULT_ZHANGXUEFENG_SKILL_CANDIDATES = (
+    Path(__file__).resolve().parents[3] / "skills" / "zhangxuefeng" / "SKILL.md",
     Path(__file__).resolve().parents[3] / "vendor" / "zhangxuefeng-skill" / "SKILL.md",
     Path(__file__).resolve().parents[3] / ".tmp" / "zhangxuefeng-skill" / "SKILL.md",
 )

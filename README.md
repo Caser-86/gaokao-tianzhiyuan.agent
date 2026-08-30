@@ -268,7 +268,7 @@ GAOKAO_AGENT_SMART_ANALYSIS_MODE=off
 GAOKAO_AGENT_ZHANGXUEFENG_SKILL_PATH=
 ```
 
-`GAOKAO_AGENT_LLM_BASE_URL` 填 Provider 根地址，不包含 `/v1`；服务端会拼接 `/v1/chat/completions`。
+`GAOKAO_AGENT_LLM_BASE_URL` 填 Provider 的 API Base URL。服务端会根据 Base URL 末尾的版本路径拼接 `/chat/completions`；例如火山方舟 Agent Plan 使用 `https://ark.cn-beijing.volces.com/api/plan/v3`，普通未带版本路径的 Provider 才会追加 `/v1/chat/completions`。
 
 智能分析模式：
 
@@ -300,8 +300,11 @@ git clone https://github.com/alchaincyf/zhangxuefeng-skill.git vendor/zhangxuefe
 
 默认查找位置：
 
+- `skills/zhangxuefeng/SKILL.md`（项目内置的最小可运行提示词）
 - `vendor/zhangxuefeng-skill/SKILL.md`
 - `.tmp/zhangxuefeng-skill/SKILL.md`
+
+外部 Skill 路径存在时可以覆盖项目内置版本。仓库内置提示词只负责高考志愿分析的安全边界和结构化输出，不包含实时录取数据。
 
 如果没有配置 LLM Provider，Agent 仍可运行目录 Skill 和规则降级链路。仓库不会包含你的模型密钥。
 

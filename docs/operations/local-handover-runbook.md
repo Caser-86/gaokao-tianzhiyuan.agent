@@ -72,10 +72,13 @@ The admin token in `apps/web/.env.local` must match the API token.
 
 ## ZhangXueFeng Skill Resolution
 
-If `GAOKAO_AGENT_ZHANGXUEFENG_SKILL_PATH` is blank, the API automatically tries:
+If `GAOKAO_AGENT_ZHANGXUEFENG_SKILL_PATH` is blank, the API automatically tries these paths in order:
 
-1. `vendor/zhangxuefeng-skill/SKILL.md`
-2. `.tmp/zhangxuefeng-skill/SKILL.md`
+1. `skills/zhangxuefeng/SKILL.md`
+2. `vendor/zhangxuefeng-skill/SKILL.md`
+3. `.tmp/zhangxuefeng-skill/SKILL.md`
+
+The project includes a minimal runnable Skill prompt; an external Skill file can override it.
 
 To prepare the local skill checkout:
 

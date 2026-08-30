@@ -37,8 +37,9 @@ If you want to use the local ZhangXueFeng skill repository, clone it into the wo
 git clone https://github.com/alchaincyf/zhangxuefeng-skill.git vendor/zhangxuefeng-skill
 ```
 
-When `GAOKAO_AGENT_ZHANGXUEFENG_SKILL_PATH` is left blank, the API will automatically try these local paths:
+When `GAOKAO_AGENT_ZHANGXUEFENG_SKILL_PATH` is left blank, the API will automatically try these local paths in order:
 
+- `../../skills/zhangxuefeng/SKILL.md` (project default)
 - `vendor/zhangxuefeng-skill/SKILL.md`
 - `.tmp/zhangxuefeng-skill/SKILL.md`
 
