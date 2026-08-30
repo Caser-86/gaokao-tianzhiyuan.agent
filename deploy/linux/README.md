@@ -93,6 +93,7 @@ Direct service checks:
 ```bash
 curl http://127.0.0.1:8000/health
 curl http://127.0.0.1:8000/api/chat/health
+curl http://127.0.0.1:8000/version
 curl http://127.0.0.1:3000/
 ```
 
@@ -101,6 +102,7 @@ If nginx is already wired to your domain:
 ```bash
 curl http://your-domain.example/health
 curl http://your-domain.example/api/chat/health
+curl http://your-domain.example/version
 curl http://your-domain.example/
 curl http://your-domain.example/api/chat/skills
 ```
@@ -109,6 +111,9 @@ The chat skill listing should include both built-in skills:
 
 - `zhangxuefeng`
 - `catalog_lookup`
+
+Compare `/version` with the release tag or deployment record before accepting
+the new service as healthy.
 
 Official account callback checks:
 

@@ -1,3 +1,4 @@
+import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -343,6 +344,39 @@ def test_openai_compatible_media_analysis_provider_posts_expected_image_payload(
     )
 
 
+def test_openai_compatible_media_analysis_rejects_unsafe_image_url_without_http_call(
+    monkeypatch,
+) -> None:
+    called = False
+
+    def fake_post(self, url: str, *, headers: dict, json: dict):
+        nonlocal called
+        called = True
+        raise AssertionError("unsafe image URL must not reach the provider")
+
+    monkeypatch.setattr(httpx.Client, "post", fake_post)
+
+    provider = OpenAICompatibleMediaAnalysisProvider(
+        base_url="https://relay.example",
+        api_key="secret-key",
+        model="gpt-4o-mini",
+        timeout_seconds=30,
+    )
+
+    result = provider.analyze(
+        request=MediaAnalysisRequest(
+            media_type="image",
+            user_id="wx-openid-unsafe-image",
+            payload={"PicUrl": "http://127.0.0.1:8000/internal"},
+        )
+    )
+
+    assert result.status == "failed"
+    assert result.provider == "openai_compatible"
+    assert result.failure_reason == "图片地址未通过安全校验，暂不发送给媒体分析上游"
+    assert called is False
+
+
 def test_openai_compatible_media_analysis_provider_marks_video_unsupported_without_http_call(
     monkeypatch,
 ) -> None:
@@ -630,6 +664,11 @@ def test_conversation_service_requires_smart_analysis_entitlement_when_gated(
 ) -> None:
     skill_file = tmp_path / "SKILL.md"
     skill_file.write_text("张雪峰测试提示词", encoding="utf-8")
+    engine = build_chat_engine()
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        set_smart_analysis_mode(session, "gated")
+
     service = ConversationService(
         registry=SkillRegistry(
             [
@@ -638,7 +677,8 @@ def test_conversation_service_requires_smart_analysis_entitlement_when_gated(
                     skill_prompt_path=str(skill_file),
                 )
             ]
-        )
+        ),
+        session_factory=lambda: Session(engine),
     )
 
     result = service.handle_message(
@@ -663,6 +703,17 @@ def test_conversation_service_allows_smart_analysis_when_gated_and_entitled(
 ) -> None:
     skill_file = tmp_path / "SKILL.md"
     skill_file.write_text("张雪峰测试提示词", encoding="utf-8")
+    engine = build_chat_engine()
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        set_smart_analysis_mode(session, "gated")
+        set_user_entitlement(
+            session,
+            user_id="wx-openid-1",
+            entitlement=SMART_ANALYSIS_ENTITLEMENT,
+            is_enabled=True,
+        )
+
     service = ConversationService(
         registry=SkillRegistry(
             [
@@ -673,7 +724,8 @@ def test_conversation_service_allows_smart_analysis_when_gated_and_entitled(
                     skill_prompt_path=str(skill_file),
                 )
             ]
-        )
+        ),
+        session_factory=lambda: Session(engine),
     )
 
     result = service.handle_message(
@@ -688,6 +740,161 @@ def test_conversation_service_allows_smart_analysis_when_gated_and_entitled(
 
     assert result["output"]["content"]["analysis"] == "真实智能分析"
     assert result["debug"] == {"used_fallback": False, "notes": []}
+
+
+def test_conversation_service_emits_redacted_agent_trace_for_provider_success(
+    tmp_path,
+) -> None:
+    skill_file = tmp_path / "SKILL.md"
+    skill_file.write_text("张雪峰测试提示词", encoding="utf-8")
+    engine = build_chat_engine()
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        set_smart_analysis_mode(session, "on")
+
+    trace_events: list[dict] = []
+    secret_message = "河南560分想学金融专业，session-secret-api-key-should-not-leak"
+    service = ConversationService(
+        registry=SkillRegistry(
+            [
+                ZhangXueFengSkill(
+                    provider=FakeProvider(
+                        '{"intent":"major_recommendation","summary":"ok",'
+                        '"analysis":"analysis","suggestions":[],"follow_up_questions":[],'
+                        '"actions":[],"risk_flags":[],"rendered_reply":"ok"}'
+                    ),
+                    skill_prompt_path=str(skill_file),
+                )
+            ]
+        ),
+        session_factory=lambda: Session(engine),
+        trace_sink=trace_events.append,
+    )
+
+    result = service.handle_message(
+        channel="web",
+        user_id="user-secret-openid",
+        message=secret_message,
+        session_id="session-secret-id",
+        metadata={"smart_analysis_mode": "on"},
+    )
+
+    assert len(trace_events) == 1
+    trace = trace_events[0]
+    serialized_trace = json.dumps(trace, ensure_ascii=False)
+    expected_prompt_hash = hashlib.sha256(skill_file.read_bytes()).hexdigest()
+    assert trace["schema_version"] == "agent-trace.v1"
+    assert trace["request_id"] == result["request_id"]
+    assert trace["channel"] == "web"
+    assert trace["session_ref"] != "session-secret-id"
+    assert trace["message_length"] == len(secret_message)
+    assert trace["selected_skill"] == {
+        "skill_id": "zhangxuefeng",
+        "version": "v2",
+        "prompt_hash": expected_prompt_hash,
+        "confidence": 0.75,
+        "reason": "matched keyword: 专业",
+    }
+    assert "prompt_hash" not in result["matched_skill"]
+    assert trace["provider"] == "openai_compatible"
+    assert trace["model_called"] is True
+    assert trace["used_fallback"] is False
+    assert secret_message not in serialized_trace
+    assert "user-secret-openid" not in serialized_trace
+    assert "session-secret-id" not in serialized_trace
+    assert "session-secret-api-key-should-not-leak" not in serialized_trace
+
+
+def test_conversation_service_trace_explains_global_fallback() -> None:
+    trace_events: list[dict] = []
+    service = ConversationService(
+        registry=SkillRegistry([CatalogLookupSkill()]),
+        trace_sink=trace_events.append,
+    )
+
+    result = service.handle_message(
+        channel="web",
+        user_id="web-user-fallback",
+        message="今天天气怎么样",
+        session_id="session-fallback",
+    )
+
+    assert result["matched_skill"]["skill_id"] == "fallback"
+    trace = trace_events[0]
+    assert trace["selected_skill"]["skill_id"] == "fallback"
+    assert trace["provider"] == "none"
+    assert trace["model_called"] is False
+    assert trace["used_fallback"] is True
+    assert trace["fallback_reasons"] == ["no_enabled_skill_above_threshold"]
+    assert trace["candidates"] == [
+        {
+            "skill_id": "catalog_lookup",
+            "version": "v1",
+            "matched": False,
+            "confidence": 0.0,
+            "reason": "no catalog entity matched",
+        }
+    ]
+
+
+def test_conversation_service_trace_records_provider_failure_reason(tmp_path) -> None:
+    skill_file = tmp_path / "SKILL.md"
+    skill_file.write_text("张雪峰测试提示词", encoding="utf-8")
+    engine = build_chat_engine()
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        set_smart_analysis_mode(session, "on")
+
+    trace_events: list[dict] = []
+    service = ConversationService(
+        registry=SkillRegistry(
+            [
+                ZhangXueFengSkill(
+                    provider=ExplodingProvider(),
+                    skill_prompt_path=str(skill_file),
+                )
+            ]
+        ),
+        session_factory=lambda: Session(engine),
+        trace_sink=trace_events.append,
+    )
+
+    result = service.handle_message(
+        channel="wechat",
+        user_id="wx-user-provider-failure",
+        message="帮我看看江苏适合冲哪些985",
+        metadata={"smart_analysis_mode": "on"},
+    )
+
+    assert result["debug"] == {
+        "used_fallback": True,
+        "notes": ["provider_request_failed"],
+    }
+    trace = trace_events[0]
+    assert trace["provider"] == "openai_compatible"
+    assert trace["model_called"] is True
+    assert trace["used_fallback"] is True
+    assert trace["fallback_reasons"] == ["provider_request_failed"]
+
+
+def test_conversation_service_trace_sink_failure_does_not_break_response() -> None:
+    def failing_sink(event: dict) -> None:
+        _ = event
+        raise RuntimeError("trace backend unavailable")
+
+    service = ConversationService(
+        registry=SkillRegistry([CatalogLookupSkill()]),
+        trace_sink=failing_sink,
+    )
+
+    result = service.handle_message(
+        channel="web",
+        user_id="web-user-trace-sink",
+        message="今天天气怎么样",
+    )
+
+    assert result["matched_skill"]["skill_id"] == "fallback"
+    assert result["debug"] == {"used_fallback": True, "notes": []}
 
 
 def test_conversation_service_uses_db_entitlement_when_mode_is_gated(
@@ -729,3 +936,86 @@ def test_conversation_service_uses_db_entitlement_when_mode_is_gated(
 
     assert result["output"]["content"]["analysis"] == "鏁版嵁搴撴潈鐩婂凡鐢熸晥"
     assert result["debug"] == {"used_fallback": False, "notes": []}
+
+
+def test_conversation_service_ignores_client_entitlement_and_mode_escalation(
+    tmp_path,
+) -> None:
+    skill_file = tmp_path / "SKILL.md"
+    skill_file.write_text("张雪峰测试提示词", encoding="utf-8")
+    engine = build_chat_engine()
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        set_smart_analysis_mode(session, "gated")
+
+    service = ConversationService(
+        registry=SkillRegistry(
+            [
+                ZhangXueFengSkill(
+                    provider=FakeProvider(
+                        '{"intent":"major_recommendation","summary":"不应调用模型",'
+                        '"analysis":"不应调用模型","suggestions":[],"follow_up_questions":[],'
+                        '"actions":[],"risk_flags":[],"rendered_reply":"不应调用模型"}'
+                    ),
+                    skill_prompt_path=str(skill_file),
+                )
+            ]
+        ),
+        session_factory=lambda: Session(engine),
+    )
+
+    result = service.handle_message(
+        channel="web",
+        user_id="web-unentitled-client-claims",
+        message="河南560分想学金融，靠谱吗？",
+        metadata={
+            "smart_analysis_mode": "on",
+            "entitlements": [SMART_ANALYSIS_ENTITLEMENT],
+        },
+    )
+
+    assert result["debug"] == {
+        "used_fallback": True,
+        "notes": ["smart_analysis_entitlement_required"],
+    }
+
+
+def test_conversation_service_ignores_client_mode_on_when_server_mode_is_off(
+    tmp_path,
+) -> None:
+    skill_file = tmp_path / "SKILL.md"
+    skill_file.write_text("张雪峰测试提示词", encoding="utf-8")
+    engine = build_chat_engine()
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        set_smart_analysis_mode(session, "off")
+
+    service = ConversationService(
+        registry=SkillRegistry(
+            [
+                ZhangXueFengSkill(
+                    provider=FakeProvider(
+                        '{"intent":"major_recommendation","summary":"不应调用模型",'
+                        '"analysis":"不应调用模型","suggestions":[],"follow_up_questions":[],'
+                        '"actions":[],"risk_flags":[],"rendered_reply":"不应调用模型"}'
+                    ),
+                    skill_prompt_path=str(skill_file),
+                )
+            ]
+        ),
+        session_factory=lambda: Session(engine),
+    )
+
+    result = service.handle_message(
+        channel="web",
+        user_id="web-off-client-escalates",
+        message="河南560分想学金融，靠谱吗？",
+        metadata={"smart_analysis_mode": "on", "entitlements": [SMART_ANALYSIS_ENTITLEMENT]},
+    )
+
+    assert result["debug"] == {
+        "used_fallback": True,
+        "notes": ["smart_analysis_disabled_globally"],
+    }

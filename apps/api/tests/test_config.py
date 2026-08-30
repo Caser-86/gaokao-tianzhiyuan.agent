@@ -1,7 +1,13 @@
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
-from app.config import Settings, resolve_zhangxuefeng_skill_path
+from app.config import (
+    DEFAULT_ZHANGXUEFENG_SKILL_CANDIDATES,
+    Settings,
+    resolve_zhangxuefeng_skill_path,
+)
 
 
 def test_default_admin_token_is_rejected_outside_safe_modes() -> None:
@@ -16,7 +22,11 @@ def test_default_admin_token_is_allowed_in_development_and_test_modes() -> None:
 
 
 def test_non_default_admin_token_is_allowed_outside_safe_modes() -> None:
-    settings = Settings(environment="production", admin_token="task4-custom-token")
+    settings = Settings(
+        environment="production",
+        admin_token="task4-custom-token",
+        session_secret="task4-session-secret",
+    )
     assert settings.admin_token == "task4-custom-token"
 
 
@@ -69,6 +79,18 @@ def test_settings_automatically_load_default_dotenv(monkeypatch, tmp_path) -> No
     assert settings.llm_model == "gpt-4.1-mini"
 
 
+def test_settings_loads_single_cors_origin_from_docker_style_env_file(tmp_path) -> None:
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "GAOKAO_AGENT_CORS_ALLOWED_ORIGINS=http://localhost:3000\n",
+        encoding="utf-8",
+    )
+
+    settings = Settings(_env_file=str(env_file), _env_file_encoding="utf-8")
+
+    assert settings.cors_allowed_origins == ("http://localhost:3000",)
+
+
 def test_smart_analysis_mode_accepts_supported_values() -> None:
     assert Settings(smart_analysis_mode="off").smart_analysis_mode == "off"
     assert Settings(smart_analysis_mode="gated").smart_analysis_mode == "gated"
@@ -79,6 +101,21 @@ def test_smart_analysis_mode_rejects_unknown_values() -> None:
     with pytest.raises(ValidationError) as exc_info:
         Settings(smart_analysis_mode="partial")
     assert "smart_analysis_mode must be one of: off, gated, on" in str(exc_info.value)
+
+
+def test_retention_settings_are_configurable_and_must_be_positive() -> None:
+    configured = Settings(
+        chat_session_retention_days=14,
+        media_analysis_retention_days=21,
+        agent_trace_retention_days=7,
+    )
+
+    assert configured.chat_session_retention_days == 14
+    assert configured.media_analysis_retention_days == 21
+    assert configured.agent_trace_retention_days == 7
+
+    with pytest.raises(ValidationError):
+        Settings(chat_session_retention_days=0)
 
 
 def test_cors_allowed_origins_accept_comma_separated_values() -> None:
@@ -118,3 +155,12 @@ def test_resolve_zhangxuefeng_skill_path_falls_back_to_first_existing_candidate(
         str(tmp_path / "missing" / "SKILL.md"),
         default_candidates=(fallback_skill,),
     ) == str(fallback_skill)
+
+
+def test_project_default_zhangxuefeng_skill_asset_is_available() -> None:
+    skill_path = Path(__file__).resolve().parents[3] / "skills" / "zhangxuefeng" / "SKILL.md"
+
+    assert skill_path.is_file()
+    assert "不编造" in skill_path.read_text(encoding="utf-8")
+    assert DEFAULT_ZHANGXUEFENG_SKILL_CANDIDATES[0] == skill_path
+    assert resolve_zhangxuefeng_skill_path("") == str(skill_path)

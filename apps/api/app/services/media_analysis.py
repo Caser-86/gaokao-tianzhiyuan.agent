@@ -12,6 +12,7 @@ from .access_control import (
     get_effective_smart_analysis_mode,
     get_user_entitlements,
 )
+from .url_safety import UnsafeExternalUrlError, validate_external_url
 
 
 @dataclass(frozen=True)
@@ -92,6 +93,14 @@ class OpenAICompatibleMediaAnalysisProvider:
         image_url = str(request.payload.get("PicUrl", "")).strip()
         if not image_url:
             return MediaAnalysisResult(status="pending", provider="openai_compatible")
+        try:
+            image_url = validate_external_url(image_url)
+        except UnsafeExternalUrlError:
+            return MediaAnalysisResult(
+                status="failed",
+                provider="openai_compatible",
+                failure_reason="图片地址未通过安全校验，暂不发送给媒体分析上游",
+            )
 
         payload = {
             "model": self.model,

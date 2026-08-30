@@ -3,6 +3,7 @@ from __future__ import annotations
 from sqlmodel import Session, select
 
 from ..models.ingestion import MediaAnalysisEvent
+from .data_retention import purge_expired_media_analysis_events
 
 
 def create_media_analysis_event(
@@ -22,6 +23,7 @@ def create_media_analysis_event(
     context: dict,
     auto_routed_to_chat: bool,
 ) -> MediaAnalysisEvent:
+    purge_expired_media_analysis_events(session)
     event = MediaAnalysisEvent(
         channel=channel,
         source=source,
@@ -51,6 +53,7 @@ def list_media_analysis_events(
     user_id: str | None = None,
     auto_routed_to_chat: bool | None = None,
 ) -> list[MediaAnalysisEvent]:
+    purge_expired_media_analysis_events(session)
     stmt = select(MediaAnalysisEvent)
 
     if status:

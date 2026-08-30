@@ -67,6 +67,7 @@ const defaultRotationRule = (): AdminRotationRule => ({
 
 type AdminPageProps = {
   searchParams?: Promise<{
+    admin_error?: string;
     preview_date?: string;
     suggested_school_image_slug?: string;
     missing_school_images?: string;
@@ -286,6 +287,7 @@ const buildAdminHrefBase = ({
 
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const adminActionError = resolvedSearchParams?.admin_error?.trim() || undefined;
   const previewDate = resolvedSearchParams?.preview_date?.trim() || undefined;
   const suggestedSchoolImageSlug =
     resolvedSearchParams?.suggested_school_image_slug?.trim() || undefined;
@@ -942,14 +944,45 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   let mediaAnalysisEvents: AdminMediaAnalysisEvent[] = [];
   let mediaAnalysisError: string | undefined;
 
-  try {
-    queueItems = await listReviewQueue();
-  } catch {
+  const [
+    queueResult,
+    featuredContentResult,
+    featuredImageSuggestionResult,
+    rankingReferencesResult,
+    contentSummariesResult,
+    contentSectionsResult,
+    relatedContentResult,
+    smartAnalysisSettingsResult,
+    mediaAnalysisResult,
+    smartAnalysisUserResult,
+  ] = await Promise.allSettled([
+    listReviewQueue(),
+    listFeaturedContent(previewDate),
+    suggestedSchoolImageSlug
+      ? suggestFeaturedSchoolImage(suggestedSchoolImageSlug)
+      : Promise.resolve(null),
+    listRankingReferences(),
+    listContentSummaries(),
+    listContentSections(),
+    listRelatedContent(),
+    getSmartAnalysisSettings(),
+    listMediaAnalysisEvents({
+      limit: 10,
+      status: mediaAnalysisStatus,
+      userId: mediaAnalysisUserId,
+      autoRoutedToChat: mediaAnalysisAutoRoutedOnly ? true : undefined,
+    }),
+    smartAnalysisUserId ? getSmartAnalysisUser(smartAnalysisUserId) : Promise.resolve(null),
+  ] as const);
+
+  if (queueResult.status === 'fulfilled') {
+    queueItems = queueResult.value;
+  } else {
     queueError = '审核队列加载失败，请稍后重试';
   }
 
-  try {
-    const featuredContent = await listFeaturedContent(previewDate);
+  if (featuredContentResult.status === 'fulfilled') {
+    const featuredContent = featuredContentResult.value;
     featuredSchools = featuredContent.schools;
     featuredMajors = featuredContent.majors;
     schoolRotation = featuredContent.rotation.schools;
@@ -962,89 +995,69 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     selectedDatePreview = featuredContent.preview.selectedDate;
     selectedDateError = featuredContent.preview.selectedDateError ?? undefined;
 
-    if (suggestedSchoolImageSlug) {
-      try {
-        const suggestion = await suggestFeaturedSchoolImage(suggestedSchoolImageSlug);
-        schoolImageSuggestions = { [suggestion.slug]: suggestion };
-      } catch {
-        const matchedSchool = featuredContent.schools.find(
-          (school) => school.slug === suggestedSchoolImageSlug,
-        );
-        schoolImageSuggestions = {
-          [suggestedSchoolImageSlug]: {
-            slug: suggestedSchoolImageSlug,
-            name: matchedSchool?.name ?? suggestedSchoolImageSlug,
-            status: 'failed',
-            sourceUrl: null,
-            suggestedImageUrl: null,
-            message: '抓取失败，请稍后重试',
-          },
-        };
-      }
+    if (featuredImageSuggestionResult.status === 'fulfilled' && featuredImageSuggestionResult.value) {
+      schoolImageSuggestions = { [featuredImageSuggestionResult.value.slug]: featuredImageSuggestionResult.value };
+    } else if (suggestedSchoolImageSlug) {
+      const matchedSchool = featuredContent.schools.find(
+        (school) => school.slug === suggestedSchoolImageSlug,
+      );
+      schoolImageSuggestions = {
+        [suggestedSchoolImageSlug]: {
+          slug: suggestedSchoolImageSlug,
+          name: matchedSchool?.name ?? suggestedSchoolImageSlug,
+          status: 'failed',
+          sourceUrl: null,
+          suggestedImageUrl: null,
+          message: '抓取失败，请稍后重试',
+        },
+      };
     }
-  } catch {
+  } else {
     featuredContentError = '展示配置加载失败，请稍后重试';
   }
 
-  try {
-    const rankingReferences = await listRankingReferences();
-    rankingReferenceSchools = rankingReferences.schools;
-    rankingReferenceMajors = rankingReferences.majors;
-  } catch {
+  if (rankingReferencesResult.status === 'fulfilled') {
+    rankingReferenceSchools = rankingReferencesResult.value.schools;
+    rankingReferenceMajors = rankingReferencesResult.value.majors;
+  } else {
     rankingReferenceError = '榜单引用加载失败，请稍后重试';
   }
 
-  try {
-    const contentSummaries = await listContentSummaries();
-    summarySchools = contentSummaries.schools;
-    summaryMajors = contentSummaries.majors;
-  } catch {
+  if (contentSummariesResult.status === 'fulfilled') {
+    summarySchools = contentSummariesResult.value.schools;
+    summaryMajors = contentSummariesResult.value.majors;
+  } else {
     contentSummaryError = '摘要内容加载失败，请稍后重试';
   }
 
-  try {
-    const contentSections = await listContentSections();
-    sectionSchools = contentSections.schools;
-    sectionMajors = contentSections.majors;
-  } catch {
+  if (contentSectionsResult.status === 'fulfilled') {
+    sectionSchools = contentSectionsResult.value.schools;
+    sectionMajors = contentSectionsResult.value.majors;
+  } else {
     contentSectionError = '正文内容加载失败，请稍后重试';
   }
 
-  try {
-    const relatedContent = await listRelatedContent();
-    relatedSchools = relatedContent.schools;
-    relatedMajors = relatedContent.majors;
-  } catch {
+  if (relatedContentResult.status === 'fulfilled') {
+    relatedSchools = relatedContentResult.value.schools;
+    relatedMajors = relatedContentResult.value.majors;
+  } else {
     relatedContentError = '相关推荐加载失败，请稍后重试';
   }
 
-  try {
-    const settings = await getSmartAnalysisSettings();
-    smartAnalysisMode = settings.mode;
-  } catch {
-    smartAnalysisMode = 'off';
+  if (smartAnalysisSettingsResult.status === 'fulfilled') {
+    smartAnalysisMode = smartAnalysisSettingsResult.value.mode;
   }
 
-  try {
-    mediaAnalysisEvents = await listMediaAnalysisEvents({
-      limit: 10,
-      status: mediaAnalysisStatus,
-      userId: mediaAnalysisUserId,
-      autoRoutedToChat: mediaAnalysisAutoRoutedOnly ? true : undefined,
-    });
-  } catch {
+  if (mediaAnalysisResult.status === 'fulfilled') {
+    mediaAnalysisEvents = mediaAnalysisResult.value;
+  } else {
     mediaAnalysisError = '媒体分析记录加载失败，请稍后重试';
   }
 
-  if (smartAnalysisUserId) {
-    try {
-      const user = await getSmartAnalysisUser(smartAnalysisUserId);
-      smartAnalysisUserEnabled = user.entitlements.some(
-        (entitlement) => entitlement.name === 'smart_analysis' && entitlement.enabled,
-      );
-    } catch {
-      smartAnalysisUserEnabled = false;
-    }
+  if (smartAnalysisUserResult.status === 'fulfilled' && smartAnalysisUserResult.value) {
+    smartAnalysisUserEnabled = smartAnalysisUserResult.value.entitlements.some(
+      (entitlement) => entitlement.name === 'smart_analysis' && entitlement.enabled,
+    );
   }
 
   const suggestSchoolImageHrefBySlug = Object.fromEntries(
@@ -1139,6 +1152,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   return (
     <DashboardShell
       title="内容运营后台"
+      adminActionError={adminActionError}
       queueItems={queueItems}
       mediaAnalysisEvents={mediaAnalysisEvents}
       mediaAnalysisError={mediaAnalysisError}

@@ -1,17 +1,20 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
-const { sendChatMessageMock } = vi.hoisted(() => ({
+const { getChatSessionMessagesMock, sendChatMessageMock } = vi.hoisted(() => ({
+  getChatSessionMessagesMock: vi.fn(),
   sendChatMessageMock: vi.fn(),
 }));
 
 vi.mock("../lib/chat-api", () => ({
+  getChatSessionMessages: getChatSessionMessagesMock,
   sendChatMessage: sendChatMessageMock,
 }));
 
 import ChatWorkspace from "../components/public/chat-workspace";
 
 beforeEach(() => {
+  getChatSessionMessagesMock.mockReset();
   sendChatMessageMock.mockReset();
   sendChatMessageMock.mockResolvedValue({
     request_id: "chat_test",
@@ -65,7 +68,6 @@ test("auto-sends the initial prompt when the chat page opens from a quick prompt
   await waitFor(() => {
     expect(sendChatMessageMock).toHaveBeenCalledWith(
       {
-        userId: "wx-openid-123",
         message: "\u67e5\u5b66\u6821",
       },
       "https://api.gaokao.test",
@@ -78,6 +80,43 @@ test("auto-sends the initial prompt when the chat page opens from a quick prompt
       "\u53ef\u4ee5\u5148\u628a\u76ee\u6807\u5b66\u6821\u8303\u56f4\u7f29\u5c0f\u5230 985/211\u3002",
     ),
   ).toBeInTheDocument();
+});
+
+test("reuses the returned session id for a follow-up message", async () => {
+  sendChatMessageMock
+    .mockResolvedValueOnce({
+      session_id: "session-web-1",
+      request_id: "chat_first",
+      output: { type: "structured_json", content: { rendered_reply: "第一轮" } },
+    })
+    .mockResolvedValueOnce({
+      session_id: "session-web-1",
+      request_id: "chat_second",
+      output: { type: "structured_json", content: { rendered_reply: "第二轮" } },
+    });
+
+  render(<ChatWorkspace apiBaseUrl="https://api.gaokao.test" userId="web-user" />);
+  const input = screen.getByLabelText("输入你的问题");
+
+  fireEvent.change(input, { target: { value: "第一轮问题" } });
+  fireEvent.click(screen.getByRole("button", { name: "发送问题" }));
+  await waitFor(() => {
+    expect(sendChatMessageMock).toHaveBeenNthCalledWith(
+      1,
+      { message: "第一轮问题" },
+      "https://api.gaokao.test",
+    );
+  });
+
+  fireEvent.change(input, { target: { value: "第二轮问题" } });
+  fireEvent.click(screen.getByRole("button", { name: "发送问题" }));
+  await waitFor(() => {
+    expect(sendChatMessageMock).toHaveBeenNthCalledWith(
+      2,
+      { message: "第二轮问题", sessionId: "session-web-1" },
+      "https://api.gaokao.test",
+    );
+  });
 });
 
 test("renders suggestion cards and action links from the chat response", async () => {
@@ -236,10 +275,59 @@ test("allows manually sending a question when there is no initial prompt", async
   await waitFor(() => {
     expect(sendChatMessageMock).toHaveBeenCalledWith(
       {
-        userId: "wx-openid-456",
         message: "\u5e2e\u6211\u5206\u6790\u6c5f\u82cf985",
       },
       "https://api.gaokao.test",
     );
   });
+});
+
+test("restores a saved session when opened with a session id", async () => {
+  getChatSessionMessagesMock.mockResolvedValueOnce({
+    session_id: "session-restored",
+    channel: "web",
+    created_at: "2026-08-25T00:00:00Z",
+    updated_at: "2026-08-25T00:01:00Z",
+    expires_at: "2026-09-24T00:01:00Z",
+    items: [
+      {
+        id: 1,
+        request_id: "chat_restore",
+        role: "user",
+        content_type: "text",
+        content: "我适合报什么专业？",
+        created_at: "2026-08-25T00:00:00Z",
+      },
+      {
+        id: 2,
+        request_id: "chat_restore",
+        role: "assistant",
+        content_type: "structured_json",
+        content: "结构化回复",
+        payload: { rendered_reply: "可以先比较专业方向和选科要求。" },
+        created_at: "2026-08-25T00:01:00Z",
+      },
+    ],
+  });
+
+  render(
+    <ChatWorkspace
+      apiBaseUrl="https://api.gaokao.test"
+      userId="web-user"
+      sessionId="session-restored"
+    />,
+  );
+
+  await waitFor(() => {
+    expect(getChatSessionMessagesMock).toHaveBeenCalledWith(
+      "session-restored",
+      "https://api.gaokao.test",
+    );
+  });
+
+  expect(screen.getByText("历史会话")).toBeInTheDocument();
+  expect(screen.getByText("我适合报什么专业？")).toBeInTheDocument();
+  expect(
+    screen.getByText("可以先比较专业方向和选科要求。"),
+  ).toBeInTheDocument();
 });

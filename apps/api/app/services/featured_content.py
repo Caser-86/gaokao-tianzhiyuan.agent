@@ -4,7 +4,6 @@ from datetime import date, timedelta
 from html.parser import HTMLParser
 from typing import Any
 from urllib.parse import urljoin
-from urllib.request import Request, urlopen
 
 from sqlmodel import Session, select
 
@@ -16,6 +15,7 @@ from ..models.catalog import (
     Major,
     School,
 )
+from .url_safety import UnsafeExternalUrlError, fetch_external_text, validate_external_url
 
 ROTATION_ANCHOR_DATE = date(2026, 4, 14)
 WEEKDAY_LABELS = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
@@ -115,20 +115,30 @@ def fetch_school_image_candidate(slug: str) -> dict[str, Any]:
             "message": "学校未配置可抓取的官网地址",
         }
 
-    request = Request(
-        website,
-        headers={"User-Agent": "gaokao-agent/1.0 (+featured-school-image-suggestion)"},
-    )
+    try:
+        safe_website = validate_external_url(website)
+    except UnsafeExternalUrlError:
+        return {
+            "slug": school["slug"],
+            "name": school["name"],
+            "status": "failed",
+            "source_url": None,
+            "suggested_image_url": None,
+            "message": "学校官网地址未通过安全校验",
+        }
 
     try:
-        with urlopen(request, timeout=8) as response:
-            html = response.read().decode("utf-8", errors="ignore")
+        html, final_url = fetch_external_text(
+            safe_website,
+            headers={"User-Agent": "gaokao-agent/1.0 (+featured-school-image-suggestion)"},
+            timeout=8,
+        )
     except Exception:
         return {
             "slug": school["slug"],
             "name": school["name"],
             "status": "failed",
-            "source_url": website,
+            "source_url": safe_website,
             "suggested_image_url": None,
             "message": "抓取失败，请稍后重试",
         }
@@ -142,17 +152,30 @@ def fetch_school_image_candidate(slug: str) -> dict[str, Any]:
             "slug": school["slug"],
             "name": school["name"],
             "status": "missing",
-            "source_url": website,
+            "source_url": final_url,
             "suggested_image_url": None,
             "message": "官网页面未找到可用图片",
+        }
+
+    candidate_url = urljoin(final_url, candidate)
+    try:
+        safe_candidate_url = validate_external_url(candidate_url)
+    except UnsafeExternalUrlError:
+        return {
+            "slug": school["slug"],
+            "name": school["name"],
+            "status": "failed",
+            "source_url": final_url,
+            "suggested_image_url": None,
+            "message": "官网图片地址未通过安全校验",
         }
 
     return {
         "slug": school["slug"],
         "name": school["name"],
         "status": "found",
-        "source_url": website,
-        "suggested_image_url": urljoin(website, candidate),
+        "source_url": final_url,
+        "suggested_image_url": safe_candidate_url,
         "message": None,
     }
 

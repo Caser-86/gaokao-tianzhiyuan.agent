@@ -22,6 +22,8 @@ from app.models.catalog import (
     SchoolRankingReference,
     SearchEntry,
 )
+from app.routers import chat as chat_router_module
+from app.services.chat import ConversationService
 
 
 @pytest.fixture
@@ -47,6 +49,11 @@ def _override_engine(engine, monkeypatch):
 
     monkeypatch.setattr(catalog_service, "get_engine", lambda *_args, **_kwargs: engine)
     monkeypatch.setattr(featured_content_service, "get_engine", lambda *_args, **_kwargs: engine)
+    monkeypatch.setattr(
+        chat_router_module,
+        "conversation_service",
+        ConversationService(session_factory=lambda: Session(engine)),
+    )
 
     # 覆盖 FastAPI 依赖
     def _override_get_session():

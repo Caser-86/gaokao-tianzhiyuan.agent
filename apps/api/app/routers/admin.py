@@ -40,6 +40,7 @@ from ..services.media_analysis_events import (
     create_media_analysis_event,
     list_media_analysis_events,
 )
+from ..services.url_safety import UnsafeExternalUrlError, validate_external_url
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 media_analysis_provider = build_media_analysis_provider(
@@ -382,6 +383,10 @@ def get_media_analysis_retryability(
 
     if not pic_url:
         return False, "图片记录缺少 pic_url，暂不支持手动重试"
+    try:
+        validate_external_url(pic_url)
+    except UnsafeExternalUrlError:
+        return False, "图片记录的 pic_url 未通过安全校验，暂不支持手动重试"
 
     return True, None
 

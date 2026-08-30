@@ -65,6 +65,60 @@ def test_openai_compatible_provider_posts_expected_payload(monkeypatch) -> None:
     assert captured["json"]["messages"][1]["content"] == "帮我分析河南560分金融"
 
 
+def test_openai_compatible_provider_supports_ark_api_v3_base_url(monkeypatch) -> None:
+    captured: dict = {}
+
+    def fake_post(self, url: str, *, headers: dict, json: dict) -> StubResponse:
+        captured["url"] = url
+        captured["json"] = json
+        return StubResponse(
+            {"choices": [{"message": {"content": '{"summary":"ok"}'}}]}
+        )
+
+    monkeypatch.setattr(httpx.Client, "post", fake_post)
+
+    provider = OpenAICompatibleProvider(
+        base_url="https://ark.cn-beijing.volces.com/api/v3",
+        api_key="secret-key",
+        model="deepseek-v4-flash",
+    )
+
+    assert provider.complete_text(messages=[LLMMessage(role="user", content="test")]) == (
+        '{"summary":"ok"}'
+    )
+    assert captured["url"] == (
+        "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
+    )
+    assert captured["json"]["model"] == "deepseek-v4-flash"
+
+
+def test_openai_compatible_provider_supports_ark_agent_plan_base_url(monkeypatch) -> None:
+    captured: dict = {}
+
+    def fake_post(self, url: str, *, headers: dict, json: dict) -> StubResponse:
+        captured["url"] = url
+        captured["json"] = json
+        return StubResponse(
+            {"choices": [{"message": {"content": '{"summary":"ok"}'}}]}
+        )
+
+    monkeypatch.setattr(httpx.Client, "post", fake_post)
+
+    provider = OpenAICompatibleProvider(
+        base_url="https://ark.cn-beijing.volces.com/api/plan/v3",
+        api_key="secret-key",
+        model="deepseek-v4-flash",
+    )
+
+    assert provider.complete_text(messages=[LLMMessage(role="user", content="test")]) == (
+        '{"summary":"ok"}'
+    )
+    assert captured["url"] == (
+        "https://ark.cn-beijing.volces.com/api/plan/v3/chat/completions"
+    )
+    assert captured["json"]["model"] == "deepseek-v4-flash"
+
+
 def test_openai_compatible_provider_raises_request_error_on_transport_failure(
     monkeypatch,
 ) -> None:

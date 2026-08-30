@@ -42,6 +42,12 @@ def catalog_seed(seed_catalog):
 client = TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def freeze_wechat_clock(monkeypatch):
+    """Keep historical callback fixtures inside the new timestamp freshness window."""
+    monkeypatch.setattr(chat_router_module, "time", lambda: 1710000000)
+
+
 @dataclass(frozen=True)
 class WebOnlySkill:
     def describe(self) -> SkillMetadata:
@@ -204,9 +210,12 @@ def test_chat_skill_invoke_supports_catalog_lookup_direct_calls(catalog_seed) ->
     assert payload["debug"] == {"used_fallback": False, "notes": []}
 
 
-def test_chat_messages_can_return_provider_backed_skill_output(tmp_path) -> None:
+def test_chat_messages_can_return_provider_backed_skill_output(tmp_path, engine) -> None:
     skill_file = tmp_path / "SKILL.md"
     skill_file.write_text("张雪峰测试提示词", encoding="utf-8")
+    with Session(engine) as session:
+        set_smart_analysis_mode(session, "on")
+
     original_service = chat_router_module.conversation_service
     chat_router_module.conversation_service = ConversationService(
         registry=SkillRegistry(
@@ -216,7 +225,8 @@ def test_chat_messages_can_return_provider_backed_skill_output(tmp_path) -> None
                     skill_prompt_path=str(skill_file),
                 )
             ]
-        )
+        ),
+        session_factory=lambda: Session(engine),
     )
 
     try:
@@ -288,9 +298,12 @@ def test_chat_messages_rejects_invalid_channel() -> None:
     assert response.status_code == 422
 
 
-def test_chat_skill_invoke_allows_direct_skill_call(tmp_path) -> None:
+def test_chat_skill_invoke_allows_direct_skill_call(tmp_path, engine) -> None:
     skill_file = tmp_path / "SKILL.md"
     skill_file.write_text("张雪峰测试提示词", encoding="utf-8")
+    with Session(engine) as session:
+        set_smart_analysis_mode(session, "on")
+
     original_service = chat_router_module.conversation_service
     chat_router_module.conversation_service = ConversationService(
         registry=SkillRegistry(
@@ -300,7 +313,8 @@ def test_chat_skill_invoke_allows_direct_skill_call(tmp_path) -> None:
                     skill_prompt_path=str(skill_file),
                 )
             ]
-        )
+        ),
+        session_factory=lambda: Session(engine),
     )
 
     try:
@@ -368,9 +382,12 @@ def test_chat_skill_invoke_returns_409_for_unsupported_channel() -> None:
     assert response.json() == {"detail": "chat skill unavailable"}
 
 
-def test_wechat_chat_adapter_normalizes_payload_and_reuses_chat_flow(tmp_path) -> None:
+def test_wechat_chat_adapter_normalizes_payload_and_reuses_chat_flow(tmp_path, engine) -> None:
     skill_file = tmp_path / "SKILL.md"
     skill_file.write_text("张雪峰测试提示词", encoding="utf-8")
+    with Session(engine) as session:
+        set_smart_analysis_mode(session, "on")
+
     original_service = chat_router_module.conversation_service
     chat_router_module.conversation_service = ConversationService(
         registry=SkillRegistry(
@@ -380,7 +397,8 @@ def test_wechat_chat_adapter_normalizes_payload_and_reuses_chat_flow(tmp_path) -
                     skill_prompt_path=str(skill_file),
                 )
             ]
-        )
+        ),
+        session_factory=lambda: Session(engine),
     )
 
     try:
@@ -428,6 +446,7 @@ def test_wechat_chat_adapter_merges_persisted_user_entitlements(tmp_path) -> Non
     skill_file = tmp_path / "SKILL.md"
     skill_file.write_text("寮犻洩宄版祴璇曟彁绀鸿瘝", encoding="utf-8")
     with Session(get_engine()) as session:
+        set_smart_analysis_mode(session, "gated")
         set_user_entitlement(
             session,
             user_id="wx-openid-entitled",
@@ -474,7 +493,10 @@ def test_wechat_chat_adapter_merges_persisted_user_entitlements(tmp_path) -> Non
     }
 
 
-def test_chat_messages_return_policy_note_when_smart_analysis_is_globally_off() -> None:
+def test_chat_messages_return_policy_note_when_smart_analysis_is_globally_off(engine) -> None:
+    with Session(engine) as session:
+        set_smart_analysis_mode(session, "off")
+
     response = client.post(
         "/api/chat/messages",
         json={
@@ -495,7 +517,10 @@ def test_chat_messages_return_policy_note_when_smart_analysis_is_globally_off() 
     }
 
 
-def test_chat_messages_return_policy_note_when_gated_user_lacks_entitlement() -> None:
+def test_chat_messages_return_policy_note_when_gated_user_lacks_entitlement(engine) -> None:
+    with Session(engine) as session:
+        set_smart_analysis_mode(session, "gated")
+
     response = client.post(
         "/api/chat/messages",
         json={
@@ -505,6 +530,30 @@ def test_chat_messages_return_policy_note_when_gated_user_lacks_entitlement() ->
             "metadata": {
                 "smart_analysis_mode": "gated",
                 "entitlements": [],
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["debug"] == {
+        "used_fallback": True,
+        "notes": ["smart_analysis_entitlement_required"],
+    }
+
+
+def test_chat_messages_ignore_client_entitlement_claim_when_server_is_gated(engine) -> None:
+    with Session(engine) as session:
+        set_smart_analysis_mode(session, "gated")
+
+    response = client.post(
+        "/api/chat/messages",
+        json={
+            "channel": "web",
+            "user_id": "web-client-claims-entitlement",
+            "message": "河南560分想学金融，靠谱吗？",
+            "metadata": {
+                "smart_analysis_mode": "on",
+                "entitlements": [SMART_ANALYSIS_ENTITLEMENT],
             },
         },
     )
@@ -1049,17 +1098,17 @@ def test_wechat_official_account_video_messages_return_video_guidance_reply() ->
 
     chat_router_module.conversation_service = ShouldNotBeCalledConversationService()
     timestamp = "1710000000"
-    nonce = "nonce-123"
-    signature = build_wechat_signature(
-        token="wechat-token",
-        timestamp=timestamp,
-        nonce=nonce,
-    )
 
     for message_type, user_id in (
         ("video", "user_openid_video"),
         ("shortvideo", "user_openid_shortvideo"),
     ):
+        nonce = f"nonce-{message_type}"
+        signature = build_wechat_signature(
+            token="wechat-token",
+            timestamp=timestamp,
+            nonce=nonce,
+        )
         body = f"""
         <xml>
           <ToUserName><![CDATA[gh_test]]></ToUserName>
@@ -1068,7 +1117,7 @@ def test_wechat_official_account_video_messages_return_video_guidance_reply() ->
           <MsgType><![CDATA[{message_type}]]></MsgType>
           <MediaId><![CDATA[{message_type}-media-1]]></MediaId>
           <ThumbMediaId><![CDATA[{message_type}-thumb-1]]></ThumbMediaId>
-          <MsgId>4234567891</MsgId>
+          <MsgId>{"4234567891" if message_type == "video" else "4234567892"}</MsgId>
         </xml>
         """.strip()
 
@@ -1118,12 +1167,6 @@ def test_wechat_official_account_video_messages_record_failed_unsupported_reason
     chat_router_module.conversation_service = ShouldNotBeCalledConversationService()
     chat_router_module.media_analysis_provider = FakeMediaAnalysisProvider()
     timestamp = "1710000000"
-    nonce = "nonce-123"
-    signature = build_wechat_signature(
-        token="wechat-token",
-        timestamp=timestamp,
-        nonce=nonce,
-    )
 
     create_all_models(get_engine())
 
@@ -1138,6 +1181,12 @@ def test_wechat_official_account_video_messages_record_failed_unsupported_reason
             ("video", "user_openid_video_enabled"),
             ("shortvideo", "user_openid_shortvideo_enabled"),
         ):
+            nonce = f"nonce-{message_type}-enabled"
+            signature = build_wechat_signature(
+                token="wechat-token",
+                timestamp=timestamp,
+                nonce=nonce,
+            )
             body = f"""
             <xml>
               <ToUserName><![CDATA[gh_test]]></ToUserName>
@@ -1146,7 +1195,7 @@ def test_wechat_official_account_video_messages_record_failed_unsupported_reason
               <MsgType><![CDATA[{message_type}]]></MsgType>
               <MediaId><![CDATA[{message_type}-media-enabled-1]]></MediaId>
               <ThumbMediaId><![CDATA[{message_type}-thumb-enabled-1]]></ThumbMediaId>
-              <MsgId>4234567892</MsgId>
+      <MsgId>{"4234567893" if message_type == "video" else "4234567894"}</MsgId>
             </xml>
             """.strip()
 
@@ -1196,7 +1245,7 @@ def test_wechat_official_account_video_messages_record_failed_unsupported_reason
                 "from_user_name": user_id,
                 "create_time": "1710000001",
                 "msg_type": message_type,
-                "msg_id": "4234567892",
+                "msg_id": ("4234567893" if message_type == "video" else "4234567894"),
                 "media_id": f"{message_type}-media-enabled-1",
                 "thumb_media_id": f"{message_type}-thumb-enabled-1",
                 "failure_reason": "当前 openai_compatible 媒体分析仅支持 image，暂不支持 video/shortvideo",

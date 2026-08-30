@@ -22,6 +22,9 @@ Then fill in these fields with your real relay config:
 - `GAOKAO_AGENT_LLM_BASE_URL=<your relay base url>`
 - `GAOKAO_AGENT_LLM_API_KEY=<your relay api key>`
 - `GAOKAO_AGENT_LLM_MODEL=<your model name>`
+- `GAOKAO_AGENT_SESSION_SECRET=<long random session secret>`
+- `GAOKAO_AGENT_WECHAT_SIGNATURE_TTL_SECONDS=300`
+- `GAOKAO_AGENT_WECHAT_MAX_BODY_BYTES=262144`
 - `GAOKAO_AGENT_SMART_ANALYSIS_MODE=off`
 - `GAOKAO_AGENT_WECHAT_OFFICIAL_ACCOUNT_TOKEN=<your wechat callback token>`
 - `GAOKAO_AGENT_WECHAT_OFFICIAL_ACCOUNT_APP_ID=<your wechat app id>`
@@ -34,8 +37,9 @@ If you want to use the local ZhangXueFeng skill repository, clone it into the wo
 git clone https://github.com/alchaincyf/zhangxuefeng-skill.git vendor/zhangxuefeng-skill
 ```
 
-When `GAOKAO_AGENT_ZHANGXUEFENG_SKILL_PATH` is left blank, the API will automatically try these local paths:
+When `GAOKAO_AGENT_ZHANGXUEFENG_SKILL_PATH` is left blank, the API will automatically try these local paths in order:
 
+- `../../skills/zhangxuefeng/SKILL.md` (project default)
 - `vendor/zhangxuefeng-skill/SKILL.md`
 - `.tmp/zhangxuefeng-skill/SKILL.md`
 
@@ -64,7 +68,11 @@ Health check:
 ```powershell
 Invoke-RestMethod -Method Get -Uri http://127.0.0.1:8000/health
 Invoke-RestMethod -Method Get -Uri http://127.0.0.1:8000/api/chat/health
+Invoke-RestMethod -Method Get -Uri http://127.0.0.1:8000/version
 ```
+
+`/version` returns the non-secret `GAOKAO_AGENT_RELEASE_VERSION` value for
+post-deploy image/config verification; it defaults to `dev` for local work.
 
 ## Test the ZhangXueFeng skill
 
@@ -114,15 +122,7 @@ Smart analysis can be controlled globally with `GAOKAO_AGENT_SMART_ANALYSIS_MODE
 - `gated`: allow model-backed smart analysis only for callers with the `smart_analysis` entitlement.
 - `on`: allow model-backed smart analysis for everyone.
 
-During the current integration phase, callers can pass entitlements through request metadata:
-
-```json
-{
-  "metadata": {
-    "entitlements": ["smart_analysis"]
-  }
-}
-```
+The API now treats the persisted runtime mode and database entitlements as the only authorization inputs. Request metadata may describe channel context, but it cannot grant `smart_analysis` or change the mode. Web identity is issued by the API as an HTTP-only `gaokao_session` cookie; production-like environments reject the default session secret and arbitrary request `user_id` values without a server-issued session.
 
 When smart analysis is blocked by policy, the API still returns a normal fallback answer and exposes the reason in `debug.notes`:
 
@@ -158,7 +158,9 @@ Admin operations:
 - `POST /api/admin/media-analysis-events/{event_id}/retry`
   - currently retries image records whose persisted `context.pic_url` is available
 
-During the transition period, request `metadata.entitlements` is still accepted, but persisted DB state is preferred when available.
+During the transition period, development/test still accept an explicit request `user_id` for local fixtures; production-like environments require the server-issued session context.
+
+Official-account callbacks reject timestamps outside the configured freshness window (default 300 seconds), reject bodies over the configured limit (default 256 KiB), and claim each `MsgId`/nonce before routing so verified retries return `success` without repeating business handling.
 
 The admin dashboard now also surfaces recent media-analysis records from SQLite. Each record includes the media type, provider, status, summary, rendered reply, extracted fields, raw `context` (message ID, media ID, PicUrl and other retained callback metadata), retryability metadata, and whether the image result auto-routed into the existing gaokao chat flow. The current `/admin` page also supports lightweight filtering by status, user ID, and “auto-routed into main analysis”, plus an inline detail expander for single-record troubleshooting.
 
@@ -252,6 +254,8 @@ powershell -ExecutionPolicy Bypass -File scripts/smoke-wechat-official-account.p
 - If no media-analysis provider is configured, enabled users still receive the reserved "media analysis pending integration" reply.
 - If `openai_compatible` is selected but `BASE_URL / API_KEY / MODEL` are incomplete, image analysis now returns an explicit failed result with a readable configuration reason.
 - If image media analysis explicitly fails after invocation, the callback now returns an "image analysis temporarily unavailable" reply instead of the generic pending-integration text.
+- External media and featured-image URLs now pass a shared HTTP(S), host, credential, redirect, and response-size safety boundary; unsafe historical `pic_url` values are blocked before admin retry.
+- Session messages and media-analysis events have configurable 30-day default retention; expired SQLite records are purged at startup and on relevant read/write paths. Authenticated users can call `DELETE /api/privacy/me` to delete their own chat and media records. Agent traces remain redacted structured logs and should be rotated by the deployment log system using the 7-day default policy.
 - `scripts/start-local-stack.ps1 -RunSmoke` now injects default AES local values and verifies both plaintext and AES callback flows.
 
 Default menu keys:

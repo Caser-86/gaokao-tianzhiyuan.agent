@@ -37,7 +37,6 @@ const renderShelf = () =>
   render(
     <PlatformHomepageShelf
       apiBaseUrl="https://api.gaokao.test"
-      userId="wx-openid-123"
       products={homepageProducts}
     />,
   );
@@ -150,7 +149,6 @@ test('selecting products renders merged entitlements from the API', async () => 
     expect(evaluatePlatformEntitlementsMock).toHaveBeenLastCalledWith(
       ['insight-weekly', 'deep-dive-pack'],
       'https://api.gaokao.test',
-      'wx-openid-123',
     );
   });
 
@@ -222,7 +220,6 @@ test('shows a local error when entitlement evaluation fails', async () => {
     expect(evaluatePlatformEntitlementsMock).toHaveBeenCalledWith(
       ['insight-weekly'],
       'https://api.gaokao.test',
-      'wx-openid-123',
     );
   });
 
