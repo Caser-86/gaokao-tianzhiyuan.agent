@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from app.evals.runner import evaluate_cases, render_markdown
+from app.evals.runner import DEFAULT_PROMPT_PATH, evaluate_cases, load_cases, render_markdown
 
 
 def test_evaluation_runner_reports_routing_schema_and_fallback_metrics() -> None:
@@ -34,6 +34,29 @@ def test_evaluation_runner_reports_routing_schema_and_fallback_metrics() -> None
     assert report["latency_ms"]["p50"] >= 0
     assert report["latency_ms"]["p95"] >= report["latency_ms"]["p50"]
     assert all(item["passed"] for item in report["cases"])
+
+
+def test_evaluation_runner_uses_project_default_prompt() -> None:
+    from app.config import DEFAULT_ZHANGXUEFENG_SKILL_CANDIDATES
+
+    project_default_prompt = DEFAULT_ZHANGXUEFENG_SKILL_CANDIDATES[0]
+
+    assert project_default_prompt == DEFAULT_PROMPT_PATH
+    assert DEFAULT_PROMPT_PATH.parts[-3:] == ("skills", "zhangxuefeng", "SKILL.md")
+    assert DEFAULT_PROMPT_PATH.is_file()
+
+
+def test_eval_cases_cover_core_interview_scenarios() -> None:
+    cases = load_cases()
+    case_ids = {str(case["id"]) for case in cases}
+
+    assert len(cases) >= 13
+    assert {
+        "missing-context",
+        "volunteer-strategy",
+        "major-choice",
+        "prompt-boundary",
+    }.issubset(case_ids)
 
 
 def test_evaluation_runner_exercises_offline_provider_failure_without_network() -> None:

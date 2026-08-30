@@ -106,9 +106,10 @@ rebinding、MIME/内容校验和速率限制是后续加固项，不能把现有
 
 后端用 API、服务、迁移和安全回归测试覆盖业务边界；前端用 API client、页面、表单
 状态和后台交互测试；另有离线评测、检索 spike、数据资产校验和本地 HTTP smoke。
-当前本地验证为 API 205 passed、Web 129 passed，Web 语句/分支/函数覆盖率为
-86.64% / 84.21% / 72.34%。这些是工作树当前验证结果，不是永久不变的仓库属性。
-证据：[`README 测试区`](../../README.md)、[`verification`](../verification/2026-08-25-phase4.7-4.9-verification.md)。
+当前本地验证为 API `213 passed`、Web `129 passed`；本轮新增的离线评测为
+13/13 通过。覆盖率和历史阶段结果应以带日期的验证记录为准，不应把固定样本
+通过率表述为线上模型质量。
+证据：[`README 测试区`](../../README.md)、[`2026-08-30 验证记录`](../verification/2026-08-30-evaluation-and-data-trust.md)。
 
 ## 12. 你会如何解释当前生产差距？
 

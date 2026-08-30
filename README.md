@@ -24,7 +24,7 @@
 | 为什么是 Agent，而不只是聊天框？ | 自动路由接口会先做 Skill 匹配；当前 Web 聊天页则直接调用指定的高考咨询 Skill。两条路径都会执行权益判断、结构化输出与失败降级，并把媒体事件和失败原因留给运营后台。 |
 | 核心 Agent 能力是什么？ | `SkillRegistry`、置信度路由、OpenAI-compatible Provider、结构化 JSON 输出、确定性 fallback、多渠道适配和轻量 Agent trace。 |
 | 工程难点在哪里？ | 模型不稳定、用户权益、微信公众号 AES、多类型消息、内容审核、媒体失败重试和本地可复现交付。 |
-| 如何证明不是概念 Demo？ | 仓库包含关系数据模型、运营后台、194 个后端测试函数（pytest 当前收集 205 个用例）、129 个前端测试用例、CI、Docker、冒烟脚本和部署模板。源码函数数与参数化展开后的用例数分开标注，当前通过状态以实际 CI/本地运行结果为准。 |
+| 如何证明不是概念 Demo？ | 仓库包含关系数据模型、运营后台、后端/前端测试、CI、Docker、冒烟脚本和部署模板；最新可追溯结果见 [`2026-08-30 验证记录`](docs/verification/2026-08-30-evaluation-and-data-trust.md)。 |
 | 当前最重要的边界是什么？ | 演示数据不能用于真实志愿决策；生产发布、版本探针和回滚闭环仍需外部环境确认。 |
 
 适合重点查看的三个入口：
@@ -44,6 +44,10 @@
 - 模型失败不会让聊天链路整体崩溃。
 - 内容、榜单、精选轮换、权益和失败事件可在后台治理。
 - 同一套 Agent 能力可服务 Web 和微信公众号渠道。
+
+## 数据可信度边界
+
+根目录 [`data/`](data/) 是用于开发、测试和面试演示的少量 JSON 资产，不是实时招生数据库。当前示例中的榜单链接和内容均不能作为官方录取依据；未来接入真实数据时，每条记录至少需要来源名称、来源 URL、发布日期/更新时间、适用年份、地区和“官方/二手资料”标记。发布前运行 `python scripts/verify-data-assets.py`，并在后台或页面展示数据更新时间与免责声明。详细规则见 [`data/README.md`](data/README.md)。
 
 ## 和直接询问 GPT/豆包有什么区别？
 
@@ -133,11 +137,11 @@ sequenceDiagram
 | 能力 | 当前实现 | 关键位置 |
 |---|---|---|
 | Skill 路由 | 内置目录查询与高考咨询 Skill，按置信度选择 | [`skills.py`](apps/api/app/services/skills.py) |
-| LLM Provider | OpenAI-compatible `/v1/chat/completions`，结构化 JSON 输出 | [`llm.py`](apps/api/app/services/llm.py) |
+| LLM Provider | OpenAI-compatible Chat Completions，支持 `/v1`、`/v3` 和 Agent Plan 版本路径，结构化 JSON 输出 | [`llm.py`](apps/api/app/services/llm.py) |
 | 失败降级 | 区分未配置、请求失败、余额不足和非法响应 | [`chat.py`](apps/api/app/services/chat.py) |
 | Agent trace | 记录候选/选择 Skill、版本、Prompt SHA-256 指纹、Provider、模型调用标记、耗时和降级原因；session 只保留摘要引用 | [`tracing.py`](apps/api/app/services/tracing.py) |
 | 会话持久化 | SQLModel 保存用户/Agent 消息，30 天滚动保留，按用户读取和删除；不自动注入长期记忆 | [`chat_sessions.py`](apps/api/app/services/chat_sessions.py) |
-| 离线评测 | 9 个固定样本覆盖路由、结构化输出、Provider 失败与 fallback；报告不访问真实模型 | [`runner.py`](apps/api/app/evals/runner.py) |
+| 离线评测 | 13 个固定样本覆盖路由、信息缺失、敏感请求边界、结构化输出、Provider 失败与 fallback；报告不访问真实模型 | [`runner.py`](apps/api/app/evals/runner.py) |
 | 领域知识 | 学校、专业、关联、榜单来源、精选和搜索入口关系模型 | [`models/catalog.py`](apps/api/app/models/catalog.py) |
 | 智能分析权益 | `off / gated / on` 与用户 `smart_analysis` 权益；策略只由服务端模式和数据库权益决定 | [`access_control.py`](apps/api/app/services/access_control.py) |
 | 微信公众号 | URL 验证、明文/AES、文本/图片/语音/位置/链接和菜单事件 | [`routers/chat.py`](apps/api/app/routers/chat.py) |
@@ -361,6 +365,8 @@ npm audit --audit-level=moderate
 
 2026-08-25 本地验证记录（基线 HEAD `772948a6f6fe28b353007b009658e277f07475ed`，工作树未提交）已执行：API `205 passed`、后端总覆盖率 `85%`、Web `129 passed`、Web 语句/分支/函数覆盖率 `86.64% / 84.21% / 72.34%`、Web typecheck 和生产构建通过；会话与微信幂等迁移经过 upgrade/downgrade/upgrade 往返验证；离线评测 9/9 样本通过；SQL 覆盖 spike 为 6/6 标签一致；客户端权益伪造、可信身份、平台权益主体、公众号重放、URL/媒体输入安全、隐私删除、后台 Action 失败反馈、并发加载和 `/version` 版本探针回归通过；隔离本地栈的完整 HTTP smoke（含公众号明文/AES 多类型回调和 `dev` 版本断言）通过，随后在同一持久化 SQLite 上完成 `release-old → release-new → release-old` 三段版本 smoke/回滚演练；首页/聊天/后台脱敏截图已生成；三分钟 Demo 脚本和面试问答包的文档链接、敏感模式与 diff 检查通过。详细结果见 [`docs/verification/2026-08-25-phase2-verification.md`](docs/verification/2026-08-25-phase2-verification.md)、[`docs/verification/2026-08-25-phase3.1-verification.md`](docs/verification/2026-08-25-phase3.1-verification.md)、[`docs/verification/2026-08-25-phase3.2-verification.md`](docs/verification/2026-08-25-phase3.2-verification.md)、[`docs/verification/2026-08-25-phase3.3-3.5-evaluation.md`](docs/verification/2026-08-25-phase3.3-3.5-evaluation.md)、[`docs/verification/2026-08-25-phase3.6-3.7-verification.md`](docs/verification/2026-08-25-phase3.6-3.7-verification.md)、[`docs/verification/2026-08-25-phase4.1-verification.md`](docs/verification/2026-08-25-phase4.1-verification.md)、[`docs/verification/2026-08-25-phase4.2-verification.md`](docs/verification/2026-08-25-phase4.2-verification.md)、[`docs/verification/2026-08-25-phase4.3-verification.md`](docs/verification/2026-08-25-phase4.3-verification.md)、[`docs/verification/2026-08-25-phase4.4-verification.md`](docs/verification/2026-08-25-phase4.4-verification.md)、[`docs/verification/2026-08-25-phase4.5-verification.md`](docs/verification/2026-08-25-phase4.5-verification.md)、[`docs/verification/2026-08-25-phase4.6-verification.md`](docs/verification/2026-08-25-phase4.6-verification.md)、[`docs/verification/2026-08-25-phase4.7-4.9-verification.md`](docs/verification/2026-08-25-phase4.7-4.9-verification.md)、[`docs/verification/2026-08-25-phase5.5-5.6-verification.md`](docs/verification/2026-08-25-phase5.5-5.6-verification.md) 和 [`docs/verification/2026-08-25-phase5.7-5.8-verification.md`](docs/verification/2026-08-25-phase5.7-5.8-verification.md)。
 
+2026-08-30 本轮验证基线（工作树基于 `f5a8340`）：API `213 passed`、Web `129 passed`、离线评测 13/13 通过、数据资产结构校验通过。详细命令、Prompt 一致性和数据可信度边界见 [`evaluation-and-data-trust verification`](docs/verification/2026-08-30-evaluation-and-data-trust.md)；本轮仍未声称完成生产部署、公开 HTTPS smoke、监控告警或外部回滚演练。
+
 ## 目录结构
 
 ```text
@@ -396,7 +402,7 @@ PLAN.md                        从 MVP 到面试代表作的分阶段路线图
 
 ## 项目状态与路线图
 
-第一阶段的文档和展示增强已完成；当前工作树已执行 Phase 2.1—2.8、Phase 3.1—3.7、Phase 4.1—4.9、Phase 5.1—5.4、Phase 5.6、Phase 5.8，并完成 Phase 5.5 的本地 smoke/版本断言、重复 smoke 回归和同库 old→new→old 回滚演练，以及 Phase 5.7 的 Demo 脚本/录制清单和本地脱敏视频候选：修复本地冒烟脚本、建立验证记录、收紧 Release/生产 API 配置、增加 JSON 资产校验、统一运行时文档、补齐现有 smoke 证据，接入不含敏感原文的 Agent trace，加入 30 天滚动会话持久化与页面恢复，建立 9 个固定样本的离线评测基线，记录 Skill 版本与 Prompt 指纹，完成 SQL 覆盖边界 spike，阻断客户端 metadata 伪造智能分析权益，建立服务端签发的 HMAC guest session 与 Web cookie 身份边界，让平台权益查询复用服务端主体，为公众号回调增加 timestamp 窗口、body 上限和 MsgId/nonce 幂等，为图片/官网 URL 增加协议、主机、重定向和响应体边界，为会话/媒体事件/trace 建立保留、清理和用户删除规则，并为后台写操作加入结构化失败反馈、独立请求并发加载和首批内容质量组件拆分。`verify-project.ps1`、API/Web 测试、覆盖率、typecheck、Web 生产构建和隔离本地栈 HTTP smoke/版本断言已在 2026-08-25 本地通过；GitHub tag Release、Docker 实际发布、生产 post-deploy smoke 和 rollback 尚未完成。根目录 `data/` 是唯一权威源，未跟踪的 `apps/data/` 仅保留在当前本地工作区，CI 会拒绝其进入仓库。后续优先级为：
+第一阶段的文档和展示增强已完成；当前工作树已执行 Phase 2.1—2.8、Phase 3.1—3.7、Phase 4.1—4.9、Phase 5.1—5.4、Phase 5.6、Phase 5.8，并完成 Phase 5.5 的本地 smoke/版本断言、重复 smoke 回归和同库 old→new→old 回滚演练，以及 Phase 5.7 的 Demo 脚本/录制清单和本地脱敏视频候选：修复本地冒烟脚本、建立验证记录、收紧 Release/生产 API 配置、增加 JSON 资产校验、统一运行时文档、补齐现有 smoke 证据，接入不含敏感原文的 Agent trace，加入 30 天滚动会话持久化与页面恢复，建立 13 个固定样本的离线评测基线，记录 Skill 版本与 Prompt 指纹，完成 SQL 覆盖边界 spike，阻断客户端 metadata 伪造智能分析权益，建立服务端签发的 HMAC guest session 与 Web cookie 身份边界，让平台权益查询复用服务端主体，为公众号回调增加 timestamp 窗口、body 上限和 MsgId/nonce 幂等，为图片/官网 URL 增加协议、主机、重定向和响应体边界，为会话/媒体事件/trace 建立保留、清理和用户删除规则，并为后台写操作加入结构化失败反馈、独立请求并发加载和首批内容质量组件拆分。`verify-project.ps1`、API/Web 测试、覆盖率、typecheck、Web 生产构建和隔离本地栈 HTTP smoke/版本断言已在 2026-08-25 本地通过；GitHub tag Release、Docker 实际发布、生产 post-deploy smoke 和 rollback 尚未完成。根目录 `data/` 是唯一权威源，未跟踪的 `apps/data/` 仅保留在当前本地工作区，CI 会拒绝其进入仓库。2026-08-30 的最新评测与数据边界证据见 [`evaluation-and-data-trust verification`](docs/verification/2026-08-30-evaluation-and-data-trust.md)。后续优先级为：
 
 1. 完成生产发布后 smoke、回滚演练和外部部署确认（Phase 5.5）。
 2. 按评测证据扩充非结构化问题样本，达到量化阈值后再评估混合检索。
@@ -418,6 +424,7 @@ PLAN.md                        从 MVP 到面试代表作的分阶段路线图
 - [`docs/operations/local-handover-runbook.md`](docs/operations/local-handover-runbook.md)：本地运行、冒烟和排障。
 - [`docs/interview/three-minute-demo.md`](docs/interview/three-minute-demo.md)：录制时间线、台词和安全清单。
 - [`docs/interview/interview-qa.md`](docs/interview/interview-qa.md)：架构、Agent、评测、安全、成本和生产差距问答。
+- [`docs/verification/2026-08-30-evaluation-and-data-trust.md`](docs/verification/2026-08-30-evaluation-and-data-trust.md)：本轮 Prompt、评测、数据治理和本地验证记录。
 
 ---
 

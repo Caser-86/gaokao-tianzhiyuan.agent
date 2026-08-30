@@ -10,6 +10,8 @@
 
 它目前最适合作为“有真实业务约束的 LLM 应用工程项目”展示，而不是宣称为已完成生产验证的招生决策系统。面试价值主要来自工程取舍、异常治理、多渠道接入、会话生命周期和运营闭环；当前工作树已补入轻量调用 trace、最小会话持久化、离线评测基线、版本指纹和 SQL 覆盖边界 spike，后续仍应优先补齐账号级身份生命周期和可追溯的生产发布验证。
 
+本轮更新（2026-08-30）已让离线评测默认使用项目内置 Prompt，并扩展到 13 个固定样本；本地 API 最新验证为 `213 passed`，Web 最新验证为 `129 passed`。这些结果只代表本地工作树和固定样本，不代表线上模型质量或生产 SLA，完整记录见 [`evaluation-and-data-trust verification`](docs/verification/2026-08-30-evaluation-and-data-trust.md)。
+
 ## 评审范围
 
 评审覆盖 `git ls-files` 返回的 256 个跟踪文件，并额外核对了当前工作区未提交内容：
@@ -81,7 +83,7 @@ flowchart LR
 | 确定性降级 | 配置缺失、请求失败、余额不足、格式错误均回退到规则结果 | [`skills.py`](apps/api/app/services/skills.py) | 体现 LLM 非确定性下的可用性设计 |
 | Agent trace | 记录候选/选择 Skill、版本、Prompt SHA-256 指纹、Provider、模型调用标记、耗时和降级原因；session 仅保存摘要引用 | [`tracing.py`](apps/api/app/services/tracing.py)、[`chat.py`](apps/api/app/services/chat.py) | 可解释一次请求为什么这样路由，且不把敏感原文写入 trace |
 | 会话生命周期 | 保存 user/assistant 消息，30 天滚动过期，按用户读取/删除；页面可通过 `session_id` 恢复 | [`chat_sessions.py`](apps/api/app/services/chat_sessions.py)、[`chat.py`](apps/api/app/services/chat.py) | 可展开数据保留、隔离和“短期会话不等于长期记忆”的取舍 |
-| 离线评测基线 | 9 个固定样本，覆盖目录、路由、Provider 失败和结构化输出；当前 9/9 通过 | [`cases.json`](apps/api/evals/cases.json)、[`runner.py`](apps/api/app/evals/runner.py) | 可量化讲解“模型不可用时如何保持可用”，不伪造线上质量 |
+| 离线评测基线 | 13 个固定样本，覆盖目录、路由、信息缺失、敏感请求边界、Provider 失败和结构化输出；当前 13/13 通过 | [`cases.json`](apps/api/evals/cases.json)、[`runner.py`](apps/api/app/evals/runner.py) | 可量化讲解“模型不可用时如何保持可用”，不伪造线上质量 |
 | 权益控制 | `off / gated / on`，支持持久化用户权益 | [`access_control.py`](apps/api/app/services/access_control.py) | 体现模型成本与商业权限结合 |
 | 多模态预留 | 图片分析 Provider、字段提取、审计事件和重试入口 | [`media_analysis.py`](apps/api/app/services/media_analysis.py) | 可说明多模态链路及失败可恢复性 |
 | 多渠道适配 | Web、通用微信渠道、公众号明文/AES 回调 | [`routers/chat.py`](apps/api/app/routers/chat.py) | 展示渠道协议适配能力 |

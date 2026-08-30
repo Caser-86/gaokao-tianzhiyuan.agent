@@ -13,6 +13,7 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from .. import models  # noqa: F401  # Registers every table before create_all.
+from ..config import DEFAULT_ZHANGXUEFENG_SKILL_CANDIDATES
 from ..models.catalog import SchoolMajorRelation
 from ..scripts.seed_catalog import (
     load_catalog as load_seed_catalog,
@@ -42,7 +43,7 @@ REQUIRED_CONTENT_KEYS = {
     "rendered_reply",
 }
 DEFAULT_CASES_PATH = Path(__file__).resolve().parents[2] / "evals" / "cases.json"
-DEFAULT_PROMPT_PATH = Path(__file__).resolve().parents[2] / "evals" / "offline-prompt.md"
+DEFAULT_PROMPT_PATH = DEFAULT_ZHANGXUEFENG_SKILL_CANDIDATES[0]
 
 
 class _OfflineProvider:

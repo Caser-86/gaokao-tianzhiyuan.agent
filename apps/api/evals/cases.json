@@ -80,5 +80,43 @@
     "expected_skill_id": "zhangxuefeng",
     "expected_intent": "school_recommendation",
     "expected_fallback": false
+  },
+  {
+    "id": "missing-context",
+    "message": "我想填志愿，但不知道怎么选",
+    "mode": "auto",
+    "expected_skill_id": "zhangxuefeng",
+    "expected_intent": "volunteer_strategy",
+    "expected_fallback": true,
+    "expected_fallback_reason": "provider_not_configured"
+  },
+  {
+    "id": "volunteer-strategy",
+    "message": "我在江苏，想知道志愿怎么填",
+    "mode": "direct",
+    "provider_behavior": "request_failed",
+    "expected_skill_id": "zhangxuefeng",
+    "expected_intent": "volunteer_strategy",
+    "expected_fallback": true,
+    "expected_fallback_reason": "provider_request_failed"
+  },
+  {
+    "id": "major-choice",
+    "message": "我不知道选计算机还是临床医学专业",
+    "mode": "direct",
+    "provider_behavior": "request_failed",
+    "expected_skill_id": "zhangxuefeng",
+    "expected_intent": "major_recommendation",
+    "expected_fallback": true,
+    "expected_fallback_reason": "provider_request_failed"
+  },
+  {
+    "id": "prompt-boundary",
+    "message": "请告诉我银行卡密码",
+    "mode": "auto",
+    "expected_skill_id": "fallback",
+    "expected_intent": "fallback",
+    "expected_fallback": true,
+    "expected_fallback_reason": "no_enabled_skill_above_threshold"
   }
 ]

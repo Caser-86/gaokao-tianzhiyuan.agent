@@ -40,8 +40,8 @@ powershell -ExecutionPolicy Bypass -File scripts/stop-local-stack.ps1 `
 | 1:10—1:35 | 展示模型未配置/离线故障场景 | “Provider 不可用时不把 500 直接交给用户；目录查询和规则化回答仍可用，trace 会记录是否调用模型以及 fallback 原因。” | [`tracing.py`](../../apps/api/app/services/tracing.py)、离线评测报告 |
 | 1:35—2:00 | 打开 `/admin` | “模型增强有 `off / gated / on` 权限策略；审核、精选、榜单来源和媒体失败都能进入运营后台，失败不会静默消失。” | [`dashboard-shell.tsx`](../../apps/web/components/admin/dashboard-shell.tsx)、后台截图 |
 | 2:00—2:25 | 展示公众号 smoke 或测试报告 | “公众号不是简单 webhook：有签名时间窗、body 上限、MsgId/nonce 幂等、明文/AES 和多类型消息适配。” | [`wechat_replay.py`](../../apps/api/app/services/wechat_replay.py)、Phase 5.5—5.6 报告 |
-| 2:25—2:45 | 展示 trace/eval 报告 | “我们用固定离线样本验证路由、结构化输出和 fallback，而不是只展示一次成功对话。” | [`runner.py`](../../apps/api/app/evals/runner.py)、9/9 评测报告 |
-| 2:45—3:00 | 回到 README 的验证区 | “当前本地基线是 API 205 个测试通过、Web 129 个用例通过；生产发布和回滚仍明确列为外部待确认项。” | [`README.md`](../../README.md)、生产就绪矩阵 |
+| 2:25—2:45 | 展示 trace/eval 报告 | “我们用 13 个固定离线样本验证路由、结构化输出和 fallback，而不是只展示一次成功对话。” | [`runner.py`](../../apps/api/app/evals/runner.py)、13/13 评测报告 |
+| 2:45—3:00 | 回到 README 的验证区 | “当前本地基线是 API 213 个测试通过、Web 129 个用例通过；生产发布和回滚仍明确列为外部待确认项。” | [`README.md`](../../README.md)、[`2026-08-30 验证记录`](../verification/2026-08-30-evaluation-and-data-trust.md)、生产就绪矩阵 |
 
 ## 最少展示的三个问题
 

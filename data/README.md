@@ -26,6 +26,17 @@ The UI and README must continue to state that admissions policies, plans and
 cutoffs vary by year and region. A future ingestion job must preserve source
 metadata instead of overwriting the demo fixtures in place.
 
+## Pre-release checklist
+
+Before presenting a record as non-demo content, confirm that it includes the
+source name, source URL, publication or update date, applicable year, region,
+and an explicit `official` or `secondary` classification. Display the source
+and freshness boundary in the UI, keep stale records identifiable, and require
+human review before publishing a policy, admissions plan, cutoff, ranking, or
+recommendation claim. Run `python scripts/verify-data-assets.py` after changing
+the JSON fixtures; that validator checks structure and relations, not the
+truth of an external source.
+
 The authoritative tracked data directory is the repository root `data/`. The
 validator is:
 
