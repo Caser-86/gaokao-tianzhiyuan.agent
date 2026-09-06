@@ -13,7 +13,7 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from .. import models  # noqa: F401  # Registers every table before create_all.
-from ..config import DEFAULT_ZHANGXUEFENG_SKILL_CANDIDATES
+from ..config import resolve_zhangxuefeng_skill_path
 from ..models.catalog import SchoolMajorRelation
 from ..scripts.seed_catalog import (
     load_catalog as load_seed_catalog,
@@ -29,6 +29,7 @@ from ..scripts.seed_catalog import (
 from ..services.access_control import set_smart_analysis_mode, set_user_entitlement
 from ..services.chat import ConversationService
 from ..services.llm import ProviderRequestError
+from ..services.prompt_assets import hash_prompt_file
 from ..services.skills import CatalogLookupSkill, SkillRegistry, ZhangXueFengSkill
 
 REQUIRED_CONTENT_KEYS = {
@@ -43,7 +44,16 @@ REQUIRED_CONTENT_KEYS = {
     "rendered_reply",
 }
 DEFAULT_CASES_PATH = Path(__file__).resolve().parents[2] / "evals" / "cases.json"
-DEFAULT_PROMPT_PATH = DEFAULT_ZHANGXUEFENG_SKILL_CANDIDATES[0]
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
+_resolved_default_prompt = resolve_zhangxuefeng_skill_path("")
+DEFAULT_PROMPT_PATH = Path(_resolved_default_prompt) if _resolved_default_prompt else Path("")
+
+
+def _display_prompt_path(path: Path) -> str:
+    try:
+        return path.resolve().relative_to(PROJECT_ROOT.resolve()).as_posix()
+    except ValueError:
+        return str(path)
 
 
 class _OfflineProvider:
@@ -271,6 +281,10 @@ def evaluate_cases(cases: Iterable[dict[str, Any]]) -> dict[str, Any]:
     latencies = [float(item["latency_ms"]) for item in results]
     denominator = total or 1
     return {
+        "prompt": {
+            "path": _display_prompt_path(DEFAULT_PROMPT_PATH),
+            "sha256": hash_prompt_file(DEFAULT_PROMPT_PATH),
+        },
         "total_cases": total,
         "passed_cases": sum(1 for item in results if item["passed"]),
         "routing_accuracy": round(
@@ -311,6 +325,11 @@ def render_markdown(report: dict[str, Any], *, commit: str = "working-tree") -> 
         f"| Fallback accuracy | {report['fallback_accuracy']:.2%} |",
         f"| P50 latency (local) | {report['latency_ms']['p50']:.2f} ms |",
         f"| P95 latency (local) | {report['latency_ms']['p95']:.2f} ms |",
+        "",
+        "## Prompt Identity",
+        "",
+        f"| Prompt source | `{report['prompt']['path']}` |",
+        f"| Prompt SHA-256 | `{report['prompt']['sha256'] or '-'}` |",
         "",
         "## Case Results",
         "",

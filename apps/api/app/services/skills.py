@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 from collections.abc import Callable
@@ -17,6 +16,7 @@ from .llm import (
     ProviderRequestError,
     ProviderResponseFormatError,
 )
+from .prompt_assets import hash_prompt_file
 
 GAOKAO_KEYWORDS = ("学校", "专业", "志愿", "985", "211", "双一流", "冲", "稳", "保", "对比")
 PROVINCES = ("北京", "上海", "江苏", "浙江", "广东", "四川", "湖北", "河南")
@@ -160,16 +160,6 @@ class SkillRegistry:
             if metadata.enabled and channel in metadata.supports_channels:
                 enabled.append(skill)
         return enabled
-
-
-def _hash_prompt_file(path: str) -> str | None:
-    normalized = path.strip()
-    if not normalized:
-        return None
-    try:
-        return hashlib.sha256(Path(normalized).read_bytes()).hexdigest()
-    except OSError:
-        return None
 
 
 CATALOG_LOOKUP_HINTS = (
@@ -438,7 +428,7 @@ class ZhangXueFengSkill:
             description="使用本地 SKILL.md 和模型中转的高考咨询 skill",
             enabled=True,
             supports_channels=("wechat", "web"),
-            prompt_hash=_hash_prompt_file(self.skill_prompt_path),
+            prompt_hash=hash_prompt_file(self.skill_prompt_path),
         )
 
     def match(self, request: ChatRequestContext) -> SkillMatchResult:

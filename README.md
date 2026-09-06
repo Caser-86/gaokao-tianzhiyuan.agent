@@ -65,6 +65,13 @@
 
 面试时应诚实地说：**这个项目没有训练一个新基础模型，也不能宣称替代 GPT/豆包；它展示的是如何把通用模型可靠地嵌入一个有结构化领域数据、业务规则、成本权限、隐私边界和运营反馈的 LLM 应用。**相关实现证据见 [`Skill 路由`](apps/api/app/services/skills.py)、[`聊天编排与降级`](apps/api/app/services/chat.py)、[`服务端权益`](apps/api/app/services/access_control.py)、[`Agent trace`](apps/api/app/services/tracing.py) 和 [`离线评测`](apps/api/app/evals/runner.py)。
 
+### Prompt 与离线评测如何保持一致？
+
+- 唯一正式 Prompt 是 [`skills/zhangxuefeng/SKILL.md`](skills/zhangxuefeng/SKILL.md)，运行时和离线 runner 都通过同一套默认路径解析规则使用它；有效的自定义 Prompt 路径仍然优先。
+- 运行时 Agent trace 与离线评测报告都记录 Prompt 的 SHA-256，不记录 Prompt 原文、API Key 或用户原文。
+- `apps/api/evals/offline-prompt.md` 只保留为历史路径兼容说明，不会被运行时或评测加载，避免仓库中出现两份“看起来都是真 Prompt”的资产。
+- 执行 `python -m app.evals.runner --format markdown` 可看到评测级 Prompt 来源、hash、路由/schema/fallback 指标和逐 case 结果；该离线报告只证明固定样本与确定性 stub，不代表线上模型质量。
+
 ## 系统架构
 
 ```mermaid
@@ -370,6 +377,8 @@ npm audit --audit-level=moderate
 
 2026-08-31 数据来源契约验证（基于 `ce72eb5` 工作树）：API `215 passed`、Web `130 passed`、数据资产结构与来源契约校验通过、Web typecheck/lint 通过。公开搜索/列表/详情 API 返回 `data_provenance`，学校和专业详情页展示演示数据、更新时间、来源范围和免责声明。完整命令与边界见 [`data provenance contract verification`](docs/verification/2026-08-31-data-provenance-contract.md)；生产权威数据接入、刷新责任和 HTTPS smoke 仍需外部确认。
 
+2026-09-07 Prompt/评测统一验证：运行时和离线 runner 共用正式 Prompt 路径解析与 SHA-256 计算；13/13 固定样本通过，报告声明 `skills/zhangxuefeng/SKILL.md` 及其 Prompt hash。完整命令、测试计数和边界见 [`Prompt 与离线评测统一验证`](docs/verification/2026-09-07-prompt-evaluation-unification.md)。
+
 ## 目录结构
 
 ```text
@@ -427,7 +436,8 @@ PLAN.md                        从 MVP 到面试代表作的分阶段路线图
 - [`docs/operations/local-handover-runbook.md`](docs/operations/local-handover-runbook.md)：本地运行、冒烟和排障。
 - [`docs/interview/three-minute-demo.md`](docs/interview/three-minute-demo.md)：录制时间线、台词和安全清单。
 - [`docs/interview/interview-qa.md`](docs/interview/interview-qa.md)：架构、Agent、评测、安全、成本和生产差距问答。
-- [`docs/verification/2026-08-30-evaluation-and-data-trust.md`](docs/verification/2026-08-30-evaluation-and-data-trust.md)：本轮 Prompt、评测、数据治理和本地验证记录。
+- [`docs/verification/2026-08-30-evaluation-and-data-trust.md`](docs/verification/2026-08-30-evaluation-and-data-trust.md)：历史 Prompt、评测、数据治理和本地验证记录。
+- [`docs/verification/2026-09-07-prompt-evaluation-unification.md`](docs/verification/2026-09-07-prompt-evaluation-unification.md)：运行时/离线评测 Prompt 统一、报告身份和本轮验证记录。
 
 ---
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from app.evals.runner import DEFAULT_PROMPT_PATH, evaluate_cases, load_cases, render_markdown
 
@@ -37,13 +38,40 @@ def test_evaluation_runner_reports_routing_schema_and_fallback_metrics() -> None
 
 
 def test_evaluation_runner_uses_project_default_prompt() -> None:
-    from app.config import DEFAULT_ZHANGXUEFENG_SKILL_CANDIDATES
+    from app.config import (
+        DEFAULT_ZHANGXUEFENG_SKILL_CANDIDATES,
+        resolve_zhangxuefeng_skill_path,
+    )
 
     project_default_prompt = DEFAULT_ZHANGXUEFENG_SKILL_CANDIDATES[0]
 
+    assert Path(resolve_zhangxuefeng_skill_path("")) == DEFAULT_PROMPT_PATH
     assert project_default_prompt == DEFAULT_PROMPT_PATH
     assert DEFAULT_PROMPT_PATH.parts[-3:] == ("skills", "zhangxuefeng", "SKILL.md")
     assert DEFAULT_PROMPT_PATH.is_file()
+
+
+def test_evaluation_report_declares_shared_prompt_identity() -> None:
+    report = evaluate_cases(
+        [
+            {
+                "id": "prompt-identity",
+                "message": "江苏考生620分怎么选学校",
+                "mode": "direct",
+                "skill_id": "zhangxuefeng",
+                "provider_behavior": "success",
+                "expected_skill_id": "zhangxuefeng",
+                "expected_intent": "school_recommendation",
+                "expected_fallback": False,
+            }
+        ]
+    )
+
+    prompt = report["prompt"]
+
+    assert prompt["path"] == "skills/zhangxuefeng/SKILL.md"
+    assert len(prompt["sha256"]) == 64
+    assert prompt["sha256"] == report["cases"][0]["prompt_hash"]
 
 
 def test_eval_cases_cover_core_interview_scenarios() -> None:
@@ -102,6 +130,7 @@ def test_render_markdown_contains_metrics_and_case_table() -> None:
     assert "# Agent Offline Evaluation Baseline" in markdown
     assert "test-commit" in markdown
     assert "Routing accuracy" in markdown
+    assert "Prompt source" in markdown
     assert "Prompt hash" in markdown
     assert "catalog-school" in markdown
     json.dumps(report, ensure_ascii=False)
