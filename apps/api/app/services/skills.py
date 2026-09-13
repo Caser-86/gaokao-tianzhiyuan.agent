@@ -7,8 +7,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
+from pydantic import ValidationError
 from sqlmodel import Session
 
+from ..schemas.skill_output import SkillOutput
 from .catalog import load_catalog
 from .llm import (
     LLMMessage,
@@ -493,16 +495,18 @@ class ZhangXueFengSkill:
                 )
                 payload = self._parse_provider_payload(raw_content)
                 payload = self._normalize_provider_payload(payload, request=request)
+                validated_payload = SkillOutput.model_validate(payload)
+                normalized_payload = validated_payload.model_dump()
                 return SkillInvocationResult(
-                    intent=payload["intent"],
-                    summary=payload["summary"],
-                    entities=payload.get("entities", {}),
-                    analysis=payload.get("analysis", ""),
-                    suggestions=payload.get("suggestions", []),
-                    follow_up_questions=payload.get("follow_up_questions", []),
-                    actions=payload.get("actions", []),
-                    risk_flags=payload.get("risk_flags", []),
-                    rendered_reply=payload.get("rendered_reply", ""),
+                    intent=normalized_payload["intent"],
+                    summary=normalized_payload["summary"],
+                    entities=normalized_payload["entities"],
+                    analysis=normalized_payload["analysis"],
+                    suggestions=normalized_payload["suggestions"],
+                    follow_up_questions=normalized_payload["follow_up_questions"],
+                    actions=normalized_payload["actions"],
+                    risk_flags=normalized_payload["risk_flags"],
+                    rendered_reply=normalized_payload["rendered_reply"],
                     provider="openai_compatible",
                     model_called=True,
                 )
@@ -512,7 +516,7 @@ class ZhangXueFengSkill:
                     debug_note="skill_prompt_missing",
                     provider="openai_compatible" if self.provider else "rule_based",
                 )
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, ValidationError):
                 return self._rule_based_fallback(
                     request,
                     debug_note="provider_invalid_response",
@@ -556,22 +560,39 @@ class ZhangXueFengSkill:
         *,
         request: ChatRequestContext,
     ) -> dict[str, Any]:
-        if "intent" in payload and "summary" in payload:
-            return payload
-
         fallback = self._rule_based_fallback(request, debug_note="provider_normalized_response")
-        suggestions = payload.get("suggestions", [])
-        if not isinstance(suggestions, list):
-            suggestions = []
+        raw_suggestions = payload.get("suggestions", fallback.suggestions)
+        if "suggestions" not in payload:
+            suggestions = fallback.suggestions
+        elif isinstance(raw_suggestions, list) and all(
+            isinstance(item, dict) for item in raw_suggestions
+        ):
+            suggestions = raw_suggestions
+        elif isinstance(raw_suggestions, list) and all(
+            isinstance(item, str) for item in raw_suggestions
+        ):
+            suggestions = fallback.suggestions
+        else:
+            suggestions = raw_suggestions
+
+        raw_follow_up_questions = payload.get("follow_up_questions")
+        if raw_follow_up_questions is None:
+            follow_up_questions = (
+                raw_suggestions
+                if isinstance(raw_suggestions, list)
+                and all(isinstance(item, str) for item in raw_suggestions)
+                else fallback.follow_up_questions
+            )
+        else:
+            follow_up_questions = raw_follow_up_questions
 
         return {
             "intent": payload.get("intent", fallback.intent),
             "summary": payload.get("summary", fallback.summary),
             "entities": payload.get("entities", fallback.entities),
             "analysis": payload.get("analysis") or payload.get("message") or fallback.analysis,
-            "suggestions": payload.get("suggestions", fallback.suggestions),
-            "follow_up_questions": payload.get("follow_up_questions", suggestions)
-            or fallback.follow_up_questions,
+            "suggestions": suggestions,
+            "follow_up_questions": follow_up_questions,
             "actions": payload.get("actions", fallback.actions),
             "risk_flags": payload.get("risk_flags", fallback.risk_flags),
             "rendered_reply": payload.get("rendered_reply")
@@ -619,24 +640,31 @@ class ZhangXueFengSkill:
         suggestions: list[dict[str, Any]] = []
         actions: list[dict[str, Any]] = []
         follow_up_questions: list[str] = []
+        risk_flags: list[str] = []
 
         if intent == "school_recommendation" and province == "江苏" and "985" in school_tags:
-            suggestions = [
-                {
-                    "type": "school",
-                    "title": "东南大学",
-                    "slug": "southeast-university",
-                    "reason": "属于 985，工科实力强，适合作为冲刺项",
-                    "confidence": 0.81,
-                }
-            ]
-            actions = [
-                {
-                    "type": "open_school",
-                    "label": "查看学校详情",
-                    "target": "/schools/southeast-university",
-                }
-            ]
+            has_score_or_rank = bool(re.search(r"\d{3,4}\s*分", request.message)) or (
+                "位次" in request.message and bool(re.search(r"\d+", request.message))
+            )
+            if has_score_or_rank:
+                suggestions = [
+                    {
+                        "type": "school",
+                        "title": "东南大学",
+                        "slug": "southeast-university",
+                        "reason": "属于 985，工科实力强，可作为待核验的比较对象",
+                    }
+                ]
+                actions = [
+                    {
+                        "type": "open_school",
+                        "label": "查看学校详情",
+                        "target": "/schools/southeast-university",
+                    }
+                ]
+            else:
+                risk_flags = ["insufficient_candidate_context"]
+                follow_up_questions = ["请补充高考分数或省内位次，以及目标专业方向。"]
         elif province is None:
             follow_up_questions = ["你所在省份、分数和目标专业方向是什么？"]
 
@@ -652,7 +680,7 @@ class ZhangXueFengSkill:
             suggestions=suggestions,
             follow_up_questions=follow_up_questions,
             actions=actions,
-            risk_flags=[],
+            risk_flags=risk_flags,
             rendered_reply=summary,
             debug_notes=[debug_note],
             provider=provider,

@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -261,14 +262,21 @@ def upsert_rotation_rule(session: Session, entity_type: str, rule: dict[str, Any
         session.add(existing)
 
 
-def seed_catalog() -> None:
-    """从 JSON 文件导入种子数据到数据库。"""
+def seed_catalog(*, only_if_empty: bool = False) -> None:
+    """从 JSON 文件导入种子数据到数据库，可选地只初始化空数据库。"""
+    engine = get_engine()
+    create_all_models(engine)
+
+    if only_if_empty:
+        with Session(engine) as session:
+            if session.exec(select(School)).first() is not None:
+                print("检测到已有学校数据，跳过种子导入")
+                return
+
     catalog = load_catalog()
     featured = load_featured_content()
 
-    create_all_models(get_engine())
-
-    with Session(get_engine()) as session:
+    with Session(engine) as session:
         upsert_search_entry(session, catalog)
 
         school_map: dict[str, School] = {}
@@ -344,4 +352,4 @@ def seed_catalog() -> None:
 
 
 if __name__ == "__main__":
-    seed_catalog()
+    seed_catalog(only_if_empty="--if-empty" in sys.argv[1:])

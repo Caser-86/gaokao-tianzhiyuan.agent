@@ -77,8 +77,11 @@ class OpenAICompatibleProvider:
         except httpx.HTTPStatusError as exc:
             reason = "request_failed"
             try:
-                error_code = exc.response.json().get("code", "")
-            except ValueError:
+                error_payload = exc.response.json()
+                error_code = (
+                    error_payload.get("code", "") if isinstance(error_payload, dict) else ""
+                )
+            except (AttributeError, ValueError):
                 error_code = ""
 
             if isinstance(error_code, str) and error_code.upper() == "INSUFFICIENT_BALANCE":
@@ -94,7 +97,27 @@ class OpenAICompatibleProvider:
                 reason="request_failed",
             ) from exc
 
-        content = response.json().get("choices", [{}])[0].get("message", {}).get("content")
+        try:
+            response_payload = response.json()
+        except ValueError as exc:
+            raise ProviderResponseFormatError("provider returned invalid JSON envelope") from exc
+
+        if not isinstance(response_payload, dict):
+            raise ProviderResponseFormatError("provider response envelope must be an object")
+
+        choices = response_payload.get("choices")
+        if not isinstance(choices, list) or not choices:
+            raise ProviderResponseFormatError("provider response choices must be a non-empty list")
+
+        first_choice = choices[0]
+        if not isinstance(first_choice, dict):
+            raise ProviderResponseFormatError("provider response choice must be an object")
+
+        message = first_choice.get("message")
+        if not isinstance(message, dict):
+            raise ProviderResponseFormatError("provider response message must be an object")
+
+        content = message.get("content")
         if not isinstance(content, str) or not content.strip():
             raise ProviderResponseFormatError("provider returned no message content")
         return content

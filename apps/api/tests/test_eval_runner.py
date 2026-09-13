@@ -51,6 +51,26 @@ def test_evaluation_runner_uses_project_default_prompt() -> None:
     assert DEFAULT_PROMPT_PATH.is_file()
 
 
+def test_evaluation_runner_checks_expected_risk_flags() -> None:
+    report = evaluate_cases(
+        [
+            {
+                "id": "missing-candidate-context",
+                "message": "江苏985",
+                "mode": "direct",
+                "skill_id": "zhangxuefeng",
+                "expected_skill_id": "zhangxuefeng",
+                "expected_intent": "school_recommendation",
+                "expected_fallback": True,
+                "expected_risk_flags": ["insufficient_candidate_context"],
+            }
+        ]
+    )
+
+    assert report["cases"][0]["passed"] is True
+    assert report["cases"][0]["checks"]["risk_flags"] is True
+
+
 def test_evaluation_report_declares_shared_prompt_identity() -> None:
     report = evaluate_cases(
         [

@@ -248,16 +248,22 @@ def _evaluate_case(case: dict[str, Any], engine) -> dict[str, Any]:
     fallback_ok = response["debug"]["used_fallback"] == case.get("expected_fallback")
     expected_reason = case.get("expected_fallback_reason")
     reason_ok = expected_reason is None or expected_reason in fallback_reasons
+    expected_risk_flags = case.get("expected_risk_flags")
+    risk_flags_ok = expected_risk_flags is None or (
+        isinstance(expected_risk_flags, list)
+        and all(flag in content.get("risk_flags", []) for flag in expected_risk_flags)
+    )
 
     return {
         "id": case_id,
-        "passed": all((schema_ok, route_ok, intent_ok, fallback_ok, reason_ok)),
+        "passed": all((schema_ok, route_ok, intent_ok, fallback_ok, reason_ok, risk_flags_ok)),
         "latency_ms": latency_ms,
         "matched_skill_id": matched_skill_id,
         "skill_version": selected_skill.get("version"),
         "prompt_hash": selected_skill.get("prompt_hash"),
         "intent": content.get("intent"),
         "used_fallback": response["debug"]["used_fallback"],
+        "risk_flags": content.get("risk_flags", []),
         "fallback_reasons": fallback_reasons,
         "checks": {
             "schema": schema_ok,
@@ -265,6 +271,7 @@ def _evaluate_case(case: dict[str, Any], engine) -> dict[str, Any]:
             "intent": intent_ok,
             "fallback": fallback_ok,
             "fallback_reason": reason_ok,
+            "risk_flags": risk_flags_ok,
         },
     }
 

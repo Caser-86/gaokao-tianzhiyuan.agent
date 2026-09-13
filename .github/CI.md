@@ -10,7 +10,7 @@
 
 | Job | 说明 | 依赖 |
 |-----|------|------|
-| `api-lint` | ruff check + ruff format check + black check | - |
+| `api-lint` | ruff check + ruff format check | - |
 | `api-test` | JSON 数据资产校验 + alembic 迁移冒烟测试 + pytest/pytest-cov（含 Agent trace 回归） | - |
 | `web-lint` | ESLint + TypeScript typecheck | - |
 | `web-test` | vitest 单元测试 + V8 覆盖率报告 | - |
@@ -65,7 +65,6 @@ cd apps/api
 pip install -e ".[dev]"
 ruff check .
 ruff format --check .
-black --check .
 pytest tests/ --cov=app --cov-report=term-missing
 
 cd ../..

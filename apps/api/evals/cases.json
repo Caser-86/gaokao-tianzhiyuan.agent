@@ -22,7 +22,8 @@
     "expected_skill_id": "zhangxuefeng",
     "expected_intent": "school_recommendation",
     "expected_fallback": true,
-    "expected_fallback_reason": "provider_not_configured"
+    "expected_fallback_reason": "provider_not_configured",
+    "expected_risk_flags": ["insufficient_candidate_context"]
   },
   {
     "id": "ambiguous",

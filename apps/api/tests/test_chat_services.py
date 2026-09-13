@@ -501,6 +501,51 @@ def test_zhangxuefeng_skill_can_normalize_loose_json_payload(tmp_path) -> None:
     assert result.follow_up_questions == ["补充分数", "补充省份"]
 
 
+def test_zhangxuefeng_skill_falls_back_for_invalid_structured_fields(tmp_path) -> None:
+    skill_file = tmp_path / "SKILL.md"
+    skill_file.write_text("张雪峰测试提示词", encoding="utf-8")
+    provider = FakeProvider(
+        '{"intent":"invalid-intent","summary":42,"entities":{},"analysis":"ok",'
+        '"suggestions":[],"follow_up_questions":[],"actions":"open-school",'
+        '"risk_flags":[],"rendered_reply":"ok"}'
+    )
+    skill = ZhangXueFengSkill(
+        provider=provider,
+        skill_prompt_path=str(skill_file),
+    )
+
+    result = skill.invoke(
+        ChatRequestContext(
+            channel="web",
+            user_id="web-invalid-payload",
+            message="河南560分想学金融",
+        )
+    )
+
+    assert result.debug_notes == ["provider_invalid_response"]
+    assert result.model_called is True
+    assert result.intent == "school_recommendation"
+    assert isinstance(result.summary, str)
+    assert isinstance(result.actions, list)
+
+
+def test_rule_based_recommendation_requires_score_or_rank_context() -> None:
+    skill = ZhangXueFengSkill()
+
+    result = skill.invoke(
+        ChatRequestContext(
+            channel="web",
+            user_id="web-missing-score",
+            message="江苏985",
+        )
+    )
+
+    assert result.suggestions == []
+    assert result.actions == []
+    assert result.risk_flags == ["insufficient_candidate_context"]
+    assert len(result.follow_up_questions) <= 3
+
+
 def test_zhangxuefeng_skill_falls_back_to_rule_based_response_on_provider_failure(
     tmp_path,
 ) -> None:

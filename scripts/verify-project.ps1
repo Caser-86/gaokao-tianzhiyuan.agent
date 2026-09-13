@@ -80,6 +80,18 @@ Invoke-RepoScript -Label 'Run local stack release version regression' -RelativeP
 
 if (-not $SkipApiTests) {
   Invoke-RepoCommand `
+    -Label 'Run API Ruff lint' `
+    -WorkingDirectory (Join-Path $repoRoot 'apps/api') `
+    -FilePath $repoPython `
+    -ArgumentList @('-m', 'ruff', 'check', '.')
+
+  Invoke-RepoCommand `
+    -Label 'Run API Ruff format check' `
+    -WorkingDirectory (Join-Path $repoRoot 'apps/api') `
+    -FilePath $repoPython `
+    -ArgumentList @('-m', 'ruff', 'format', '--check', '.')
+
+  Invoke-RepoCommand `
     -Label 'Run API test suite' `
     -WorkingDirectory (Join-Path $repoRoot 'apps/api') `
     -FilePath $repoPython `
