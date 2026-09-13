@@ -46,11 +46,11 @@ M4 可在 M1/M2 期间并行推进；它仍必须通过 G4 才能开放真实流
 
 | 任务 | 状态 | 已执行内容 | 尚缺证据 |
 |---|---|---|---|
-| T01 | 已完成 | CI 使用项目 `.[dev]` 依赖；统一 Ruff lint/format；本地门禁已纳入 `verify-project.ps1` | 推送后的 GitHub required checks |
-| T02 | 代码完成，容器待验证 | 镜像复制正式 `skills/`；Compose 传入 session secret；启动播种改为仅空库初始化，已有库重启不覆盖 | Docker Desktop 恢复后做隔离卷 smoke、重启保留摘要、Prompt hash、/health、/version 和 stub 调用 |
-| T03 | 已完成 | Provider 信封显式校验；Skill 输出 Pydantic 严格契约；非法意图/字段降级；旧宽松 JSON 兼容路径保留 | GitHub CI 同 SHA 复验 |
+| T01 | 已完成 | CI 使用项目 `.[dev]` 依赖；统一 Ruff lint/format；本地门禁已纳入 `verify-project.ps1`；GitHub CI run `34759370307` 的 API Lint & Format 通过 | 无 |
+| T02 | 代码完成，运行时待验证 | 镜像复制正式 `skills/`；Compose 传入 session secret；启动播种改为仅空库初始化，已有库重启不覆盖；同一 CI run 的 Docker Build 通过 | Docker Desktop 恢复后做隔离卷 smoke、重启保留摘要、Prompt hash、/health、/version 和 stub 调用 |
+| T03 | 已完成 | Provider 信封显式校验；Skill 输出 Pydantic 严格契约；非法意图/字段降级；旧宽松 JSON 兼容路径保留；GitHub CI 同 SHA 的 API Test 通过 | 无 |
 | T04 | 已完成 | 缺少分数/位次时不生成量化院校建议；返回 `insufficient_candidate_context`；离线评测新增风险标记断言 | 后续在领域质量评测中扩展缺信息样本 |
-| G0 | 未封板 | API 定向/全量回归与离线评测已通过 | Docker 运行验证、Web 回归和 GitHub required checks |
+| G0 | 条件通过，待运行时封板 | API/Web 本地回归、离线评测、GitHub required checks 与 Docker Build 已通过 | 本机 Docker runtime smoke；完成后才进入 M1 |
 
 ## 总计划表
 
