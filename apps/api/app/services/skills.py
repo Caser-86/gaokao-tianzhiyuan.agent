@@ -72,9 +72,12 @@ def _coerce_evidence_items(raw_items: Any) -> list[dict[str, Any]]:
         else:
             continue
 
-        item_id = str(item.get("id", "")).strip()
-        text = str(item.get("text", "")).strip()
-        source_name = str(item.get("source_name", "")).strip()
+        raw_item_id = item.get("id")
+        raw_text = item.get("text")
+        raw_source_name = item.get("source_name")
+        item_id = raw_item_id.strip() if isinstance(raw_item_id, str) else ""
+        text = raw_text.strip() if isinstance(raw_text, str) else ""
+        source_name = raw_source_name.strip() if isinstance(raw_source_name, str) else ""
         if not item_id or not text or not source_name:
             continue
         if len(normalized) >= DEFAULT_MAX_ITEMS or used_chars + len(text) > DEFAULT_MAX_CHARS:
@@ -843,4 +846,11 @@ class ZhangXueFengSkill:
             debug_notes=[debug_note],
             provider=provider,
             model_called=model_called,
+            requested_model=(
+                getattr(self.provider, "requested_model", None) if model_called else None
+            ),
+            returned_model=(
+                getattr(self.provider, "returned_model", None) if model_called else None
+            ),
+            usage=getattr(self.provider, "usage", None) if model_called else None,
         )

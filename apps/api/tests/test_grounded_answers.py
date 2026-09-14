@@ -95,6 +95,8 @@ def test_skill_falls_back_for_unknown_citation(tmp_path) -> None:
     assert result.debug_notes == ["provider_invalid_citation"]
     assert result.model_called is True
     assert result.provider == "openai_compatible"
+    assert result.requested_model == "ark-code-latest"
+    assert result.returned_model == "deepseek-v4-flash"
 
 
 def test_skill_falls_back_for_numeric_claim_without_evidence(tmp_path) -> None:
@@ -114,6 +116,8 @@ def test_skill_falls_back_for_numeric_claim_without_evidence(tmp_path) -> None:
 
     assert result.debug_notes == ["provider_unsupported_numeric_claim"]
     assert result.model_called is True
+    assert result.requested_model == "ark-code-latest"
+    assert result.returned_model == "deepseek-v4-flash"
 
 
 def test_conversation_service_builds_server_owned_evidence_context(
