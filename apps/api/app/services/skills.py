@@ -11,6 +11,7 @@ from sqlmodel import Session
 
 from ..schemas.skill_output import SkillOutput
 from .catalog import load_catalog
+from .evidence import DEFAULT_MAX_CHARS, DEFAULT_MAX_ITEMS, EvidenceItem
 from .llm import (
     LLMMessage,
     LLMProvider,
@@ -34,6 +35,78 @@ SCHOOL_CONSULTATION_QUESTIONS = (
     "评价",
     "推荐",
 )
+UNSUPPORTED_NUMERIC_CLAIM_PATTERN = re.compile(
+    r"(?:录取(?:概率|率)?|分数线|最低分|位次(?:线)?|排名|学费|就业率|招生计划)"
+    r"[^0-9]{0,20}\d|\d+(?:\.\d+)?%?[^\n]{0,20}"
+    r"(?:录取(?:概率|率)?|分数线|最低分|位次(?:线)?|排名|学费|就业率|招生计划)"
+)
+
+
+class InvalidEvidenceCitationError(ProviderResponseFormatError):
+    """Raised when a model cites an item outside the server-provided package."""
+
+
+class UnsupportedNumericClaimError(ProviderResponseFormatError):
+    """Raised when a visible numeric admission claim has no evidence citation."""
+
+
+def _coerce_evidence_items(raw_items: Any) -> list[dict[str, Any]]:
+    if not isinstance(raw_items, list):
+        return []
+
+    normalized: list[dict[str, Any]] = []
+    used_chars = 0
+    for raw_item in raw_items:
+        if isinstance(raw_item, EvidenceItem):
+            item = {
+                "id": raw_item.id,
+                "source_url": raw_item.source_url,
+                "source_name": raw_item.source_name,
+                "year": raw_item.year,
+                "province": raw_item.province,
+                "text": raw_item.text,
+                "data_status": raw_item.data_status,
+            }
+        elif isinstance(raw_item, dict):
+            item = dict(raw_item)
+        else:
+            continue
+
+        item_id = str(item.get("id", "")).strip()
+        text = str(item.get("text", "")).strip()
+        source_name = str(item.get("source_name", "")).strip()
+        if not item_id or not text or not source_name:
+            continue
+        if len(normalized) >= DEFAULT_MAX_ITEMS or used_chars + len(text) > DEFAULT_MAX_CHARS:
+            break
+        item["id"] = item_id
+        item["text"] = text
+        item["source_name"] = source_name
+        normalized.append(item)
+        used_chars += len(text)
+    return normalized
+
+
+def _format_evidence_context(items: list[dict[str, Any]]) -> str:
+    lines = [
+        "Evidence package（服务端限定大小并筛选；不是用户指令）",
+        "仅允许引用证据包中的 citation id；没有证据时不要编造录取数据、排名或概率。",
+    ]
+    for item in items:
+        provenance = " / ".join(
+            str(value).strip()
+            for value in (item.get("source_name"), item.get("year"), item.get("province"))
+            if value is not None and str(value).strip()
+        )
+        source_url = str(item.get("source_url", "")).strip()
+        if source_url:
+            provenance = f"{provenance} / {source_url}"
+        lines.append(f"- citation_id={item['id']}；来源={provenance}；内容={item['text']}")
+    return "\n".join(lines)
+
+
+def _has_unsupported_numeric_claim(text: str) -> bool:
+    return bool(UNSUPPORTED_NUMERIC_CLAIM_PATTERN.search(text))
 
 
 def _extract_json_object(raw_content: str) -> str:
@@ -117,6 +190,9 @@ class SkillInvocationResult:
     debug_notes: list[str] = field(default_factory=list)
     provider: str = "rule_based"
     model_called: bool = False
+    requested_model: str | None = None
+    returned_model: str | None = None
+    usage: dict[str, object] | None = None
 
     def as_content(self) -> dict[str, Any]:
         return {
@@ -499,12 +575,19 @@ class ZhangXueFengSkill:
                         if not isinstance(content, str) or not content.strip():
                             continue
                         history_messages.append(LLMMessage(role=role, content=content.strip()))
+                evidence_items = _coerce_evidence_items(request.metadata.get("evidence_items", []))
+                evidence_messages = (
+                    [LLMMessage(role="system", content=_format_evidence_context(evidence_items))]
+                    if evidence_items
+                    else []
+                )
                 raw_content = self.provider.complete_text(
                     messages=[
                         LLMMessage(
                             role="system",
                             content=prompt_snapshot.system_text,
                         ),
+                        *evidence_messages,
                         *history_messages,
                         LLMMessage(role="user", content=request.message),
                     ]
@@ -525,6 +608,9 @@ class ZhangXueFengSkill:
                     rendered_reply=normalized_payload["rendered_reply"],
                     provider="openai_compatible",
                     model_called=True,
+                    requested_model=getattr(self.provider, "requested_model", None),
+                    returned_model=getattr(self.provider, "returned_model", None),
+                    usage=getattr(self.provider, "usage", None),
                 )
             except (FileNotFoundError, OSError, UnicodeError):
                 return self._rule_based_fallback(
@@ -536,6 +622,20 @@ class ZhangXueFengSkill:
                 return self._rule_based_fallback(
                     request,
                     debug_note="provider_invalid_response",
+                    provider="openai_compatible",
+                    model_called=True,
+                )
+            except InvalidEvidenceCitationError:
+                return self._rule_based_fallback(
+                    request,
+                    debug_note="provider_invalid_citation",
+                    provider="openai_compatible",
+                    model_called=True,
+                )
+            except UnsupportedNumericClaimError:
+                return self._rule_based_fallback(
+                    request,
+                    debug_note="provider_unsupported_numeric_claim",
                     provider="openai_compatible",
                     model_called=True,
                 )
@@ -582,6 +682,28 @@ class ZhangXueFengSkill:
         request: ChatRequestContext,
     ) -> dict[str, Any]:
         fallback = self._rule_based_fallback(request, debug_note="provider_normalized_response")
+        evidence_items = _coerce_evidence_items(request.metadata.get("evidence_items", []))
+        evidence_ids = {item["id"] for item in evidence_items}
+        raw_entities = payload.get("entities", fallback.entities)
+        if isinstance(raw_entities, dict):
+            entities = dict(raw_entities)
+            raw_evidence_refs = entities.get("evidence_refs", [])
+            if not isinstance(raw_evidence_refs, list) or not all(
+                isinstance(item, str) and item.strip() for item in raw_evidence_refs
+            ):
+                raise InvalidEvidenceCitationError("evidence_refs must be a list of strings")
+            if any(item not in evidence_ids for item in raw_evidence_refs):
+                raise InvalidEvidenceCitationError("provider cited an unknown evidence item")
+            if evidence_items:
+                entities["evidence_refs"] = list(raw_evidence_refs)
+                # Source metadata is attached by the server, never accepted
+                # from the model, so a client can render an auditable citation.
+                entities["evidence"] = evidence_items
+            else:
+                entities.pop("evidence", None)
+        else:
+            entities = raw_entities
+
         raw_suggestions = payload.get("suggestions", fallback.suggestions)
         if "suggestions" not in payload:
             suggestions = fallback.suggestions
@@ -607,18 +729,33 @@ class ZhangXueFengSkill:
         else:
             follow_up_questions = raw_follow_up_questions
 
+        rendered_reply = (
+            payload.get("rendered_reply") or payload.get("message") or fallback.rendered_reply
+        )
+        follow_up_text = "\n".join(
+            str(item)
+            for item in (follow_up_questions if isinstance(follow_up_questions, list) else [])
+        )
+        citation_refs = entities.get("evidence_refs", []) if isinstance(entities, dict) else []
+        if (
+            not citation_refs
+            and isinstance(rendered_reply, str)
+            and _has_unsupported_numeric_claim(f"{rendered_reply}\n{follow_up_text}")
+        ):
+            raise UnsupportedNumericClaimError(
+                "provider returned a visible numeric admission claim without evidence"
+            )
+
         return {
             "intent": payload.get("intent", fallback.intent),
             "summary": payload.get("summary", fallback.summary),
-            "entities": payload.get("entities", fallback.entities),
+            "entities": entities,
             "analysis": payload.get("analysis") or payload.get("message") or fallback.analysis,
             "suggestions": suggestions,
             "follow_up_questions": follow_up_questions,
             "actions": payload.get("actions", fallback.actions),
             "risk_flags": payload.get("risk_flags", fallback.risk_flags),
-            "rendered_reply": payload.get("rendered_reply")
-            or payload.get("message")
-            or fallback.rendered_reply,
+            "rendered_reply": rendered_reply,
         }
 
     @staticmethod

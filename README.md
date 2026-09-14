@@ -70,7 +70,11 @@
 - 唯一正式 Prompt 是 [`skills/zhangxuefeng/SKILL.md`](skills/zhangxuefeng/SKILL.md)，运行时和离线 runner 都通过同一套默认路径解析规则使用它；有效的自定义 Prompt 路径仍然优先。
 - 运行时 Agent trace 与离线评测报告都记录 Prompt 资产 SHA-256 和实际 system message 的 effective SHA-256，不记录 Prompt 原文、API Key 或用户原文。
 - `apps/api/evals/offline-prompt.md` 只保留为历史路径兼容说明，不会被运行时或评测加载，避免仓库中出现两份“看起来都是真 Prompt”的资产。
-- 执行 `python -m app.evals.runner --format markdown` 可看到评测级 Prompt 来源、两类 hash、数据集 hash、路由/schema/fallback 指标和逐 case 结果；再执行 `python -m app.evals.quality_runner --format markdown` 查看独立的领域质量 replay。前者只证明固定样本与确定性 stub，后者只证明固定合成输出的评分器结果，二者都不代表线上模型质量。
+- 执行 `python -m app.evals.runner --format markdown` 可看到评测级 Prompt 来源、两类 hash、数据集 hash、路由/schema/fallback 指标和逐 case 结果；再执行 `python -m app.evals.quality_runner --format markdown` 查看独立的领域质量 replay，或用 `--mode pairwise` 查看“直接调用 vs 上下文+证据+校验”的同协议对照。前者只证明固定样本与确定性 stub，后两者只证明固定输出的评分器结果，二者都不代表线上模型质量。
+
+### 证据驱动回答如何避免“模型自己编来源”？
+
+服务端只对用户消息中明确出现的学校/专业名称生成有限 SQL 证据包，默认最多 20 条、12000 字符；模型只能在现有嵌套 `entities.evidence_refs` 中引用包内 `citation_id`，服务端再附上受信的 `entities.evidence` 来源元数据。未知引用或没有证据却输出录取概率、分数线等可见数字声明时，Skill 回到规则结果；离线质量 runner 同时兼容历史 fixture 的顶层字段和运行时嵌套字段。代码证据见 [`evidence.py`](apps/api/app/services/evidence.py)、[`skills.py`](apps/api/app/services/skills.py) 和 [`T09 验证记录`](docs/verification/2026-09-15-t09-grounded-answers.md)。
 
 ## 系统架构
 
@@ -148,6 +152,7 @@ sequenceDiagram
 | 失败降级 | 区分未配置、请求失败、余额不足和非法响应 | [`chat.py`](apps/api/app/services/chat.py) |
 | Agent trace | 记录候选/选择 Skill、版本、Prompt asset/effective SHA-256 指纹、Provider、模型调用标记、耗时和降级原因；session 只保留摘要引用 | [`tracing.py`](apps/api/app/services/tracing.py) |
 | 会话持久化与受控上下文 | SQLModel 保存用户/Agent 消息，30 天滚动保留，按用户读取和删除；模型只接收服务端授权 session 的最近最多 6 轮、12000 字符，并保留完整 turn，不形成长期记忆 | [`chat_sessions.py`](apps/api/app/services/chat_sessions.py)、[`chat.py`](apps/api/app/services/chat.py) |
+| 证据驱动回答与成对评测 | 服务端按明确实体生成最多 20 条/12000 字符 SQL 证据；模型引用白名单 ID，服务端附来源元数据，未知 citation/无证据数字声明降级；同问题同预算对比直接调用与上下文+证据+校验 | [`evidence.py`](apps/api/app/services/evidence.py)、[`skills.py`](apps/api/app/services/skills.py)、[`quality_runner.py`](apps/api/app/evals/quality_runner.py) |
 | 工程协议评测 | 30 个固定样本覆盖路由、信息缺失、敏感请求边界、结构化输出、Provider 失败与权益分支；报告记录 Prompt/数据集身份 | [`runner.py`](apps/api/app/evals/runner.py) |
 | 领域质量评测 | 40 条合成 replay 样本，按信息不足/引用问答/比较/多轮/对抗/域外分组，检查引用、无依据数字、追问覆盖和类型契约 | [`quality_runner.py`](apps/api/app/evals/quality_runner.py) |
 | 领域知识 | 学校、专业、关联、榜单来源、精选和搜索入口关系模型 | [`models/catalog.py`](apps/api/app/models/catalog.py) |
@@ -269,6 +274,8 @@ GAOKAO_AGENT_DATABASE_URL=sqlite:///./gaokao-agent.db
 GAOKAO_AGENT_WECHAT_SIGNATURE_TTL_SECONDS=300
 GAOKAO_AGENT_WECHAT_MAX_BODY_BYTES=262144
 GAOKAO_AGENT_CHAT_SESSION_RETENTION_DAYS=30
+GAOKAO_AGENT_EVIDENCE_MAX_ITEMS=20
+GAOKAO_AGENT_EVIDENCE_MAX_CHARS=12000
 GAOKAO_AGENT_MEDIA_ANALYSIS_RETENTION_DAYS=30
 GAOKAO_AGENT_AGENT_TRACE_RETENTION_DAYS=7
 
@@ -343,7 +350,7 @@ python scripts/wechat_aes_helper.py decrypt `
 
 源码静态统计：
 
-- 后端：29 个测试模块，另有 1 个 `conftest.py`；pytest 当前收集并通过 241 个用例（含参数化展开）。
+- 后端：32 个测试模块，另有 1 个 `conftest.py`；pytest 当前收集并通过 250 个用例（含参数化展开）。
 - 前端：28 个测试模块，另有 1 个 `setup.ts`；当前收集并通过 131 个 `test/it` 用例。
 - CI：API lint/test、迁移冒烟、Web lint/test/build、API/Web Docker 构建；trace、会话、离线评测、检索边界和可信身份回归测试位于 `test_chat_services.py`、`test_chat_sessions.py`、`test_eval_runner.py`、`test_retrieval_spike.py` 和 `test_auth_context.py`。
 
@@ -359,6 +366,7 @@ powershell -ExecutionPolicy Bypass -File scripts/verify-project.ps1
 Set-Location apps/api
 python -m pytest -q
 python -m app.evals.runner --format markdown
+python -m app.evals.quality_runner --mode pairwise --format markdown
 
 Set-Location ../..
 python scripts/verify-data-assets.py
@@ -383,6 +391,8 @@ npm audit --audit-level=moderate
 2026-09-15 M1 验证：API `236 passed`、工程协议评测 `30/30`，领域质量 replay `40/40`；Prompt 评测记录资产/effective 两类 hash、数据集 hash、commit/dirty 和失败样例，真实模型质量仍未测量。M2 T07 已增加有限 SQL 证据包，严格按实体、地区、年份和字符预算筛选，当前仍只使用标记为 `demo` 的演示数据。完整结果与边界见 [`M1 Prompt 身份与三层评测验证`](docs/verification/2026-09-15-m1-prompt-and-quality-evaluation.md)、[`T07 SQL 证据包验证`](docs/verification/2026-09-15-t07-sql-evidence-package.md) 与 [`数据来源和 SQL 证据边界`](data/README.md)。
 
 2026-09-15 T08 验证：API `241 passed`、Web `28 files / 131 passed`；服务端按主体读取最近最多 6 轮/12000 字符的完整上下文，拒绝客户端伪造历史，后续明确改口优先，前端成功后追加当前 user/assistant。真实模型上下文质量、浏览器 E2E、Docker runtime 和生产发布仍未确认。完整命令与边界见 [`T08 受控多轮上下文验证`](docs/verification/2026-09-15-t08-controlled-multiturn.md)。
+
+2026-09-15 T09 验证：API `250 passed`、Web `28 files / 131 passed`；服务端按消息中明确命名的实体生成最多 20 条/12000 字符 SQL 证据，运行时引用位于 `entities.evidence_refs`，来源元数据位于 `entities.evidence`，未知 citation 和无证据数字声明进入规则降级；领域质量 replay `40/40`，成对 replay `1/1` 可比且逐样本记录两侧失败检查；另用 `ark-code-latest` 完成一次真实 Provider smoke，验证完整链路会对无证据数字声明安全降级。真实模型成对质量、真实 token/cost 与实际返回模型证据、浏览器 E2E、Docker runtime 和生产发布仍未确认。完整命令与边界见 [`T09 证据驱动回答与成对评测验证`](docs/verification/2026-09-15-t09-grounded-answers.md)。
 
 ## 目录结构
 
@@ -419,10 +429,10 @@ PLAN.md                        从 MVP 到面试代表作的分阶段路线图
 
 ## 项目状态与路线图
 
-第一阶段的文档和展示增强已完成；当前工作树已执行 Phase 2.1—2.8、Phase 3.1—3.7、Phase 4.1—4.9、Phase 5.1—5.4、Phase 5.6、Phase 5.8，并完成 Phase 5.5 的本地 smoke/版本断言、重复 smoke 回归和同库 old→new→old 回滚演练，以及 Phase 5.7 的 Demo 脚本/录制清单和本地脱敏视频候选；M0 可靠性修复、M1 Prompt/评测建设和 M2 T07/T08 代码与本地回归也已纳入。`verify-project.ps1`、API/Web 测试、覆盖率、typecheck、Web 生产构建和隔离本地栈 HTTP smoke/版本断言已在历史记录中通过；GitHub tag Release、Docker 实际发布、生产 post-deploy smoke 和 rollback 尚未完成。根目录 `data/` 是唯一权威源，未跟踪的 `apps/data/` 仅保留在当前本地工作区，CI 会拒绝其进入仓库。最新 T08 证据见 [`2026-09-15 T08 验证记录`](docs/verification/2026-09-15-t08-controlled-multiturn.md)。后续优先级为：
+第一阶段的文档和展示增强已完成；当前工作树已执行 Phase 2.1—2.8、Phase 3.1—3.7、Phase 4.1—4.9、Phase 5.1—5.4、Phase 5.6、Phase 5.8，并完成 Phase 5.5 的本地 smoke/版本断言、重复 smoke 回归和同库 old→new→old 回滚演练，以及 Phase 5.7 的 Demo 脚本/录制清单和本地脱敏视频候选；M0 可靠性修复、M1 Prompt/评测建设和 M2 T07/T08/T09 代码与本地回归也已纳入。`verify-project.ps1`、API/Web 测试、覆盖率、typecheck、Web 生产构建和隔离本地栈 HTTP smoke/版本断言已在历史记录中通过；GitHub tag Release、Docker 实际发布、生产 post-deploy smoke 和 rollback 尚未完成。根目录 `data/` 是唯一权威源，未跟踪的 `apps/data/` 仅保留在当前本地工作区，CI 会拒绝其进入仓库。最新 T09 证据见 [`2026-09-15 T09 验证记录`](docs/verification/2026-09-15-t09-grounded-answers.md)。后续优先级为：
 
-1. 完成 T09：把有限 SQL 证据注入模型并做同模型、同预算的成对评测。
-2. 完成 T10：把“目录证据 → 两轮追问 → fallback → trace/eval”串成浏览器 E2E 和面试演示。
+1. 完成 T10：把“目录证据 → 两轮追问 → fallback → trace/eval”串成浏览器 E2E 和面试演示。
+2. 在私有环境用受控预算执行真实 Provider 成对评测，记录实际返回模型、token/cost 与失败样本，不把路由别名写成版本结论。
 3. 在获得真实部署条件后完成 Docker runtime、生产 smoke、回滚和账号/限流等公开流量门槛。
 
 完整任务表、依赖关系和验收标准见 [`PLAN.md`](PLAN.md)。
@@ -445,6 +455,7 @@ PLAN.md                        从 MVP 到面试代表作的分阶段路线图
 - [`docs/verification/2026-09-07-prompt-evaluation-unification.md`](docs/verification/2026-09-07-prompt-evaluation-unification.md)：运行时/离线评测 Prompt 统一、报告身份和本轮验证记录。
 - [`docs/verification/2026-09-15-m1-prompt-and-quality-evaluation.md`](docs/verification/2026-09-15-m1-prompt-and-quality-evaluation.md)：Prompt 快照、30 条工程协议评测和 40 条领域质量 replay 的最新边界记录。
 - [`docs/verification/2026-09-15-t08-controlled-multiturn.md`](docs/verification/2026-09-15-t08-controlled-multiturn.md)：服务端受控多轮上下文、会话隔离、字符预算和前端会话展示的验证记录。
+- [`docs/verification/2026-09-15-t09-grounded-answers.md`](docs/verification/2026-09-15-t09-grounded-answers.md)：SQL 证据注入、citation/数字声明校验和直接调用 vs grounded 成对 replay 的验证记录。
 
 ---
 

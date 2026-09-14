@@ -44,6 +44,23 @@ class EvidenceItem:
     data_status: str
 
 
+def serialize_evidence_items(items: Iterable[EvidenceItem]) -> list[dict[str, Any]]:
+    """Convert trusted evidence records to a JSON-safe internal payload."""
+
+    return [
+        {
+            "id": item.id,
+            "source_url": item.source_url,
+            "source_name": item.source_name,
+            "year": item.year,
+            "province": item.province,
+            "text": item.text,
+            "data_status": item.data_status,
+        }
+        for item in items
+    ]
+
+
 def _is_http_url(value: object) -> bool:
     if not isinstance(value, str) or not value.strip():
         return False
@@ -337,3 +354,62 @@ def build_evidence_package(
                 used_chars += len(candidate.text)
 
         return output
+
+
+def build_evidence_package_for_message(
+    message: str,
+    *,
+    province: str | None = None,
+    year: int | None = None,
+    max_items: int = DEFAULT_MAX_ITEMS,
+    max_chars: int = DEFAULT_MAX_CHARS,
+    as_of: date | None = None,
+    max_age_days: int | None = None,
+    session_factory: Callable[[], Session] | None = None,
+) -> list[EvidenceItem]:
+    """Select evidence only for catalog entities explicitly named by a message.
+
+    Natural-language retrieval is intentionally conservative here: an entity
+    must be present by its catalog name or slug before its SQL-backed evidence
+    can enter the model context. This keeps a no-match question evidence-free
+    instead of filling the prompt with unrelated catalog rows.
+    """
+
+    normalized_message = message.strip()
+    if not normalized_message:
+        return []
+
+    max_items = _normalise_limit(max_items, maximum=MAX_ALLOWED_ITEMS, name="max_items")
+    max_chars = _normalise_limit(max_chars, maximum=MAX_ALLOWED_CHARS, name="max_chars")
+    factory = session_factory or (lambda: Session(get_engine()))
+    with factory() as session:
+        matches = [
+            (kind, entity.slug)
+            for kind, entity in _load_entities(session, entity_type=None, entity_slug=None)
+            if entity.name in normalized_message or entity.slug in normalized_message
+        ]
+
+    output: list[EvidenceItem] = []
+    used_chars = 0
+    for entity_type, entity_slug in matches:
+        if len(output) >= max_items or used_chars >= max_chars:
+            break
+        package = build_evidence_package(
+            entity_type=entity_type,
+            entity_slug=entity_slug,
+            province=province,
+            year=year,
+            max_items=max_items - len(output),
+            max_chars=max_chars - used_chars,
+            as_of=as_of,
+            max_age_days=max_age_days,
+            session_factory=factory,
+        )
+        for item in package:
+            if item.id in {existing.id for existing in output}:
+                continue
+            if len(output) >= max_items or used_chars + len(item.text) > max_chars:
+                break
+            output.append(item)
+            used_chars += len(item.text)
+    return output

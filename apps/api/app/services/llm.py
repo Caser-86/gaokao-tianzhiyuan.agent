@@ -52,9 +52,14 @@ class OpenAICompatibleProvider:
         self.base_url = normalized_base_url
         self.api_key = api_key
         self.model = model
+        self.requested_model = model
+        self.returned_model: str | None = None
+        self.usage: dict[str, object] | None = None
         self.timeout_seconds = timeout_seconds
 
     def complete_text(self, *, messages: list[LLMMessage]) -> str:
+        self.returned_model = None
+        self.usage = None
         payload = {
             "model": self.model,
             "messages": [{"role": item.role, "content": item.content} for item in messages],
@@ -104,6 +109,15 @@ class OpenAICompatibleProvider:
 
         if not isinstance(response_payload, dict):
             raise ProviderResponseFormatError("provider response envelope must be an object")
+
+        returned_model = response_payload.get("model")
+        self.returned_model = (
+            returned_model.strip()
+            if isinstance(returned_model, str) and returned_model.strip()
+            else None
+        )
+        usage = response_payload.get("usage")
+        self.usage = dict(usage) if isinstance(usage, dict) else None
 
         choices = response_payload.get("choices")
         if not isinstance(choices, list) or not choices:

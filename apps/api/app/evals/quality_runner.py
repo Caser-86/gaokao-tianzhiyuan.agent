@@ -11,6 +11,9 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_DOMAIN_CASES_PATH = Path(__file__).resolve().parents[2] / "evals" / "domain-cases.json"
+DEFAULT_COMPARISON_CASES_PATH = (
+    Path(__file__).resolve().parents[2] / "evals" / "comparison-cases.json"
+)
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 ALLOWED_INTENTS = {
     "school_recommendation",
@@ -80,7 +83,21 @@ def load_quality_cases(path: str | Path = DEFAULT_DOMAIN_CASES_PATH) -> list[dic
     return [dict(item) for item in raw]
 
 
+def _evidence_refs(output: Any) -> Any:
+    """Read the runtime nested citation field and legacy fixture field."""
+
+    if not isinstance(output, dict):
+        return None
+    if "evidence_refs" in output:
+        return output.get("evidence_refs")
+    entities = output.get("entities")
+    if isinstance(entities, dict):
+        return entities.get("evidence_refs")
+    return None
+
+
 def _type_contract_ok(output: Any) -> bool:
+    refs = _evidence_refs(output)
     return (
         isinstance(output, dict)
         and isinstance(output.get("intent"), str)
@@ -88,13 +105,13 @@ def _type_contract_ok(output: Any) -> bool:
         and isinstance(output.get("rendered_reply"), str)
         and isinstance(output.get("follow_up_questions"), list)
         and all(isinstance(item, str) for item in output["follow_up_questions"])
-        and isinstance(output.get("evidence_refs"), list)
-        and all(isinstance(item, str) for item in output["evidence_refs"])
+        and isinstance(refs, list)
+        and all(isinstance(item, str) for item in refs)
     )
 
 
 def _citation_correct(output: dict[str, Any], case: dict[str, Any]) -> bool:
-    refs = output.get("evidence_refs")
+    refs = _evidence_refs(output)
     evidence_ids = case.get("evidence_ids", [])
     required_ids = case.get("required_evidence_ids", [])
     if not isinstance(refs, list) or not all(isinstance(item, str) for item in refs):
@@ -117,7 +134,7 @@ def _no_unsupported_numbers(output: dict[str, Any], case: dict[str, Any]) -> boo
         return True
     # A numeric claim is only considered supported when this answer cites at
     # least one evidence item that belongs to the fixed input package.
-    refs = output.get("evidence_refs", [])
+    refs = _evidence_refs(output) or []
     evidence_ids = case.get("evidence_ids", [])
     return isinstance(refs, list) and any(ref in evidence_ids for ref in refs)
 
@@ -143,6 +160,18 @@ def _forbidden_assertions_ok(output: dict[str, Any], case: dict[str, Any]) -> bo
     if not isinstance(patterns, list):
         return False
     return not any(re.search(str(pattern), text) for pattern in patterns)
+
+
+def _score_quality_output(output: Any, case: dict[str, Any]) -> dict[str, bool]:
+    output_dict = output if isinstance(output, dict) else {}
+    checks = {
+        "citation_correctness": _citation_correct(output_dict, case),
+        "no_unsupported_numbers": _no_unsupported_numbers(output_dict, case),
+        "follow_up_coverage": _follow_up_coverage(output_dict, case),
+        "type_contract": _type_contract_ok(output),
+    }
+    checks["forbidden_assertions"] = _forbidden_assertions_ok(output_dict, case)
+    return checks
 
 
 def _failure_sample(
@@ -200,16 +229,8 @@ def evaluate_quality_cases(
     forbidden_violations = 0
     for case in case_list:
         output = case.get("replay_output")
-        output_dict = output if isinstance(output, dict) else {}
-        checks = {
-            "citation_correctness": _citation_correct(output_dict, case),
-            "no_unsupported_numbers": _no_unsupported_numbers(output_dict, case),
-            "follow_up_coverage": _follow_up_coverage(output_dict, case),
-            "type_contract": _type_contract_ok(output),
-        }
-        forbidden_ok = _forbidden_assertions_ok(output_dict, case)
-        checks["forbidden_assertions"] = forbidden_ok
-        if not forbidden_ok:
+        checks = _score_quality_output(output, case)
+        if not checks["forbidden_assertions"]:
             forbidden_violations += 1
         for name in QUALITY_CHECKS:
             check_totals[name] += int(checks[name])
@@ -247,6 +268,190 @@ def evaluate_quality_cases(
         "failure_samples": failures,
         "cases": results,
     }
+
+
+def evaluate_quality_comparison(
+    cases: Iterable[dict[str, Any]] | None = None,
+    *,
+    cases_path: str | Path = DEFAULT_COMPARISON_CASES_PATH,
+    max_cases: int | None = None,
+) -> dict[str, Any]:
+    """Score paired direct-vs-grounded outputs with one shared protocol.
+
+    This is a replay evaluator. Each case must provide one question, a shared
+    budget object, the requested model alias, and the model returned by each
+    Provider call. A pair is comparable only when both returned model names
+    are present and equal; the requested alias is recorded but never treated
+    as the returned model version.
+    """
+
+    case_list = [
+        dict(case) for case in (cases if cases is not None else load_quality_cases(cases_path))
+    ]
+    if max_cases is not None:
+        if max_cases <= 0:
+            raise ValueError("max_cases must be positive")
+        case_list = case_list[:max_cases]
+
+    direct_passed = 0
+    grounded_passed = 0
+    comparable_cases = 0
+    winner_counts = Counter()
+    request_models: set[str] = set()
+    returned_models: set[str] = set()
+    per_case: list[dict[str, Any]] = []
+    for case in case_list:
+        direct_output = case.get("direct_output")
+        grounded_output = case.get("grounded_output")
+        direct_checks = _score_quality_output(direct_output, case)
+        grounded_checks = _score_quality_output(grounded_output, case)
+        direct_ok = all(direct_checks.values())
+        grounded_ok = all(grounded_checks.values())
+        direct_passed += int(direct_ok)
+        grounded_passed += int(grounded_ok)
+
+        request_model = str(case.get("request_model", "")).strip()
+        direct_returned_model = str(case.get("direct_returned_model", "")).strip()
+        grounded_returned_model = str(case.get("grounded_returned_model", "")).strip()
+        if request_model:
+            request_models.add(request_model)
+        for model_name in (direct_returned_model, grounded_returned_model):
+            if model_name:
+                returned_models.add(model_name)
+
+        shared_budget = case.get("budget")
+        if not isinstance(shared_budget, dict):
+            comparable = False
+            comparison_reason = "missing_shared_budget"
+        elif not direct_returned_model or not grounded_returned_model:
+            comparable = False
+            comparison_reason = "missing_returned_model"
+        elif direct_returned_model != grounded_returned_model:
+            comparable = False
+            comparison_reason = "returned_model_mismatch"
+        else:
+            comparable = True
+            comparison_reason = "same_returned_model_and_shared_budget"
+
+        if comparable:
+            comparable_cases += 1
+            if grounded_ok and not direct_ok:
+                winner = "grounded"
+            elif direct_ok and not grounded_ok:
+                winner = "direct"
+            elif direct_ok and grounded_ok:
+                winner = "tie"
+            else:
+                direct_score = sum(direct_checks.values())
+                grounded_score = sum(grounded_checks.values())
+                winner = (
+                    "grounded"
+                    if grounded_score > direct_score
+                    else "direct"
+                    if direct_score > grounded_score
+                    else "tie"
+                )
+        else:
+            winner = "not_comparable"
+        winner_counts[winner] += 1
+        per_case.append(
+            {
+                "id": str(case.get("id", "")),
+                "category": str(case.get("category", "")),
+                "split": str(case.get("split", "")),
+                "message": str(case.get("message", "")),
+                "request_model": request_model or None,
+                "returned_models": {
+                    "direct": direct_returned_model or None,
+                    "grounded": grounded_returned_model or None,
+                },
+                "budget": shared_budget,
+                "comparable": comparable,
+                "comparison_reason": comparison_reason,
+                "direct": {
+                    "passed": direct_ok,
+                    "failed_checks": [name for name, passed in direct_checks.items() if not passed],
+                },
+                "grounded": {
+                    "passed": grounded_ok,
+                    "failed_checks": [
+                        name for name, passed in grounded_checks.items() if not passed
+                    ],
+                },
+                "winner": winner,
+            }
+        )
+
+    total = len(case_list)
+    denominator = total or 1
+    return {
+        "mode": "replay_pairwise",
+        "dataset": {
+            "path": _display_path(Path(cases_path)) if cases is None else "inline-cases",
+            "sha256": _hash_cases(case_list),
+        },
+        "commit": _git_commit(),
+        "working_tree_dirty": _git_dirty(),
+        "total_cases": total,
+        "comparable_cases": comparable_cases,
+        "metrics": {
+            "direct_pass_rate": round(direct_passed / denominator, 4),
+            "grounded_pass_rate": round(grounded_passed / denominator, 4),
+        },
+        "sample_denominators": {
+            "direct_pass_rate": total,
+            "grounded_pass_rate": total,
+            "comparable_cases": total,
+        },
+        "request_models": sorted(request_models),
+        "returned_models": sorted(returned_models),
+        "winner_counts": dict(sorted(winner_counts.items())),
+        "per_case": per_case,
+    }
+
+
+def render_quality_comparison_markdown(report: dict[str, Any]) -> str:
+    lines = [
+        "# Direct vs Grounded Quality Comparison",
+        "",
+        "> Replay only: paired recorded outputs; no real model access.",
+        f"> Dataset: `{report['dataset']['path']}`  ",
+        f"> Dataset SHA-256: `{report['dataset']['sha256']}`  ",
+        f"> Commit: `{report['commit']}`; working tree dirty: `{report['working_tree_dirty']}`",
+        "",
+        "## Metrics",
+        "",
+        "| Variant | Pass rate | Sample denominator |",
+        "|---|---:|---:|",
+        f"| Direct user question | {report['metrics']['direct_pass_rate']:.2%} | {report['sample_denominators']['direct_pass_rate']} |",
+        f"| Context + evidence + validation | {report['metrics']['grounded_pass_rate']:.2%} | {report['sample_denominators']['grounded_pass_rate']} |",
+        "",
+        f"Comparable pairs: `{report['comparable_cases']}/{report['total_cases']}`  ",
+        f"Requested model aliases: `{report['request_models']}`  ",
+        f"Provider returned models: `{report['returned_models']}`",
+        "",
+        "## Per-case comparison",
+        "",
+        "| Case | Comparable | Direct failures | Grounded failures | Winner | Reason |",
+        "|---|---|---|---|---|---|",
+    ]
+    for item in report["per_case"]:
+        lines.append(
+            f"| `{item['id']}` | `{item['comparable']}` | "
+            f"`{', '.join(item['direct']['failed_checks']) or 'none'}` | "
+            f"`{', '.join(item['grounded']['failed_checks']) or 'none'}` | "
+            f"`{item['winner']}` | `{item['comparison_reason']}` |"
+        )
+    lines.extend(
+        [
+            "",
+            "## Interpretation boundary",
+            "",
+            "A replay pair demonstrates the scoring protocol and recorded failure reasons. It does not prove that evidence grounding always improves online quality or admission accuracy.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
 
 
 def render_quality_markdown(report: dict[str, Any]) -> str:
@@ -314,7 +519,8 @@ def render_quality_markdown(report: dict[str, Any]) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the domain quality evaluation set")
     parser.add_argument("--cases", default=str(DEFAULT_DOMAIN_CASES_PATH))
-    parser.add_argument("--mode", choices=("replay", "real"), default="replay")
+    parser.add_argument("--comparison-cases", default=str(DEFAULT_COMPARISON_CASES_PATH))
+    parser.add_argument("--mode", choices=("replay", "pairwise", "real"), default="replay")
     parser.add_argument("--max-cases", type=int, default=None)
     parser.add_argument("--max-output-tokens", type=int, default=0)
     parser.add_argument("--max-cost-yuan", type=float, default=0.0)
@@ -324,27 +530,42 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
-        report = evaluate_quality_cases(
-            cases_path=args.cases,
-            mode=args.mode,
-            max_cases=args.max_cases,
-            max_output_tokens=args.max_output_tokens,
-            max_cost_yuan=args.max_cost_yuan,
-            model=args.model,
-        )
+        if args.mode == "pairwise":
+            report = evaluate_quality_comparison(
+                cases_path=args.comparison_cases,
+                max_cases=args.max_cases,
+            )
+        else:
+            report = evaluate_quality_cases(
+                cases_path=args.cases,
+                mode=args.mode,
+                max_cases=args.max_cases,
+                max_output_tokens=args.max_output_tokens,
+                max_cost_yuan=args.max_cost_yuan,
+                model=args.model,
+            )
     except (NotImplementedError, ValueError, OSError, json.JSONDecodeError) as exc:
         parser.error(str(exc))
     output = (
         json.dumps(report, ensure_ascii=False, indent=2)
         if args.format == "json"
-        else render_quality_markdown(report)
+        else (
+            render_quality_comparison_markdown(report)
+            if args.mode == "pairwise"
+            else render_quality_markdown(report)
+        )
     )
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(output + "\n", encoding="utf-8")
     else:
         print(output)
-    raise SystemExit(0 if report["passed_cases"] == report["total_cases"] else 1)
+    passed = (
+        report["comparable_cases"] == report["total_cases"]
+        if args.mode == "pairwise"
+        else report["passed_cases"] == report["total_cases"]
+    )
+    raise SystemExit(0 if passed else 1)
 
 
 if __name__ == "__main__":

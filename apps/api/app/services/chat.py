@@ -14,6 +14,11 @@ from .access_control import (
     get_user_entitlements,
 )
 from .chat_sessions import ChatSessionStore
+from .evidence import (
+    EvidenceItem,
+    build_evidence_package_for_message,
+    serialize_evidence_items,
+)
 from .llm import OpenAICompatibleProvider, ProviderConfigurationError
 from .skills import CatalogLookupSkill, ChatRequestContext, SkillRegistry, ZhangXueFengSkill
 from .tracing import AgentTraceRecorder, TraceSink
@@ -78,11 +83,20 @@ class ConversationService:
         threshold: float = ROUTING_THRESHOLD,
         session_factory: Callable[[], Session] | None = None,
         trace_sink: TraceSink | None = None,
+        evidence_builder: Callable[[str], list[EvidenceItem]] | None = None,
     ) -> None:
         self.registry = registry or build_default_registry()
         self.threshold = threshold
         self.session_factory = session_factory or (lambda: Session(get_engine()))
         self.trace_sink = trace_sink
+        self.evidence_builder = evidence_builder or (
+            lambda user_message: build_evidence_package_for_message(
+                user_message,
+                max_items=settings.evidence_max_items,
+                max_chars=settings.evidence_max_chars,
+                session_factory=self.session_factory,
+            )
+        )
         self.session_store = ChatSessionStore(
             self.session_factory,
             retention_days=settings.chat_session_retention_days,
@@ -163,6 +177,11 @@ class ConversationService:
                 authoritative_metadata,
                 default_mode=persisted_mode,
             )
+            evidence_items = (
+                serialize_evidence_items(self.evidence_builder(message))
+                if smart_analysis_allowed
+                else []
+            )
             request = ChatRequestContext(
                 channel=channel,
                 user_id=user_id,
@@ -173,6 +192,7 @@ class ConversationService:
                     "smart_analysis_allowed": smart_analysis_allowed,
                     "smart_analysis_reason": smart_analysis_reason,
                     "conversation_history": conversation_history,
+                    "evidence_items": evidence_items,
                 },
             )
 
@@ -248,6 +268,8 @@ class ConversationService:
             debug_notes=result.debug_notes,
             provider=result.provider,
             model_called=result.model_called,
+            requested_model=result.requested_model,
+            returned_model=result.returned_model,
             prompt_hash=metadata.prompt_hash,
             effective_prompt_hash=metadata.effective_prompt_hash,
         )
@@ -304,6 +326,8 @@ class ConversationService:
             debug_notes=result.debug_notes,
             provider=result.provider,
             model_called=result.model_called,
+            requested_model=result.requested_model,
+            returned_model=result.returned_model,
             prompt_hash=metadata.prompt_hash,
             effective_prompt_hash=metadata.effective_prompt_hash,
         )
@@ -320,6 +344,8 @@ class ConversationService:
         debug_notes: list[str],
         provider: str,
         model_called: bool,
+        requested_model: str | None = None,
+        returned_model: str | None = None,
         prompt_hash: str | None = None,
         effective_prompt_hash: str | None = None,
         trace_fallback_reasons: list[str] | None = None,
@@ -337,6 +363,8 @@ class ConversationService:
         trace.emit(
             provider=provider,
             model_called=model_called,
+            requested_model=requested_model,
+            returned_model=returned_model,
             used_fallback=used_fallback,
             fallback_reasons=fallback_reasons,
         )

@@ -65,6 +65,32 @@ def test_openai_compatible_provider_posts_expected_payload(monkeypatch) -> None:
     assert captured["json"]["messages"][1]["content"] == "帮我分析河南560分金融"
 
 
+def test_openai_compatible_provider_keeps_returned_model_metadata(monkeypatch) -> None:
+    def fake_post(self, url: str, *, headers: dict, json: dict) -> StubResponse:
+        _ = (self, url, headers, json)
+        return StubResponse(
+            {
+                "model": "deepseek-v4-flash-2026-09-01",
+                "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+                "choices": [{"message": {"content": '{"status":"ok"}'}}],
+            }
+        )
+
+    monkeypatch.setattr(httpx.Client, "post", fake_post)
+    provider = OpenAICompatibleProvider(
+        base_url="https://relay.example",
+        api_key="secret-key",
+        model="ark-code-latest",
+    )
+
+    assert provider.complete_text(messages=[LLMMessage(role="user", content="test")]) == (
+        '{"status":"ok"}'
+    )
+    assert provider.requested_model == "ark-code-latest"
+    assert provider.returned_model == "deepseek-v4-flash-2026-09-01"
+    assert provider.usage == {"prompt_tokens": 10, "completion_tokens": 5}
+
+
 def test_openai_compatible_provider_supports_ark_api_v3_base_url(monkeypatch) -> None:
     captured: dict = {}
 

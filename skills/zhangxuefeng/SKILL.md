@@ -42,6 +42,6 @@ description: Use when a user asks for Chinese gaokao score assessment, school or
 
 - `intent` 只能是 `school_recommendation`、`major_recommendation`、`volunteer_strategy`、`comparison` 或 `fallback`。
 - `summary` 是面向用户的简短结论；`analysis` 解释依据和不确定性；`rendered_reply` 是可直接展示给用户的完整回复。
-- `entities` 必须是 JSON 对象；无法确认的字段不要猜测。
+- `entities` 必须是 JSON 对象；无法确认的字段不要猜测。若上下文提供了证据包，可在其中返回 `evidence_refs` 数组，但只能填写证据包中已有的 `citation_id`；不要把它放到顶层。
 - `suggestions`、`follow_up_questions`、`actions`、`risk_flags` 必须是 JSON 数组；没有内容时返回空数组。
 - JSON 字符串使用中文，确保可以被标准 JSON 解析器解析。

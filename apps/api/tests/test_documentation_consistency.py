@@ -1,8 +1,8 @@
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-CURRENT_VERIFICATION = "2026-09-15-t08-controlled-multiturn.md"
-CURRENT_API_TEST_COUNT = "241"
+CURRENT_VERIFICATION = "2026-09-15-t09-grounded-answers.md"
+CURRENT_API_TEST_COUNT = "250"
 CURRENT_WEB_TEST_COUNT = "131"
 CURRENT_DOCS = (
     REPO_ROOT / "README.md",

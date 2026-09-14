@@ -48,13 +48,15 @@ class AgentTrace:
     candidates: tuple[dict[str, Any], ...]
     selected_skill: dict[str, Any] | None
     provider: str
+    requested_model: str | None
+    returned_model: str | None
     model_called: bool
     duration_ms: float
     used_fallback: bool
     fallback_reasons: tuple[str, ...]
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        result = {
             "schema_version": self.schema_version,
             "request_id": self.request_id,
             "channel": self.channel,
@@ -68,6 +70,11 @@ class AgentTrace:
             "used_fallback": self.used_fallback,
             "fallback_reasons": list(self.fallback_reasons),
         }
+        if self.requested_model:
+            result["requested_model"] = self.requested_model
+        if self.returned_model:
+            result["returned_model"] = self.returned_model
+        return result
 
 
 class AgentTraceRecorder:
@@ -145,6 +152,8 @@ class AgentTraceRecorder:
         *,
         provider: str,
         model_called: bool,
+        requested_model: str | None = None,
+        returned_model: str | None = None,
         used_fallback: bool,
         fallback_reasons: list[str],
     ) -> None:
@@ -160,6 +169,10 @@ class AgentTraceRecorder:
             candidates=tuple(dict(candidate) for candidate in self._candidates),
             selected_skill=(dict(self._selected_skill) if self._selected_skill else None),
             provider=_safe_text(provider, max_length=80),
+            requested_model=(
+                _safe_text(requested_model, max_length=120) if requested_model else None
+            ),
+            returned_model=(_safe_text(returned_model, max_length=120) if returned_model else None),
             model_called=bool(model_called),
             duration_ms=round(max(0.0, (time.perf_counter() - self._started_at) * 1000), 2),
             used_fallback=bool(used_fallback),

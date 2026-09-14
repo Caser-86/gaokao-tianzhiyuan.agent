@@ -15,6 +15,8 @@ DEFAULT_WECHAT_MAX_BODY_BYTES = 256 * 1024
 DEFAULT_CHAT_SESSION_RETENTION_DAYS = 30
 DEFAULT_CHAT_CONTEXT_MAX_TURNS = 6
 DEFAULT_CHAT_CONTEXT_MAX_CHARS = 12_000
+DEFAULT_EVIDENCE_MAX_ITEMS = 20
+DEFAULT_EVIDENCE_MAX_CHARS = 12_000
 DEFAULT_MEDIA_ANALYSIS_RETENTION_DAYS = 30
 DEFAULT_AGENT_TRACE_RETENTION_DAYS = 7
 DEFAULT_CORS_ALLOWED_ORIGINS = (
@@ -63,6 +65,8 @@ class Settings(BaseSettings):
     chat_session_retention_days: int = DEFAULT_CHAT_SESSION_RETENTION_DAYS
     chat_context_max_turns: int = DEFAULT_CHAT_CONTEXT_MAX_TURNS
     chat_context_max_chars: int = DEFAULT_CHAT_CONTEXT_MAX_CHARS
+    evidence_max_items: int = DEFAULT_EVIDENCE_MAX_ITEMS
+    evidence_max_chars: int = DEFAULT_EVIDENCE_MAX_CHARS
     media_analysis_retention_days: int = DEFAULT_MEDIA_ANALYSIS_RETENTION_DAYS
     agent_trace_retention_days: int = DEFAULT_AGENT_TRACE_RETENTION_DAYS
     database_url: str = "sqlite:///./gaokao-agent.db"
@@ -137,6 +141,8 @@ class Settings(BaseSettings):
         "chat_session_retention_days",
         "chat_context_max_turns",
         "chat_context_max_chars",
+        "evidence_max_items",
+        "evidence_max_chars",
         "media_analysis_retention_days",
         "agent_trace_retention_days",
     )

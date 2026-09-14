@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 SkillIntent = Literal[
     "school_recommendation",
@@ -36,3 +36,17 @@ class SkillOutput(BaseModel):
     actions: list[SkillAction] = Field(max_length=20)
     risk_flags: list[str] = Field(max_length=20)
     rendered_reply: str = Field(max_length=6000)
+
+    @field_validator("entities")
+    @classmethod
+    def validate_evidence_refs(cls, value: dict[str, Any]) -> dict[str, Any]:
+        refs = value.get("evidence_refs")
+        if refs is None:
+            return value
+        if (
+            not isinstance(refs, list)
+            or len(refs) > 20
+            or not all(isinstance(item, str) and item.strip() for item in refs)
+        ):
+            raise ValueError("entities.evidence_refs must be a list of at most 20 strings")
+        return value
