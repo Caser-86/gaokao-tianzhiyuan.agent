@@ -12,6 +12,8 @@
 
 ![高考填志愿.agent Agent 聊天页截图](docs/assets/chat.png)
 
+![高考填志愿.agent 证据与引用卡片截图](docs/assets/t10-chat-evidence-card.png)
+
 ![高考填志愿.agent 运营后台截图](docs/assets/admin.png)
 
 > 以上为使用本地示例配置和合成管理员值生成的脱敏截图；没有真实模型密钥、用户数据或生产接口。完整截图素材保存在 [`docs/assets/`](docs/assets/)。
@@ -24,7 +26,7 @@
 | 为什么是 Agent，而不只是聊天框？ | 自动路由接口会先做 Skill 匹配；当前 Web 聊天页则直接调用指定的高考咨询 Skill。两条路径都会执行权益判断、结构化输出、受控多轮上下文与失败降级，并把媒体事件和失败原因留给运营后台。 |
 | 核心 Agent 能力是什么？ | `SkillRegistry`、置信度路由、OpenAI-compatible Provider、结构化 JSON 输出、确定性 fallback、多渠道适配和轻量 Agent trace。 |
 | 工程难点在哪里？ | 模型不稳定、用户权益、微信公众号 AES、多类型消息、内容审核、媒体失败重试和本地可复现交付。 |
-| 如何证明不是概念 Demo？ | 仓库包含关系数据模型、运营后台、后端/前端测试、CI、Docker、冒烟脚本和部署模板；最新 M1 评测证据见 [`2026-09-15 验证记录`](docs/verification/2026-09-15-m1-prompt-and-quality-evaluation.md)。 |
+| 如何证明不是概念 Demo？ | 仓库包含关系数据模型、运营后台、后端/前端测试、CI、Docker、冒烟脚本和部署模板；最新验证索引见 [`latest.json`](docs/verification/latest.json)，T10 浏览器记录见 [`2026-09-15 T10 验证记录`](docs/verification/2026-09-15-t10-browser-demo.md)。 |
 | 当前最重要的边界是什么？ | 演示数据不能用于真实志愿决策；生产发布、版本探针和回滚闭环仍需外部环境确认。 |
 
 适合重点查看的三个入口：
@@ -58,7 +60,7 @@
 | 目标 | 泛化问答，依赖用户自己组织问题和判断结果 | 围绕高考志愿咨询，组织查询、分析、解释和后续行动 |
 | 输入 | 一段自然语言；模型可能拥有联网、工具或记忆能力，但单次对话不保证具备本项目的领域上下文 | 考生可在问题中提供分数/位次、地区、年份、选科、偏好等业务上下文；请求同时携带渠道、Skill、会话和服务端主体/权益 |
 | 知识与约束 | 由模型已有知识、临时检索或用户提供的材料决定 | 学校、专业、榜单来源和内容版本用结构化数据表达；确定性约束与 LLM 解释分开 |
-| 结果 | 一次回答，用户需要自行复核来源、适用年份和风险 | 结构化结果、风险与行动建议；模型不可用时仍有规则化目录/降级路径 |
+| 结果 | 一次回答，用户需要自行复核来源、适用年份和风险 | 结构化结果、风险与行动建议；服务端回填证据来源，模型不可用时仍有规则化目录/降级路径 |
 | 可靠性 | 重点是模型本身的回答能力 | 有服务端权益、输入安全边界、trace、离线评测、会话生命周期和失败原因 |
 | 运营方式 | 通常停留在用户与模型的单次交互 | 有微信公众号适配、内容审核、媒体事件、人工重试和运营后台 |
 | 工程交付 | 主要使用现成模型产品能力 | 完整的 FastAPI + Next.js + SQLModel、迁移、CI、Docker 和本地 smoke 链路 |
@@ -74,7 +76,7 @@
 
 ### 证据驱动回答如何避免“模型自己编来源”？
 
-服务端只对用户消息中明确出现的学校/专业名称生成有限 SQL 证据包，默认最多 20 条、12000 字符；模型只能在现有嵌套 `entities.evidence_refs` 中引用包内 `citation_id`，服务端再附上受信的 `entities.evidence` 来源元数据。未知引用或没有证据却输出录取概率、分数线等可见数字声明时，Skill 回到规则结果；离线质量 runner 同时兼容历史 fixture 的顶层字段和运行时嵌套字段。代码证据见 [`evidence.py`](apps/api/app/services/evidence.py)、[`skills.py`](apps/api/app/services/skills.py) 和 [`T09 验证记录`](docs/verification/2026-09-15-t09-grounded-answers.md)。
+服务端只对用户消息中明确出现的学校/专业名称生成有限 SQL 证据包，默认最多 20 条、12000 字符；模型只能在现有嵌套 `entities.evidence_refs` 中引用包内 `citation_id`，服务端再附上受信的 `entities.evidence` 来源元数据。聊天页现在把这些元数据渲染为“证据与引用”卡片：有 HTTP(S) 来源才提供打开链接，演示资料无 URL 时明确标注边界。未知引用或没有证据却输出录取概率、分数线等可见数字声明时，Skill 回到规则结果；离线质量 runner 同时兼容历史 fixture 的顶层字段和运行时嵌套字段。代码证据见 [`evidence.py`](apps/api/app/services/evidence.py)、[`skills.py`](apps/api/app/services/skills.py)、[`evidence-list.tsx`](apps/web/components/public/evidence-list.tsx) 和 [`T10 验证记录`](docs/verification/2026-09-15-t10-browser-demo.md)。
 
 ## 系统架构
 
@@ -394,6 +396,8 @@ npm audit --audit-level=moderate
 
 2026-09-15 T09 验证：API `250 passed`、Web `28 files / 131 passed`；服务端按消息中明确命名的实体生成最多 20 条/12000 字符 SQL 证据，运行时引用位于 `entities.evidence_refs`，来源元数据位于 `entities.evidence`，未知 citation 和无证据数字声明进入规则降级；领域质量 replay `40/40`，成对 replay `1/1` 可比且逐样本记录两侧失败检查；另用 `ark-code-latest` 完成一次真实 Provider smoke，验证完整链路会对无证据数字声明安全降级。真实模型成对质量、真实 token/cost 与实际返回模型证据、浏览器 E2E、Docker runtime 和生产发布仍未确认。完整命令与边界见 [`T09 证据驱动回答与成对评测验证`](docs/verification/2026-09-15-t09-grounded-answers.md)。
 
+2026-09-15 T10 验证：API `250 passed`、Web `28 files / 132 passed`；Playwright 在本地合成 Provider 下实际覆盖首页、目录详情、证据卡片、两轮会话、`session_id` 恢复、Provider 断开后的规则降级和后台摘要保存；同时生成脱敏截图与无音轨视频候选。该轮的 `ark-code-latest` 只是本地合成服务返回的模型标签，不是火山引擎真实质量验证。当前统一入口是 [`docs/verification/latest.json`](docs/verification/latest.json)，详细记录见 [`T10 三分钟 Demo 与浏览器验收`](docs/verification/2026-09-15-t10-browser-demo.md)。
+
 ## 目录结构
 
 ```text
@@ -431,9 +435,9 @@ PLAN.md                        从 MVP 到面试代表作的分阶段路线图
 
 第一阶段的文档和展示增强已完成；当前工作树已执行 Phase 2.1—2.8、Phase 3.1—3.7、Phase 4.1—4.9、Phase 5.1—5.4、Phase 5.6、Phase 5.8，并完成 Phase 5.5 的本地 smoke/版本断言、重复 smoke 回归和同库 old→new→old 回滚演练，以及 Phase 5.7 的 Demo 脚本/录制清单和本地脱敏视频候选；M0 可靠性修复、M1 Prompt/评测建设和 M2 T07/T08/T09 代码与本地回归也已纳入。`verify-project.ps1`、API/Web 测试、覆盖率、typecheck、Web 生产构建和隔离本地栈 HTTP smoke/版本断言已在历史记录中通过；GitHub tag Release、Docker 实际发布、生产 post-deploy smoke 和 rollback 尚未完成。根目录 `data/` 是唯一权威源，未跟踪的 `apps/data/` 仅保留在当前本地工作区，CI 会拒绝其进入仓库。最新 T09 证据见 [`2026-09-15 T09 验证记录`](docs/verification/2026-09-15-t09-grounded-answers.md)。后续优先级为：
 
-1. 完成 T10：把“目录证据 → 两轮追问 → fallback → trace/eval”串成浏览器 E2E 和面试演示。
-2. 在私有环境用受控预算执行真实 Provider 成对评测，记录实际返回模型、token/cost 与失败样本，不把路由别名写成版本结论。
-3. 在获得真实部署条件后完成 Docker runtime、生产 smoke、回滚和账号/限流等公开流量门槛。
+1. 在私有环境用受控预算执行真实 Provider 成对评测，记录实际返回模型、token/cost 与失败样本，不把路由别名写成版本结论。
+2. 补齐请求预算、最终 trace、限流、DNS rebinding、媒体 MIME 校验和外部日志轮转。
+3. 在获得真实部署条件后完成 Docker runtime、生产 smoke、回滚和账号等公开流量门槛。
 
 完整任务表、依赖关系和验收标准见 [`PLAN.md`](PLAN.md)。
 
@@ -456,6 +460,8 @@ PLAN.md                        从 MVP 到面试代表作的分阶段路线图
 - [`docs/verification/2026-09-15-m1-prompt-and-quality-evaluation.md`](docs/verification/2026-09-15-m1-prompt-and-quality-evaluation.md)：Prompt 快照、30 条工程协议评测和 40 条领域质量 replay 的最新边界记录。
 - [`docs/verification/2026-09-15-t08-controlled-multiturn.md`](docs/verification/2026-09-15-t08-controlled-multiturn.md)：服务端受控多轮上下文、会话隔离、字符预算和前端会话展示的验证记录。
 - [`docs/verification/2026-09-15-t09-grounded-answers.md`](docs/verification/2026-09-15-t09-grounded-answers.md)：SQL 证据注入、citation/数字声明校验和直接调用 vs grounded 成对 replay 的验证记录。
+- [`docs/verification/latest.json`](docs/verification/latest.json)：当前验证日期、commit、结果、浏览器场景和模型边界的唯一索引。
+- [`docs/verification/2026-09-15-t10-browser-demo.md`](docs/verification/2026-09-15-t10-browser-demo.md)：证据卡片、会话恢复、故障降级和后台保存的浏览器验收记录。
 
 ---
 

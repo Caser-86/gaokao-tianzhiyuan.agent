@@ -13,6 +13,7 @@ import {
   getChatRiskFlagCopy,
   isUnknownChatRiskFlag,
 } from "../../lib/chat-risk-flags";
+import EvidenceList from "./evidence-list";
 
 type ChatWorkspaceProps = {
   apiBaseUrl: string;
@@ -271,6 +272,9 @@ export default function ChatWorkspace({
             </div>
             {content.analysis ? (
               <p style={{ margin: "8px 0 0" }}>{content.analysis}</p>
+            ) : null}
+            {content.entities?.evidence ? (
+              <EvidenceList evidence={content.entities.evidence} />
             ) : null}
             {content.risk_flags?.length ? (
               <section>

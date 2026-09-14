@@ -355,3 +355,68 @@ test("restores a saved session when opened with a session id", async () => {
     screen.getByText("可以先比较专业方向和选科要求。"),
   ).toBeInTheDocument();
 });
+
+test("renders server-owned evidence citations with an explicit source boundary", async () => {
+  sendChatMessageMock.mockResolvedValueOnce({
+    request_id: "chat_evidence",
+    output: {
+      type: "structured_json",
+      content: {
+        rendered_reply: "这是一条带证据的演示回答。",
+        entities: {
+          evidence_refs: ["school:demo-university:summary"],
+          evidence: [
+            {
+              id: "school:demo-university:summary",
+              source_name: "演示来源",
+              year: 2026,
+              province: "河南",
+              text: "演示大学：工科方向资料，仅用于测试。",
+              source_url: "https://example.com/demo-university",
+            },
+            {
+              id: "school:demo-university:demo-note",
+              source_name: "项目演示资料",
+              year: 2026,
+              province: "河南",
+              text: "这条演示资料没有可打开的外部来源。",
+              source_url: null,
+            },
+          ],
+        },
+      },
+    },
+  });
+
+  render(
+    <ChatWorkspace
+      apiBaseUrl="https://api.gaokao.test"
+      initialPrompt="演示大学怎么样"
+    />,
+  );
+
+  await waitFor(() => {
+    expect(
+      screen.getByRole("heading", { name: "证据与引用" }),
+    ).toBeInTheDocument();
+  });
+
+  expect(
+    screen.getByText((content) =>
+      content.includes("school:demo-university:summary"),
+    ),
+  ).toBeInTheDocument();
+  expect(screen.getByText("演示来源")).toBeInTheDocument();
+  expect(
+    screen.getByText("演示大学：工科方向资料，仅用于测试。"),
+  ).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "打开来源" })).toHaveAttribute(
+    "href",
+    "https://example.com/demo-university",
+  );
+  expect(screen.getByText("项目演示资料")).toBeInTheDocument();
+  expect(
+    screen.getByText("演示资料：暂无可打开来源，回答不会把它当作外部网页事实。"),
+  ).toBeInTheDocument();
+  expect(screen.getAllByRole("link", { name: "打开来源" })).toHaveLength(1);
+});

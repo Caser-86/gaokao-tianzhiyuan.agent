@@ -11,6 +11,18 @@
 证据：[`skills.py`](../../apps/api/app/services/skills.py)、
 [`chat.py`](../../apps/api/app/services/chat.py)。
 
+### 加分题：引用卡片为什么由服务端回填，而不是让模型直接返回来源？
+
+因为来源是系统信任边界的一部分。服务端只把消息中明确命名实体对应的有限 SQL 证据包
+放进上下文，模型只能返回包内 `evidence_refs`；服务端再根据真实证据记录回填来源名称、
+年份、地区、URL 和 demo 状态。前端只展示服务端回填的 `entities.evidence`，有 HTTP(S)
+来源才提供链接，无 URL 的演示资料显示边界提示。这样模型可以解释事实，但不能凭空制造
+来源或把客户端伪造的证据变成可信信息。
+证据：[`evidence.py`](../../apps/api/app/services/evidence.py)、
+[`skills.py`](../../apps/api/app/services/skills.py)、
+[`evidence-list.tsx`](../../apps/web/components/public/evidence-list.tsx)、
+[`T10 浏览器验收`](../verification/2026-09-15-t10-browser-demo.md)。
+
 ## 加分题：和直接询问 GPT/豆包相比，这个项目新增了什么价值？
 
 底层模型可以相同，但调用方式和责任边界不同。直接询问通用模型通常得到一次泛化回答，
@@ -37,7 +49,9 @@
 
 Provider 未配置、请求失败、余额不足和非法 JSON 会被区分；可用的目录查询和
 规则化 Skill 仍能返回解释性结果。trace 会记录 `model_called`、`used_fallback` 和
-`fallback_reasons`，便于知道是业务路由还是外部 Provider 出问题。
+`fallback_reasons`，便于知道是业务路由还是外部 Provider 出问题。本轮浏览器验收还实际
+停止了本地合成 Provider，观察到 HTTP 200、`used_fallback=true` 和 `provider_request_failed`，
+说明降级路径不是只在单元测试里存在。
 证据：[`chat.py`](../../apps/api/app/services/chat.py)、
 [`llm.py`](../../apps/api/app/services/llm.py)、
 [`Agent Offline Evaluation Baseline`](../verification/2026-08-25-phase3.3-3.5-evaluation.md)。
@@ -106,13 +120,15 @@ rebinding、MIME/内容校验和速率限制是后续加固项，不能把现有
 
 后端用 API、服务、迁移和安全回归测试覆盖业务边界；前端用 API client、页面、表单
 状态和后台交互测试；另有离线评测、检索 spike、数据资产校验和本地 HTTP smoke。
-当前本地验证为 API `250 passed`、Web `131 passed`；Prompt 快照、工程协议评测和
+当前本地验证为 API `250 passed`、Web `132 passed`；Prompt 快照、工程协议评测和
 领域质量 replay 也有聚焦测试。工程协议评测为 30/30，领域 replay 为 40/40，且报告
 记录样本分母和失败样例。覆盖率和历史阶段结果
 应以带日期的验证记录为准，不应把固定样本通过率表述为线上模型质量。受控多轮上下文
 还覆盖了服务端主体隔离、最近 6 轮/12000 字符预算、客户端历史过滤和前端当前轮追加；
 T09 又补充了受限 SQL 证据、嵌套 citation 白名单、无证据数字声明降级和直接调用 vs
-grounded 成对 replay。
+grounded 成对 replay；T10 又用 Playwright 真实走通证据卡、两轮历史、session 恢复、Provider
+故障降级和后台保存。当前事实以 [`latest.json`](../verification/latest.json) 为准，历史阶段
+数字仍以各自日期记录为准。
 证据：[`README 测试区`](../../README.md)、[`2026-09-15 T09 验证记录`](../verification/2026-09-15-t09-grounded-answers.md)。
 
 ## 12. 你会如何解释当前生产差距？
@@ -140,9 +156,10 @@ grounded 成对 replay。
 
 ## 15. 你认为下一项最值得做的工作是什么？
 
-完成受控生产发布和回滚演练，然后扩充真实非结构化问题评测集。只有评测显示 SQL
-优先边界不足，才引入更复杂的检索组件；同时补齐账号认证、速率限制、DNS rebinding、
-媒体 MIME 校验和外部日志轮转。
+先在私有环境完成真实 Provider 的受控成对评测，记录实际返回模型、token/cost 和失败样本；
+然后补齐请求预算、最终 trace、账号认证、速率限制、DNS rebinding、媒体 MIME 校验和外部
+日志轮转。只有评测显示 SQL 优先边界不足，才引入更复杂的检索组件；最后完成 Docker runtime、
+生产发布、回滚和监控演练。
 
 ## 面试回答纪律
 

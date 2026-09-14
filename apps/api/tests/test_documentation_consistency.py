@@ -1,9 +1,8 @@
+import json
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-CURRENT_VERIFICATION = "2026-09-15-t09-grounded-answers.md"
-CURRENT_API_TEST_COUNT = "250"
-CURRENT_WEB_TEST_COUNT = "131"
+VERIFICATION_INDEX = REPO_ROOT / "docs" / "verification" / "latest.json"
 CURRENT_DOCS = (
     REPO_ROOT / "README.md",
     REPO_ROOT / "PROJECT_REVIEW.md",
@@ -13,9 +12,15 @@ CURRENT_DOCS = (
 
 
 def test_current_interview_docs_share_latest_verification_baseline() -> None:
+    latest = json.loads(VERIFICATION_INDEX.read_text(encoding="utf-8"))
+    current_verification = latest["report"]
+    current_api_test_count = str(latest["results"]["api_tests_passed"])
+    current_web_test_count = str(latest["results"]["web_tests_passed"])
+
     for path in CURRENT_DOCS:
         content = path.read_text(encoding="utf-8")
 
-        assert CURRENT_API_TEST_COUNT in content
-        assert CURRENT_WEB_TEST_COUNT in content
-        assert CURRENT_VERIFICATION in content
+        assert "latest.json" in content
+        assert current_api_test_count in content
+        assert current_web_test_count in content
+        assert current_verification in content

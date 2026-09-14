@@ -212,6 +212,67 @@ a {
   font-size: 13px;
 }
 
+.evidence-section {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px dashed rgba(104, 48, 31, 0.18);
+}
+
+.evidence-heading-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.evidence-heading-row h3 {
+  margin: 3px 0 0;
+}
+
+.meta-label,
+.evidence-id,
+.evidence-boundary {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.evidence-count {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(58, 132, 126, 0.12);
+  color: #286c68;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.evidence-card {
+  background: linear-gradient(135deg, rgba(255, 250, 241, 0.98), rgba(242, 249, 245, 0.92));
+}
+
+.evidence-card .meta {
+  margin-top: 0;
+}
+
+.evidence-source-link {
+  display: inline-flex;
+  margin-top: 14px;
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.evidence-boundary {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(213, 169, 74, 0.1);
+}
+
+.evidence-id {
+  margin-top: 12px;
+  overflow-wrap: anywhere;
+}
+
 .link-row {
   display: flex;
   flex-wrap: wrap;

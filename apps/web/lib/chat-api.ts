@@ -5,12 +5,29 @@ export type ChatMessageRequest = {
   sessionId?: string;
 };
 
+export type ChatEvidenceItem = {
+  id: string;
+  source_name: string;
+  text: string;
+  source_url?: string | null;
+  year?: number | null;
+  province?: string | null;
+  data_status?: string | null;
+};
+
 export type ChatMessageResponse = {
   request_id: string;
   session_id?: string;
   output: {
     type: 'structured_json';
     content: {
+      entities?: {
+        province?: string | null;
+        school_tags?: string[];
+        score?: number | null;
+        evidence_refs?: string[];
+        evidence?: ChatEvidenceItem[];
+      };
       actions?: Array<{
         type?: string;
         label: string;
