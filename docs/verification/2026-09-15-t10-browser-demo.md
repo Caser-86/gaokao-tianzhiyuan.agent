@@ -7,7 +7,7 @@
 
 ## 结论
 
-T10 的面试展示链路已在本机真实浏览器中跑通：主页目录 → 学校详情 → 第一轮带目录证据的回答 → 第二轮追问 → 用 `session_id` 恢复历史 → Provider 断开后的规则降级 → 后台保存摘要。引用卡片只渲染服务端返回的 `entities.evidence`，有 HTTP(S) 来源才显示“打开来源”，演示资料没有 URL 时明确显示边界提示。
+T10 的面试展示链路已在本机真实浏览器中跑通：主页目录 → 学校详情 → 第一轮带目录证据的回答 → 第二轮追问 → 用 `session_id` 恢复历史 → Provider 断开后的规则降级 → 后台保存摘要。引用卡片只渲染服务端返回的 `entities.evidence_refs` 命中的 `entities.evidence`，有 HTTP(S) 来源才显示“打开来源”，演示资料没有 URL 时明确显示边界提示。
 
 本轮 Provider 是本地合成服务，返回模型标签为 `ark-code-latest`，用于验证 OpenAI-compatible 协议和前端展示；没有调用火山引擎、没有使用真实 API Key，也不能据此宣称真实模型质量或招生准确率。
 
@@ -15,7 +15,7 @@ T10 的面试展示链路已在本机真实浏览器中跑通：主页目录 →
 
 | 检查 | 结果 | 说明 |
 |---|---:|---|
-| API pytest | `250 passed` | 8 个依赖库/框架弃用警告，无失败 |
+| API pytest | `251 passed` | 8 个依赖库/框架弃用警告，无失败 |
 | Web Vitest | `28 files / 132 passed` | 包含证据引用卡片测试 |
 | Web typecheck | 通过 | `tsc --noEmit -p tsconfig.typecheck.json` |
 | Web lint | 通过 | 0 errors，3 个既有 `<img>` 性能 warning |

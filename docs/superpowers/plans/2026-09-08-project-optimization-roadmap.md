@@ -56,7 +56,7 @@ M4 可在 M1/M2 期间并行推进；它仍必须通过 G4 才能开放真实流
 | T07 | demo scope 已完成，别名与 miss 统计待补 | 新增有限 SQL 证据包；支持精确 slug/名称、关键词、地区、精确年份和条数/字符预算；来源 URL、未知实体、过期 provenance 有回归测试；数据状态继承 `demo` 边界 | 维护别名映射并测量 miss；真实招生数据仍需来源许可、更新时间和负责人 |
 | T08 | 代码完成，浏览器/E2E 与真实模型待补 | 服务端从已授权 session 读取最近最多 6 轮、总计 12000 字符的完整 user/assistant turn；忽略客户端伪造历史；后续明确更正优先；Web 成功后追加当前 exchange；定向 API 55 项、Web 聊天 9 项通过 | 浏览器两轮恢复与重复提交 E2E；真实 Provider 的小样本上下文质量、token/cost 仍待受控环境确认 |
 | T09 | 代码与 replay 完成，真实模型/浏览器展示待补 | 明确实体的受限 SQL 证据包；嵌套 citation 白名单；无证据数字声明降级；直接调用 vs 上下文+证据+校验共享预算、共享评分并记录实际返回模型；API 250 项通过、成对 replay 1/1 可比 | 真实 Provider 成对样本、token/cost、引用展示/打开的浏览器 E2E；当前证据资产仍是 demo |
-| T10 | 已完成，真实模型质量仍待补 | 新增 `latest.json` 唯一验证索引和 T10 浏览器验收记录；Web 增加服务端证据引用卡片；本地 Playwright 覆盖首页、目录详情、证据展示、两轮会话、`session_id` 恢复、Provider 失败降级和后台摘要保存；生成脱敏截图与视频候选；API 250 项、Web 132 项通过 | 真实 Provider 成对质量、token/cost、Docker runtime 和生产发布仍待外部环境 |
+| T10 | 已完成，真实模型质量仍待补 | 新增 `latest.json` 唯一验证索引和 T10 浏览器验收记录；Web 增加服务端证据引用卡片；本地 Playwright 覆盖首页、目录详情、证据展示、两轮会话、`session_id` 恢复、Provider 失败降级和后台摘要保存；生成脱敏截图与视频候选；API 251 项、Web 132 项通过 | 真实 Provider 成对质量、token/cost、Docker runtime 和生产发布仍待外部环境 |
 | G1 | replay 条件通过 | 三层评测已分离并可复现：协议 `30/30`，Prompt 契约测试通过，领域 replay `40/40` | 不能用 replay 结果替代真实模型质量；需补真实受控评测后再封板 |
 
 ## 总计划表

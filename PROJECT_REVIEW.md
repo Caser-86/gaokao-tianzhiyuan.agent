@@ -23,7 +23,7 @@
 
 2026-09-15 T09 已完成代码范围：服务端仅为消息中明确命名的实体生成最多 20 条/12000 字符 SQL 证据包；模型引用限定在 `entities.evidence_refs`，服务端附上 `entities.evidence` 来源元数据；未知 citation 或没有证据的录取概率/分数线等可见数字声明进入规则降级；质量 runner 支持同问题、共享预算、同 Provider 返回模型的直接调用 vs 上下文+证据+校验成对 replay。API 全量 `250 passed`、Web `28 files / 131 passed`；成对 replay `1/1` 可比；另执行一次 `ark-code-latest` 真实 Provider smoke，确认完整链路会对无证据数字声明安全降级。Provider 现在可保留返回模型元数据，但真实模型成对质量、真实 token/cost/返回模型证据、浏览器 E2E、Docker runtime smoke 和生产 SLA 仍未确认。详见 [`T09 证据驱动回答与成对评测验证`](docs/verification/2026-09-15-t09-grounded-answers.md)。
 
-2026-09-15 T10 已完成面试展示封板：聊天页新增服务端证据元数据卡片，有 HTTP(S) 来源才允许打开链接，无 URL 的演示资料明确标注边界；Playwright 在本地合成 Provider 下实际覆盖首页、目录详情、两轮会话、`session_id` 恢复、Provider 请求失败降级和后台摘要保存。API `250 passed`、Web `28 files / 132 passed`，Web typecheck、lint、production build 通过；完整事实以 [`docs/verification/latest.json`](docs/verification/latest.json) 为准。此次 `ark-code-latest` 是本地合成服务返回的模型标签，不是新的真实模型质量结论。
+2026-09-15 T10 已完成面试展示封板：聊天页新增服务端证据元数据卡片，只展示 `evidence_refs` 命中的证据，有 HTTP(S) 来源才允许打开链接，无 URL 的演示资料明确标注边界；Playwright 在本地合成 Provider 下实际覆盖首页、目录详情、两轮会话、`session_id` 恢复、Provider 请求失败降级和后台摘要保存。API `251 passed`、Web `28 files / 132 passed`，Web typecheck、lint、production build 通过；完整事实以 [`docs/verification/latest.json`](docs/verification/latest.json) 为准。此次 `ark-code-latest` 是本地合成服务返回的模型标签，不是新的真实模型质量结论。
 
 ## 评审范围
 
@@ -207,7 +207,7 @@ pytest 当前收集并通过 250 个后端用例（含参数化展开），另�
 |---|---|---|
 | 业务闭环 | 4/5 | 公开内容、聊天、微信和后台链路齐全 |
 | Agent/LLM 工程 | 4/5 | 有 Skill、Provider、降级、请求 trace、服务端受控多轮上下文、SQL 证据白名单、成对离线评测、版本指纹和 guest session；真实模型质量、token/cost 与 trace 外部日志轮转仍依赖后续环境 |
-| 测试工程 | 4/5 | 测试资产丰富且已有可追溯运行结果与覆盖率基线；仍缺覆盖率门槛和 E2E |
+| 测试工程 | 4/5 | 测试资产丰富且已有可追溯运行结果与覆盖率基线；仍缺覆盖率门槛和 CI/生产级 E2E |
 | 安全与身份 | 3/5 | 已阻断客户端 metadata 直接扩权，为聊天/会话/平台权益建立签名 guest session 主体，为公众号增加基础重放防护，收紧 URL/媒体输入并建立隐私删除/保留策略；账号认证、DNS rebinding、速率限制、MIME 和外部日志轮转仍未完成 |
 | 交付与运维 | 3/5 | CI、镜像和模板完整；发布门禁与生产闭环不足 |
 | 面试展示 | 4/5 | 已有可读 README、证据引用卡、本地真实浏览器验收、脱敏截图和视频候选；视频仍无音轨，真实模型质量与生产演示仍待补充 |

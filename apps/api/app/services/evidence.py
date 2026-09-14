@@ -6,7 +6,6 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Literal
-from urllib.parse import urlparse
 
 from sqlmodel import Session, select
 
@@ -18,6 +17,7 @@ from ..models.catalog import (
     SchoolRankingReference,
 )
 from .data_provenance import get_data_provenance
+from .url_safety import UnsafeExternalUrlError, validate_external_url
 
 EntityType = Literal["school", "major"]
 
@@ -61,19 +61,15 @@ def serialize_evidence_items(items: Iterable[EvidenceItem]) -> list[dict[str, An
     ]
 
 
-def _is_http_url(value: object) -> bool:
-    if not isinstance(value, str) or not value.strip():
-        return False
-    parsed = urlparse(value.strip())
-    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
-
-
 def _optional_http_url(value: object) -> str | None:
     if value is None or (isinstance(value, str) and not value.strip()):
         return None
-    if not _is_http_url(value):
+    if not isinstance(value, str):
         return None
-    return str(value).strip()
+    try:
+        return validate_external_url(value)
+    except UnsafeExternalUrlError:
+        return None
 
 
 def _normalise_limit(value: int, *, maximum: int, name: str) -> int:

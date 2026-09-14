@@ -364,8 +364,14 @@ test("renders server-owned evidence citations with an explicit source boundary",
       content: {
         rendered_reply: "这是一条带证据的演示回答。",
         entities: {
-          evidence_refs: ["school:demo-university:summary"],
+          evidence_refs: [
+            "school:demo-university:summary",
+            "school:demo-university:unsafe-source",
+            "school:demo-university:demo-note",
+          ],
           evidence: [
+            null,
+            { id: "school:demo-university:incomplete" },
             {
               id: "school:demo-university:summary",
               source_name: "演示来源",
@@ -373,6 +379,22 @@ test("renders server-owned evidence citations with an explicit source boundary",
               province: "河南",
               text: "演示大学：工科方向资料，仅用于测试。",
               source_url: "https://example.com/demo-university",
+            },
+            {
+              id: "school:demo-university:unreferenced",
+              source_name: "项目演示资料",
+              year: 2026,
+              province: "河南",
+              text: "这条没有被模型引用的演示资料不应显示。",
+              source_url: null,
+            },
+            {
+              id: "school:demo-university:unsafe-source",
+              source_name: "不安全来源",
+              year: 2026,
+              province: "河南",
+              text: "这条来源地址不应成为可点击链接。",
+              source_url: "http://127.0.0.1:8000/private",
             },
             {
               id: "school:demo-university:demo-note",
@@ -410,13 +432,20 @@ test("renders server-owned evidence citations with an explicit source boundary",
   expect(
     screen.getByText("演示大学：工科方向资料，仅用于测试。"),
   ).toBeInTheDocument();
+  expect(screen.getByText("3 条")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "打开来源" })).toHaveAttribute(
     "href",
     "https://example.com/demo-university",
   );
+  expect(screen.getByText("不安全来源")).toBeInTheDocument();
+  expect(
+    screen.getByText("这条来源地址不应成为可点击链接。"),
+  ).toBeInTheDocument();
   expect(screen.getByText("项目演示资料")).toBeInTheDocument();
+  expect(screen.queryByText("这条没有被模型引用的演示资料不应显示。")).not.toBeInTheDocument();
+  expect(screen.getAllByText(/引用 ID：/)).toHaveLength(3);
+  expect(screen.getAllByRole("link", { name: "打开来源" })).toHaveLength(1);
   expect(
     screen.getByText("演示资料：暂无可打开来源，回答不会把它当作外部网页事实。"),
   ).toBeInTheDocument();
-  expect(screen.getAllByRole("link", { name: "打开来源" })).toHaveLength(1);
 });

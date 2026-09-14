@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "verification_date": "2026-09-15",
-  "source_commit": "9aa3811",
+  "verification_base_commit": "215adeb",
   "branch": "codex/interview-ready",
   "mode": "synthetic_local_provider",
   "report": "2026-09-15-t10-browser-demo.md",
@@ -13,7 +13,7 @@
     "note": "仅验证协议、服务端证据回填、会话和 UI；不代表真实模型质量、token/cost 或招生准确率。"
   },
   "results": {
-    "api_tests_passed": 250,
+    "api_tests_passed": 251,
     "web_test_files": 28,
     "web_tests_passed": 132,
     "web_typecheck": "passed",

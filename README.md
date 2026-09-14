@@ -76,7 +76,7 @@
 
 ### 证据驱动回答如何避免“模型自己编来源”？
 
-服务端只对用户消息中明确出现的学校/专业名称生成有限 SQL 证据包，默认最多 20 条、12000 字符；模型只能在现有嵌套 `entities.evidence_refs` 中引用包内 `citation_id`，服务端再附上受信的 `entities.evidence` 来源元数据。聊天页现在把这些元数据渲染为“证据与引用”卡片：有 HTTP(S) 来源才提供打开链接，演示资料无 URL 时明确标注边界。未知引用或没有证据却输出录取概率、分数线等可见数字声明时，Skill 回到规则结果；离线质量 runner 同时兼容历史 fixture 的顶层字段和运行时嵌套字段。代码证据见 [`evidence.py`](apps/api/app/services/evidence.py)、[`skills.py`](apps/api/app/services/skills.py)、[`evidence-list.tsx`](apps/web/components/public/evidence-list.tsx) 和 [`T10 验证记录`](docs/verification/2026-09-15-t10-browser-demo.md)。
+服务端只对用户消息中明确出现的学校/专业名称生成有限 SQL 证据包，默认最多 20 条、12000 字符；模型只能在现有嵌套 `entities.evidence_refs` 中引用包内 `citation_id`，服务端再附上受信的 `entities.evidence` 来源元数据。聊天页现在只把 `evidence_refs` 命中的元数据渲染为“证据与引用”卡片：有 HTTP(S) 来源才提供打开链接，演示资料无 URL 时明确标注边界。未知引用或没有证据却输出录取概率、分数线等可见数字声明时，Skill 回到规则结果；离线质量 runner 同时兼容历史 fixture 的顶层字段和运行时嵌套字段。代码证据见 [`evidence.py`](apps/api/app/services/evidence.py)、[`skills.py`](apps/api/app/services/skills.py)、[`evidence-list.tsx`](apps/web/components/public/evidence-list.tsx) 和 [`T10 验证记录`](docs/verification/2026-09-15-t10-browser-demo.md)。
 
 ## 系统架构
 
@@ -352,8 +352,8 @@ python scripts/wechat_aes_helper.py decrypt `
 
 源码静态统计：
 
-- 后端：32 个测试模块，另有 1 个 `conftest.py`；pytest 当前收集并通过 250 个用例（含参数化展开）。
-- 前端：28 个测试模块，另有 1 个 `setup.ts`；当前收集并通过 131 个 `test/it` 用例。
+- 后端：32 个测试模块，另有 1 个 `conftest.py`；pytest 当前收集并通过 251 个用例（含参数化展开）。
+- 前端：28 个测试模块，另有 1 个 `setup.ts`；当前收集并通过 132 个 `test/it` 用例。
 - CI：API lint/test、迁移冒烟、Web lint/test/build、API/Web Docker 构建；trace、会话、离线评测、检索边界和可信身份回归测试位于 `test_chat_services.py`、`test_chat_sessions.py`、`test_eval_runner.py`、`test_retrieval_spike.py` 和 `test_auth_context.py`。
 
 本节不把历史运行结果当作当前事实。可使用以下命令生成当前机器和当前 commit 的验证结果：
@@ -396,7 +396,7 @@ npm audit --audit-level=moderate
 
 2026-09-15 T09 验证：API `250 passed`、Web `28 files / 131 passed`；服务端按消息中明确命名的实体生成最多 20 条/12000 字符 SQL 证据，运行时引用位于 `entities.evidence_refs`，来源元数据位于 `entities.evidence`，未知 citation 和无证据数字声明进入规则降级；领域质量 replay `40/40`，成对 replay `1/1` 可比且逐样本记录两侧失败检查；另用 `ark-code-latest` 完成一次真实 Provider smoke，验证完整链路会对无证据数字声明安全降级。真实模型成对质量、真实 token/cost 与实际返回模型证据、浏览器 E2E、Docker runtime 和生产发布仍未确认。完整命令与边界见 [`T09 证据驱动回答与成对评测验证`](docs/verification/2026-09-15-t09-grounded-answers.md)。
 
-2026-09-15 T10 验证：API `250 passed`、Web `28 files / 132 passed`；Playwright 在本地合成 Provider 下实际覆盖首页、目录详情、证据卡片、两轮会话、`session_id` 恢复、Provider 断开后的规则降级和后台摘要保存；同时生成脱敏截图与无音轨视频候选。该轮的 `ark-code-latest` 只是本地合成服务返回的模型标签，不是火山引擎真实质量验证。当前统一入口是 [`docs/verification/latest.json`](docs/verification/latest.json)，详细记录见 [`T10 三分钟 Demo 与浏览器验收`](docs/verification/2026-09-15-t10-browser-demo.md)。
+2026-09-15 T10 验证：API `251 passed`、Web `28 files / 132 passed`；Playwright 在本地合成 Provider 下实际覆盖首页、目录详情、证据卡片、两轮会话、`session_id` 恢复、Provider 断开后的规则降级和后台摘要保存；同时生成脱敏截图与无音轨视频候选。该轮的 `ark-code-latest` 只是本地合成服务返回的模型标签，不是火山引擎真实质量验证。当前统一入口是 [`docs/verification/latest.json`](docs/verification/latest.json)，详细记录见 [`T10 三分钟 Demo 与浏览器验收`](docs/verification/2026-09-15-t10-browser-demo.md)。
 
 ## 目录结构
 

@@ -15,7 +15,7 @@
 
 因为来源是系统信任边界的一部分。服务端只把消息中明确命名实体对应的有限 SQL 证据包
 放进上下文，模型只能返回包内 `evidence_refs`；服务端再根据真实证据记录回填来源名称、
-年份、地区、URL 和 demo 状态。前端只展示服务端回填的 `entities.evidence`，有 HTTP(S)
+年份、地区、URL 和 demo 状态。前端只展示 `evidence_refs` 命中的服务端回填 `entities.evidence`，有 HTTP(S)
 来源才提供链接，无 URL 的演示资料显示边界提示。这样模型可以解释事实，但不能凭空制造
 来源或把客户端伪造的证据变成可信信息。
 证据：[`evidence.py`](../../apps/api/app/services/evidence.py)、
@@ -120,7 +120,7 @@ rebinding、MIME/内容校验和速率限制是后续加固项，不能把现有
 
 后端用 API、服务、迁移和安全回归测试覆盖业务边界；前端用 API client、页面、表单
 状态和后台交互测试；另有离线评测、检索 spike、数据资产校验和本地 HTTP smoke。
-当前本地验证为 API `250 passed`、Web `132 passed`；Prompt 快照、工程协议评测和
+当前本地验证为 API `251 passed`、Web `132 passed`；Prompt 快照、工程协议评测和
 领域质量 replay 也有聚焦测试。工程协议评测为 30/30，领域 replay 为 40/40，且报告
 记录样本分母和失败样例。覆盖率和历史阶段结果
 应以带日期的验证记录为准，不应把固定样本通过率表述为线上模型质量。受控多轮上下文

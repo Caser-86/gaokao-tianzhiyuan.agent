@@ -178,6 +178,45 @@ def test_evidence_rejects_unknown_entity_and_oversized_item(seed_catalog, engine
     )
 
 
+def test_evidence_drops_unsafe_source_urls(seed_catalog, engine) -> None:
+    seed_catalog(
+        {
+            "search_entry": {},
+            "schools": [
+                {
+                    "slug": "demo-school",
+                    "name": "演示大学",
+                    "region": "江苏",
+                    "city": "南京",
+                    "summary": "摘要。",
+                    "sections": [],
+                    "ranking_references": [
+                        {
+                            "source": "不安全榜单",
+                            "year": 2025,
+                            "label": "示例名次",
+                            "scope": "综合",
+                            "note": "仅用于测试。",
+                            "url": "https://user:password@example.com/private",
+                        }
+                    ],
+                }
+            ],
+            "majors": [],
+        }
+    )
+
+    assert (
+        build_evidence_package(
+            entity_type="school",
+            entity_slug="demo-school",
+            year=2025,
+            session_factory=_session_factory(engine),
+        )
+        == []
+    )
+
+
 def test_stale_provenance_is_not_returned_as_usable_evidence(
     seed_catalog, engine, monkeypatch
 ) -> None:

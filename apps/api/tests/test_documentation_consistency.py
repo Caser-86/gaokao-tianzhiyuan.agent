@@ -24,3 +24,9 @@ def test_current_interview_docs_share_latest_verification_baseline() -> None:
         assert current_api_test_count in content
         assert current_web_test_count in content
         assert current_verification in content
+
+    readme_content = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    assert (
+        f"- 前端：28 个测试模块，另有 1 个 `setup.ts`；当前收集并通过 "
+        f"{current_web_test_count} 个 `test/it` 用例。"
+    ) in readme_content

@@ -43,7 +43,7 @@ powershell -ExecutionPolicy Bypass -File scripts/stop-local-stack.ps1 `
 | 1:25—1:45 | 停止合成 Provider，再提问 | “Provider 不可用时不把 500 直接交给用户；页面仍显示规则降级结果，响应 debug 和 trace 会记录 `provider_request_failed`。” | [`tracing.py`](../../apps/api/app/services/tracing.py)、[`T10 验证记录`](../verification/2026-09-15-t10-browser-demo.md) |
 | 1:45—2:05 | 打开 `/admin` 并保存一次学校摘要 | “模型增强有 `off / gated / on` 权限策略；内容摘要、精选、榜单来源和媒体失败都能进入运营后台，保存结果可见。” | [`dashboard-shell.tsx`](../../apps/web/components/admin/dashboard-shell.tsx)、后台截图 |
 | 2:05—2:30 | 展示 trace/eval 报告 | “我们用 30 个固定工程样本验证路由、结构化输出和 fallback，再用 40 条独立 replay 检查引用、无依据数字和追问覆盖；另有 1 条同问题同预算的 direct vs grounded 成对样本，逐项展示失败原因，而不是只展示一次成功对话。” | [`runner.py`](../../apps/api/app/evals/runner.py)、[`quality_runner.py`](../../apps/api/app/evals/quality_runner.py)、T09 评测报告 |
-| 2:30—3:00 | 回到 README 的验证区 | “当前本地基线是 API 250 个测试通过、Web 132 个用例通过；T10 浏览器验收已通过，但真实模型成对质量、Docker runtime 和生产发布仍明确列为待确认项。” | [`latest.json`](../verification/latest.json)、[`T10 验证记录`](../verification/2026-09-15-t10-browser-demo.md)、生产就绪矩阵 |
+| 2:30—3:00 | 回到 README 的验证区 | “当前本地基线是 API 251 个测试通过、Web 132 个用例通过；T10 浏览器验收已通过，但真实模型成对质量、Docker runtime 和生产发布仍明确列为待确认项。” | [`latest.json`](../verification/latest.json)、[`T10 验证记录`](../verification/2026-09-15-t10-browser-demo.md)、生产就绪矩阵 |
 
 ## 最少展示的三个问题
 
@@ -64,7 +64,6 @@ powershell -ExecutionPolicy Bypass -File scripts/stop-local-stack.ps1 `
 脚本、截图和本地 smoke 证据已准备完成；已用 Playwright 在本地合成配置下生成一个脱敏交互视频候选：
 [`t10-demo.webm`](../../docs/assets/t10-demo.webm)，并保留此前的通用候选
 [`gaokao-agent-demo.webm`](../../docs/assets/gaokao-agent-demo.webm)及旁挂字幕
-[`gaokao-agent-demo.vtt`](../../docs/assets/gaokao-agent-demo.vtt)。候选视频包含首页、结构化
-包含首页、目录详情、证据引用卡、两轮问答和运营后台保存动作；当前仍为无音轨的静音录屏，旁白可按面试场景
+[`gaokao-agent-demo.vtt`](../../docs/assets/gaokao-agent-demo.vtt)。候选视频包含首页、目录详情、证据引用卡、两轮问答和运营后台保存动作；当前仍为无音轨的静音录屏，旁白可按面试场景
 后续补录；这不是生产演示，面试前仍需做最终敏感信息复核。
 最新 T10 的完整事实见 [`latest.json`](../verification/latest.json) 和 [`2026-09-15 T10 验证记录`](../verification/2026-09-15-t10-browser-demo.md)；T09 的证据注入、citation 校验和成对评测记录见 [`2026-09-15 T09 验证记录`](../verification/2026-09-15-t09-grounded-answers.md)。

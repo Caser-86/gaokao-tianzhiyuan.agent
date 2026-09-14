@@ -273,8 +273,11 @@ export default function ChatWorkspace({
             {content.analysis ? (
               <p style={{ margin: "8px 0 0" }}>{content.analysis}</p>
             ) : null}
-            {content.entities?.evidence ? (
-              <EvidenceList evidence={content.entities.evidence} />
+            {content.entities?.evidence !== undefined ? (
+              <EvidenceList
+                evidence={content.entities.evidence}
+                evidenceRefs={content.entities.evidence_refs}
+              />
             ) : null}
             {content.risk_flags?.length ? (
               <section>
