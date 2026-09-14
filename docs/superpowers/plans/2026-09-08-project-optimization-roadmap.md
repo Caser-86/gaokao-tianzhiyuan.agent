@@ -42,15 +42,18 @@ flowchart TD
 
 M4 可在 M1/M2 期间并行推进；它仍必须通过 G4 才能开放真实流量。G0 不满足则先修复，不把故障带入后续功能开发。
 
-## 当前执行状态（2026-09-13）
+## 当前执行状态（2026-09-15）
 
 | 任务 | 状态 | 已执行内容 | 尚缺证据 |
 |---|---|---|---|
 | T01 | 已完成 | CI 使用项目 `.[dev]` 依赖；统一 Ruff lint/format；本地门禁已纳入 `verify-project.ps1`；GitHub CI run `34759370307` 的 API Lint & Format 通过 | 无 |
 | T02 | 代码完成，运行时待验证 | 镜像复制正式 `skills/`；Compose 传入 session secret；启动播种改为仅空库初始化，已有库重启不覆盖；同一 CI run 的 Docker Build 通过 | Docker Desktop 恢复后做隔离卷 smoke、重启保留摘要、Prompt hash、/health、/version 和 stub 调用 |
 | T03 | 已完成 | Provider 信封显式校验；Skill 输出 Pydantic 严格契约；非法意图/字段降级；旧宽松 JSON 兼容路径保留；GitHub CI 同 SHA 的 API Test 通过 | 无 |
-| T04 | 已完成 | 缺少分数/位次时不生成量化院校建议；返回 `insufficient_candidate_context`；离线评测新增风险标记断言 | 后续在领域质量评测中扩展缺信息样本 |
+| T04 | 已完成 | 缺少分数/位次时不生成量化院校建议；返回 `insufficient_candidate_context`；离线评测新增风险标记断言 | 已在 T06 领域样本中扩展缺信息场景 |
 | G0 | 条件通过，待运行时封板 | API/Web 本地回归、离线评测、GitHub required checks 与 Docker Build 已通过 | 本机 Docker runtime smoke；完成后才进入 M1 |
+| T05 | 已完成 | `PromptSnapshot` 统一运行时/评测实际 system message；支持 `--prompt`、缺文件非零退出；报告记录两类 hash、数据集 hash、commit/dirty/mode；兼容链接已修复 | 无 |
+| T06 | replay 已完成，真实质量待补 | 工程协议样本 30 条；领域合成 replay 40 条，分类与 dev/holdout 分离；质量报告记录分母、失败样例、模型/成本占位；Prompt 契约测试捕获 actual messages | 真实模型小样本、token/成本统计和线上质量基线；当前 `real` 模式带预算也明确不执行 Provider |
+| G1 | replay 条件通过 | 三层评测已分离并可复现：协议 `30/30`，Prompt 契约测试通过，领域 replay `40/40` | 不能用 replay 结果替代真实模型质量；需补真实受控评测后再封板 |
 
 ## 总计划表
 
@@ -140,20 +143,20 @@ G0：T01—T04 全部通过；API/Web/Docker 原有功能仍可使用。公开�
 **文件：** 修改 `prompt_assets.py`、`config.py`、`skills.py`、`app/evals/runner.py`、`test_eval_runner.py`、`evals/offline-prompt.md`。
 **接口：** 新增不可变 PromptSnapshot(path, asset_sha256, effective_sha256, system_text)；同一快照用于发给 Provider 和记录身份；CLI 增加 --prompt，未设置时默认项目资产。
 
-- [ ] 用捕获 messages 的 fake provider 断言实际发送 system_text；自定义路径和缺文件也测试。
-- [ ] 将固定 system 附加指令与资产组装集中处理；effective hash 覆盖完整 system_text。
-- [ ] 报告写入路径、两类 hash、数据集 hash、commit/dirty、评测模式；缺文件直接非零退出。
-- [ ] 修复兼容说明链接与 Markdown 表头；保持报告级身份与实际使用快照一致。
+- [x] 用捕获 messages 的 fake provider 断言实际发送 system_text；自定义路径和缺文件也测试。
+- [x] 将固定 system 附加指令与资产组装集中处理；effective hash 覆盖完整 system_text。
+- [x] 报告写入路径、两类 hash、数据集 hash、commit/dirty、评测模式；缺文件直接非零退出。
+- [x] 修复兼容说明链接与 Markdown 表头；保持报告级身份与实际使用快照一致。
 
 ### T06 — 分离三层评测
 
 **文件：** 修改 `app/evals/runner.py`、`evals/cases.json`；新增 `evals/domain-cases.json`、`app/evals/quality_runner.py`、`tests/test_quality_runner.py`。
 **接口：** 协议回归继续默认离线；质量 runner 读取固定输入、必需证据与 rubric，默认 replay；真实模式必须显式参数开启并设置请求/token 预算。
 
-- [ ] 工程回归扩充至少 30 个确定性场景，覆盖 T03/T04 异常、缺信息、隔离和动作边界。
-- [ ] Prompt 契约使用 spy provider 验证资产、角色、上下文和来源包真正传入，不把 stub 输出作为 Prompt 质量证明。
-- [ ] 初始 40 条合成领域问题：信息不足8、引用问答8、比较6、多轮6、对抗6、域外6；每条带预期证据/禁用断言/评分规则，区分开发集与留出集。
-- [ ] 质量指标包括引用正确性、无证据数字、必需信息追问、类型契约、模型与成本；报告失败案例及样本分母。
+- [x] 工程回归扩充为 30 个确定性场景，覆盖 T03/T04 异常、缺信息、权益隔离和敏感/动作边界。
+- [x] Prompt 契约使用捕获 Provider 验证资产、角色和用户上下文真正传入；质量 replay 与 Prompt 契约分离，不把 stub 输出作为 Prompt 质量证明。来源证据包留待 T07。
+- [x] 初始 40 条合成领域问题：信息不足8、引用问答8、比较6、多轮6、对抗6、域外6；每条带预期证据/禁用断言/评分规则，区分开发集与留出集。
+- [x] 质量指标包括引用正确性、无证据数字、必需信息追问、类型契约、模型与成本占位；报告失败案例及样本分母。
 - [ ] 真实模型先做小样本基线，预算不足时停止并标记未完成；不以 LLM judge 单独作为事实判定。
 
 G1 建议验收目标（是目标，不是当前成绩）：工程回归100%；质量留出集零虚构录取数字；所有引用可回溯；缺信息追问覆盖率≥95%。模型质量若未达到门槛，记录失败分布并迭代，不宣称通过。

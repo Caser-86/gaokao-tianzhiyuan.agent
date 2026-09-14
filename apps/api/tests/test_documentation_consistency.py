@@ -1,8 +1,8 @@
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-CURRENT_VERIFICATION = "2026-08-31-data-provenance-contract.md"
-CURRENT_API_TEST_COUNT = "215"
+CURRENT_VERIFICATION = "2026-09-15-m1-prompt-and-quality-evaluation.md"
+CURRENT_API_TEST_COUNT = "232"
 CURRENT_WEB_TEST_COUNT = "130"
 CURRENT_DOCS = (
     REPO_ROOT / "README.md",

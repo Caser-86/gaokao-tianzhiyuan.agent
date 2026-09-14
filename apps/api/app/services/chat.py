@@ -220,6 +220,7 @@ class ConversationService:
             skill_id=metadata.skill_id,
             version=metadata.version,
             prompt_hash=metadata.prompt_hash,
+            effective_prompt_hash=metadata.effective_prompt_hash,
             matched=True,
             confidence=1.0,
             reason="direct skill invocation",
@@ -241,6 +242,7 @@ class ConversationService:
             provider=result.provider,
             model_called=result.model_called,
             prompt_hash=metadata.prompt_hash,
+            effective_prompt_hash=metadata.effective_prompt_hash,
         )
 
     def _invoke_best_match(
@@ -260,6 +262,7 @@ class ConversationService:
                 skill_id=metadata.skill_id,
                 version=metadata.version,
                 prompt_hash=metadata.prompt_hash,
+                effective_prompt_hash=metadata.effective_prompt_hash,
                 matched=current_match.matched,
                 confidence=current_match.confidence,
                 reason=current_match.reason,
@@ -295,6 +298,7 @@ class ConversationService:
             provider=result.provider,
             model_called=result.model_called,
             prompt_hash=metadata.prompt_hash,
+            effective_prompt_hash=metadata.effective_prompt_hash,
         )
 
     def _build_response(
@@ -310,9 +314,14 @@ class ConversationService:
         provider: str,
         model_called: bool,
         prompt_hash: str | None = None,
+        effective_prompt_hash: str | None = None,
         trace_fallback_reasons: list[str] | None = None,
     ) -> dict[str, Any]:
-        trace.select_skill(matched_skill, prompt_hash=prompt_hash)
+        trace.select_skill(
+            matched_skill,
+            prompt_hash=prompt_hash,
+            effective_prompt_hash=effective_prompt_hash,
+        )
         fallback_reasons = list(
             debug_notes if trace_fallback_reasons is None else trace_fallback_reasons
         )

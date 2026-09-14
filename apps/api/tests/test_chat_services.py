@@ -21,6 +21,7 @@ from app.services.media_analysis import (
     PendingMediaAnalysisProvider,
     build_media_analysis_provider,
 )
+from app.services.prompt_assets import ZHANGXUEFENG_SYSTEM_INSTRUCTIONS
 from app.services.skills import (
     CatalogLookupSkill,
     ChatRequestContext,
@@ -475,8 +476,11 @@ def test_zhangxuefeng_skill_uses_provider_and_normalizes_json(tmp_path) -> None:
     assert result.risk_flags == ["financial_industry_competition"]
     assert result.rendered_reply == "我跟你说，普通家庭别先冲金融。"
     assert provider.messages[0].role == "system"
-    assert "张雪峰测试提示词" in provider.messages[0].content
-    assert "Return valid JSON only" in provider.messages[0].content
+    assert provider.messages[0].content == (
+        f"张雪峰测试提示词\n\n{ZHANGXUEFENG_SYSTEM_INSTRUCTIONS}"
+    )
+    assert [message.role for message in provider.messages] == ["system", "user"]
+    assert provider.messages[1].content == request.message
 
 
 def test_zhangxuefeng_skill_can_normalize_loose_json_payload(tmp_path) -> None:
@@ -499,6 +503,31 @@ def test_zhangxuefeng_skill_can_normalize_loose_json_payload(tmp_path) -> None:
     assert result.summary == "用户在咨询学校推荐建议"
     assert result.analysis == "请补充你的省份和分数"
     assert result.follow_up_questions == ["补充分数", "补充省份"]
+
+
+def test_zhangxuefeng_skill_uses_one_frozen_prompt_snapshot(tmp_path) -> None:
+    skill_file = tmp_path / "SKILL.md"
+    skill_file.write_text("PROMPT BEFORE", encoding="utf-8")
+    provider = FakeProvider(
+        '{"intent":"school_recommendation","summary":"ok","analysis":"ok",'
+        '"suggestions":[],"follow_up_questions":[],"actions":[],"risk_flags":[],'
+        '"rendered_reply":"ok"}'
+    )
+    skill = ZhangXueFengSkill(provider=provider, skill_prompt_path=str(skill_file))
+    metadata_before = skill.describe()
+
+    skill_file.write_text("PROMPT AFTER", encoding="utf-8")
+    result = skill.invoke(
+        ChatRequestContext(
+            channel="web",
+            user_id="web-frozen-prompt",
+            message="江苏学校怎么样",
+        )
+    )
+
+    assert result.debug_notes == []
+    assert provider.messages[0].content == f"PROMPT BEFORE\n\n{ZHANGXUEFENG_SYSTEM_INSTRUCTIONS}"
+    assert skill.describe() == metadata_before
 
 
 def test_zhangxuefeng_skill_falls_back_for_invalid_structured_fields(tmp_path) -> None:
@@ -828,6 +857,9 @@ def test_conversation_service_emits_redacted_agent_trace_for_provider_success(
     trace = trace_events[0]
     serialized_trace = json.dumps(trace, ensure_ascii=False)
     expected_prompt_hash = hashlib.sha256(skill_file.read_bytes()).hexdigest()
+    expected_effective_prompt_hash = hashlib.sha256(
+        f"张雪峰测试提示词\n\n{ZHANGXUEFENG_SYSTEM_INSTRUCTIONS}".encode()
+    ).hexdigest()
     assert trace["schema_version"] == "agent-trace.v1"
     assert trace["request_id"] == result["request_id"]
     assert trace["channel"] == "web"
@@ -837,6 +869,7 @@ def test_conversation_service_emits_redacted_agent_trace_for_provider_success(
         "skill_id": "zhangxuefeng",
         "version": "v2",
         "prompt_hash": expected_prompt_hash,
+        "effective_prompt_hash": expected_effective_prompt_hash,
         "confidence": 0.75,
         "reason": "matched keyword: 专业",
     }

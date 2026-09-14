@@ -17,6 +17,8 @@
 
 2026-09-07 继续统一 Prompt 与离线评测：运行时和 `app.evals.runner` 通过同一默认路径解析入口选择 [`skills/zhangxuefeng/SKILL.md`](skills/zhangxuefeng/SKILL.md)，并通过同一个 SHA-256 函数产生 Prompt 身份。评测顶层报告现在显式声明 Prompt 来源和 hash；`apps/api/evals/offline-prompt.md` 仅作为兼容说明保留，不会被加载。当前固定评测仍为 13/13 通过，边界与完整命令见 [`Prompt 与离线评测统一验证`](docs/verification/2026-09-07-prompt-evaluation-unification.md)。
 
+2026-09-15 M1 继续收紧 Prompt 身份并拆分评测层：运行时与评测使用同一不可变 `PromptSnapshot`，报告区分 asset/effective hash；工程协议评测为 30 条，领域质量 replay 为 40 条并保留 dev/holdout、分母与失败样例。API 本轮为 `232 passed`，Web 沿用最近验证的 `130 passed`；真实模型质量、Docker runtime smoke 和生产 SLA 仍未确认。完整记录见 [`M1 Prompt 身份与三层评测验证`](docs/verification/2026-09-15-m1-prompt-and-quality-evaluation.md)。
+
 ## 评审范围
 
 评审覆盖 `git ls-files` 返回的 256 个跟踪文件，并额外核对了当前工作区未提交内容：
@@ -88,8 +90,9 @@ flowchart LR
 | 确定性降级 | 配置缺失、请求失败、余额不足、格式错误均回退到规则结果 | [`skills.py`](apps/api/app/services/skills.py) | 体现 LLM 非确定性下的可用性设计 |
 | Agent trace | 记录候选/选择 Skill、版本、Prompt SHA-256 指纹、Provider、模型调用标记、耗时和降级原因；session 仅保存摘要引用 | [`tracing.py`](apps/api/app/services/tracing.py)、[`chat.py`](apps/api/app/services/chat.py) | 可解释一次请求为什么这样路由，且不把敏感原文写入 trace |
 | 会话生命周期 | 保存 user/assistant 消息，30 天滚动过期，按用户读取/删除；页面可通过 `session_id` 恢复 | [`chat_sessions.py`](apps/api/app/services/chat_sessions.py)、[`chat.py`](apps/api/app/services/chat.py) | 可展开数据保留、隔离和“短期会话不等于长期记忆”的取舍 |
-| 离线评测基线 | 13 个固定样本，覆盖目录、路由、信息缺失、敏感请求边界、Provider 失败和结构化输出；当前 13/13 通过 | [`cases.json`](apps/api/evals/cases.json)、[`runner.py`](apps/api/app/evals/runner.py) | 可量化讲解“模型不可用时如何保持可用”，不伪造线上质量 |
-| Prompt 一致性 | 运行时与离线评测共用默认 Prompt 解析和 SHA-256 身份；报告声明正式 Prompt 来源 | [`config.py`](apps/api/app/config.py)、[`prompt_assets.py`](apps/api/app/services/prompt_assets.py)、[`runner.py`](apps/api/app/evals/runner.py) | 可证明评测对象与运行时对象一致，避免只展示一份未被实际加载的 Prompt |
+| 工程协议评测 | 30 个固定样本，覆盖目录、路由、信息缺失、敏感请求边界、Provider 失败、权益分支和结构化输出；当前 30/30 通过 | [`cases.json`](apps/api/evals/cases.json)、[`runner.py`](apps/api/app/evals/runner.py) | 可量化讲解“模型不可用时如何保持可用”，不伪造线上质量 |
+| 领域质量 replay | 40 条合成样本，覆盖信息不足、引用问答、比较、多轮、对抗和域外；报告保留分母和失败样例 | [`domain-cases.json`](apps/api/evals/domain-cases.json)、[`quality_runner.py`](apps/api/app/evals/quality_runner.py) | 验证评分器和边界样本，不把 replay 结果当线上模型质量 |
+| Prompt 一致性 | 运行时与离线评测共享不可变 PromptSnapshot；报告区分 asset/effective SHA-256，并由 fake Provider 捕获实际 system message | [`config.py`](apps/api/app/config.py)、[`prompt_assets.py`](apps/api/app/services/prompt_assets.py)、[`runner.py`](apps/api/app/evals/runner.py) | 可证明评测对象与运行时对象一致，避免只展示一份未被实际加载的 Prompt |
 | 权益控制 | `off / gated / on`，支持持久化用户权益 | [`access_control.py`](apps/api/app/services/access_control.py) | 体现模型成本与商业权限结合 |
 | 多模态预留 | 图片分析 Provider、字段提取、审计事件和重试入口 | [`media_analysis.py`](apps/api/app/services/media_analysis.py) | 可说明多模态链路及失败可恢复性 |
 | 多渠道适配 | Web、通用微信渠道、公众号明文/AES 回调 | [`routers/chat.py`](apps/api/app/routers/chat.py) | 展示渠道协议适配能力 |
@@ -128,7 +131,7 @@ flowchart LR
 
 ### 4. 测试覆盖业务路径而非只测健康检查
 
-源码静态统计包含 194 个后端测试函数；pytest 当前收集并通过 215 个后端用例（含参数化展开），另有 130 个前端 `test/it` 用例。测试覆盖 Skill 路由、LLM 错误、公众号 AES、内容不变量、后台筛选、会话隔离、离线评测、检索边界、权益扩权回归、可信身份、平台权益主体、公众号重放、URL/媒体输入安全、隐私删除、Action 状态、版本探针、数据来源契约和页面交互。源码函数数与参数化后的用例数分开记录，避免把两者混为一谈。
+pytest 当前收集并通过 232 个后端用例（含参数化展开），另有 130 个前端 `test/it` 用例。测试覆盖 Skill 路由、LLM 错误、公众号 AES、内容不变量、后台筛选、会话隔离、Prompt 契约、工程协议评测、领域质量 replay、检索边界、权益扩权回归、可信身份、平台权益主体、公众号重放、URL/媒体输入安全、隐私删除、Action 状态、版本探针、数据来源契约和页面交互。源码函数数与参数化后的用例数分开记录，避免把两者混为一谈。
 
 ### 5. 有可复现交付意识
 

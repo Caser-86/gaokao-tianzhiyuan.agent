@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from app.evals.runner import DEFAULT_PROMPT_PATH, evaluate_cases, load_cases, render_markdown
 
 
@@ -92,13 +94,62 @@ def test_evaluation_report_declares_shared_prompt_identity() -> None:
     assert prompt["path"] == "skills/zhangxuefeng/SKILL.md"
     assert len(prompt["sha256"]) == 64
     assert prompt["sha256"] == report["cases"][0]["prompt_hash"]
+    assert len(prompt["asset_sha256"]) == 64
+    assert len(prompt["effective_sha256"]) == 64
+    assert prompt["asset_sha256"] == prompt["sha256"]
+    assert prompt["effective_sha256"] == report["cases"][0]["effective_prompt_hash"]
+
+
+def test_evaluation_runner_accepts_custom_prompt_and_records_effective_identity(tmp_path) -> None:
+    custom_prompt = tmp_path / "custom-SKILL.md"
+    custom_prompt.write_text("CUSTOM PROMPT", encoding="utf-8")
+
+    report = evaluate_cases(
+        [
+            {
+                "id": "custom-prompt",
+                "message": "江苏考生620分怎么选学校",
+                "mode": "direct",
+                "skill_id": "zhangxuefeng",
+                "provider_behavior": "success",
+                "expected_skill_id": "zhangxuefeng",
+                "expected_intent": "school_recommendation",
+                "expected_fallback": False,
+            }
+        ],
+        prompt_path=custom_prompt,
+    )
+
+    assert report["prompt"]["path"] == str(custom_prompt)
+    assert report["prompt"]["asset_sha256"] != report["prompt"]["effective_sha256"]
+    assert report["cases"][0]["prompt_hash"] == report["prompt"]["asset_sha256"]
+    assert report["cases"][0]["effective_prompt_hash"] == report["prompt"]["effective_sha256"]
+
+
+def test_evaluation_runner_fails_fast_when_prompt_is_missing(tmp_path) -> None:
+    with pytest.raises(FileNotFoundError):
+        evaluate_cases(
+            [
+                {
+                    "id": "missing-prompt",
+                    "message": "江苏考生620分怎么选学校",
+                    "mode": "direct",
+                    "skill_id": "zhangxuefeng",
+                    "provider_behavior": "success",
+                    "expected_skill_id": "zhangxuefeng",
+                    "expected_intent": "school_recommendation",
+                    "expected_fallback": False,
+                }
+            ],
+            prompt_path=tmp_path / "does-not-exist.md",
+        )
 
 
 def test_eval_cases_cover_core_interview_scenarios() -> None:
     cases = load_cases()
     case_ids = {str(case["id"]) for case in cases}
 
-    assert len(cases) >= 13
+    assert len(cases) >= 30
     assert {
         "missing-context",
         "volunteer-strategy",
@@ -152,5 +203,7 @@ def test_render_markdown_contains_metrics_and_case_table() -> None:
     assert "Routing accuracy" in markdown
     assert "Prompt source" in markdown
     assert "Prompt hash" in markdown
+    assert "Effective prompt SHA-256" in markdown
+    assert "Evaluation mode" in markdown
     assert "catalog-school" in markdown
     json.dumps(report, ensure_ascii=False)

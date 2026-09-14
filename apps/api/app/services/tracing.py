@@ -98,6 +98,7 @@ class AgentTraceRecorder:
         skill_id: str,
         version: str,
         prompt_hash: str | None = None,
+        effective_prompt_hash: str | None = None,
         matched: bool,
         confidence: float,
         reason: str,
@@ -111,6 +112,11 @@ class AgentTraceRecorder:
         }
         if prompt_hash:
             candidate["prompt_hash"] = _safe_text(prompt_hash, max_length=64)
+        if effective_prompt_hash:
+            candidate["effective_prompt_hash"] = _safe_text(
+                effective_prompt_hash,
+                max_length=64,
+            )
         self._candidates.append(candidate)
 
     def select_skill(
@@ -118,6 +124,7 @@ class AgentTraceRecorder:
         matched_skill: dict[str, Any],
         *,
         prompt_hash: str | None = None,
+        effective_prompt_hash: str | None = None,
     ) -> None:
         self._selected_skill = {
             "skill_id": _safe_text(matched_skill.get("skill_id", ""), max_length=80),
@@ -127,6 +134,11 @@ class AgentTraceRecorder:
         }
         if prompt_hash:
             self._selected_skill["prompt_hash"] = _safe_text(prompt_hash, max_length=64)
+        if effective_prompt_hash:
+            self._selected_skill["effective_prompt_hash"] = _safe_text(
+                effective_prompt_hash,
+                max_length=64,
+            )
 
     def emit(
         self,

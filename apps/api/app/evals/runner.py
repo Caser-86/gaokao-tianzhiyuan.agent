@@ -5,6 +5,7 @@ import json
 import subprocess
 import time
 from collections.abc import Callable, Iterable
+from hashlib import sha256
 from math import ceil
 from pathlib import Path
 from typing import Any
@@ -29,7 +30,7 @@ from ..scripts.seed_catalog import (
 from ..services.access_control import set_smart_analysis_mode, set_user_entitlement
 from ..services.chat import ConversationService
 from ..services.llm import ProviderRequestError
-from ..services.prompt_assets import hash_prompt_file
+from ..services.prompt_assets import PromptSnapshot, load_prompt_snapshot
 from ..services.skills import CatalogLookupSkill, SkillRegistry, ZhangXueFengSkill
 
 REQUIRED_CONTENT_KEYS = {
@@ -54,6 +55,33 @@ def _display_prompt_path(path: Path) -> str:
         return path.resolve().relative_to(PROJECT_ROOT.resolve()).as_posix()
     except ValueError:
         return str(path)
+
+
+def _resolve_prompt_path(prompt_path: str | Path | None = None) -> Path:
+    configured_path = "" if prompt_path is None else str(prompt_path).strip()
+    if configured_path:
+        path = Path(configured_path)
+        if not path.is_file():
+            raise FileNotFoundError(f"Prompt asset does not exist: {path}")
+        return path
+
+    resolved_path = resolve_zhangxuefeng_skill_path("")
+    if not resolved_path:
+        raise FileNotFoundError("Prompt asset could not be resolved")
+    path = Path(resolved_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"Prompt asset does not exist: {path}")
+    return path
+
+
+def _hash_cases(cases: list[dict[str, Any]]) -> str:
+    canonical = json.dumps(
+        cases,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return sha256(canonical).hexdigest()
 
 
 class _OfflineProvider:
@@ -98,13 +126,15 @@ def _build_registry(
     provider_behavior: str | None,
     *,
     session_factory: Callable[[], Session],
+    prompt_snapshot: PromptSnapshot,
 ) -> SkillRegistry:
     provider = _OfflineProvider(provider_behavior) if provider_behavior else None
     return SkillRegistry(
         [
             ZhangXueFengSkill(
                 provider=provider,
-                skill_prompt_path=str(DEFAULT_PROMPT_PATH),
+                skill_prompt_path=prompt_snapshot.path,
+                prompt_snapshot=prompt_snapshot,
             ),
             CatalogLookupSkill(session_factory=session_factory),
         ]
@@ -203,7 +233,12 @@ def _percentile(values: list[float], fraction: float) -> float:
     return round(ordered[index], 2)
 
 
-def _evaluate_case(case: dict[str, Any], engine) -> dict[str, Any]:
+def _evaluate_case(
+    case: dict[str, Any],
+    engine,
+    *,
+    prompt_snapshot: PromptSnapshot,
+) -> dict[str, Any]:
     case_id = str(case.get("id", "")).strip()
     user_id = f"eval-{case_id or 'case'}"
     session_id = f"eval-session-{case_id or 'case'}"
@@ -218,6 +253,7 @@ def _evaluate_case(case: dict[str, Any], engine) -> dict[str, Any]:
         registry=_build_registry(
             case.get("provider_behavior"),
             session_factory=session_factory,
+            prompt_snapshot=prompt_snapshot,
         ),
         session_factory=session_factory,
         trace_sink=traces.append,
@@ -261,6 +297,7 @@ def _evaluate_case(case: dict[str, Any], engine) -> dict[str, Any]:
         "matched_skill_id": matched_skill_id,
         "skill_version": selected_skill.get("version"),
         "prompt_hash": selected_skill.get("prompt_hash"),
+        "effective_prompt_hash": selected_skill.get("effective_prompt_hash"),
         "intent": content.get("intent"),
         "used_fallback": response["debug"]["used_fallback"],
         "risk_flags": content.get("risk_flags", []),
@@ -276,11 +313,22 @@ def _evaluate_case(case: dict[str, Any], engine) -> dict[str, Any]:
     }
 
 
-def evaluate_cases(cases: Iterable[dict[str, Any]]) -> dict[str, Any]:
+def evaluate_cases(
+    cases: Iterable[dict[str, Any]],
+    *,
+    prompt_path: str | Path | None = None,
+    dataset_path: str | Path | None = None,
+    commit: str | None = None,
+    evaluation_mode: str = "offline-replay",
+) -> dict[str, Any]:
     case_list = [dict(case) for case in cases]
+    resolved_prompt_path = _resolve_prompt_path(prompt_path)
+    prompt_snapshot = load_prompt_snapshot(resolved_prompt_path)
     engine = _build_engine()
     try:
-        results = [_evaluate_case(case, engine) for case in case_list]
+        results = [
+            _evaluate_case(case, engine, prompt_snapshot=prompt_snapshot) for case in case_list
+        ]
     finally:
         engine.dispose()
 
@@ -289,8 +337,22 @@ def evaluate_cases(cases: Iterable[dict[str, Any]]) -> dict[str, Any]:
     denominator = total or 1
     return {
         "prompt": {
-            "path": _display_prompt_path(DEFAULT_PROMPT_PATH),
-            "sha256": hash_prompt_file(DEFAULT_PROMPT_PATH),
+            "path": _display_prompt_path(resolved_prompt_path),
+            # `sha256` remains as a compatibility alias for the asset hash.
+            "sha256": prompt_snapshot.asset_sha256,
+            "asset_sha256": prompt_snapshot.asset_sha256,
+            "effective_sha256": prompt_snapshot.effective_sha256,
+        },
+        "evaluation_mode": evaluation_mode,
+        "commit": commit or _git_commit(),
+        "working_tree_dirty": _git_dirty(),
+        "dataset": {
+            "path": (
+                _display_prompt_path(Path(dataset_path))
+                if dataset_path is not None
+                else "inline-cases"
+            ),
+            "sha256": _hash_cases(case_list),
         },
         "total_cases": total,
         "passed_cases": sum(1 for item in results if item["passed"]),
@@ -314,12 +376,13 @@ def evaluate_cases(cases: Iterable[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def render_markdown(report: dict[str, Any], *, commit: str = "working-tree") -> str:
+def render_markdown(report: dict[str, Any], *, commit: str | None = None) -> str:
+    effective_commit = commit or report.get("commit", "working-tree")
     lines = [
         "# Agent Offline Evaluation Baseline",
         "",
-        f"> Commit: `{commit}`  ",
-        "> Run mode: fixed JSON cases + local Skills + an offline Provider stub; no real model access.",
+        f"> Commit: `{effective_commit}`  ",
+        f"> Evaluation mode: `{report['evaluation_mode']}`; fixed JSON cases + local Skills + an offline Provider stub; no real model access.",
         "",
         "## Metrics",
         "",
@@ -335,8 +398,21 @@ def render_markdown(report: dict[str, Any], *, commit: str = "working-tree") -> 
         "",
         "## Prompt Identity",
         "",
+        "| Field | Value |",
+        "|---|---|",
         f"| Prompt source | `{report['prompt']['path']}` |",
-        f"| Prompt SHA-256 | `{report['prompt']['sha256'] or '-'}` |",
+        f"| Prompt asset SHA-256 | `{report['prompt']['asset_sha256']}` |",
+        f"| Effective prompt SHA-256 | `{report['prompt']['effective_sha256']}` |",
+        "",
+        "## Run Identity",
+        "",
+        "| Field | Value |",
+        "|---|---|",
+        f"| Evaluation mode | `{report['evaluation_mode']}` |",
+        f"| Commit | `{effective_commit}` |",
+        f"| Working tree dirty | `{report['working_tree_dirty']}` |",
+        f"| Dataset source | `{report['dataset']['path']}` |",
+        f"| Dataset SHA-256 | `{report['dataset']['sha256']}` |",
         "",
         "## Case Results",
         "",
@@ -376,15 +452,40 @@ def _git_commit() -> str:
     return result.stdout.strip() or "working-tree"
 
 
+def _git_dirty() -> bool | None:
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=Path(__file__).resolve().parents[3],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return bool(result.stdout.strip())
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the offline Agent evaluation set")
     parser.add_argument("--cases", default=str(DEFAULT_CASES_PATH))
+    parser.add_argument(
+        "--prompt", default=None, help="Prompt asset path; defaults to project SKILL.md"
+    )
     parser.add_argument("--format", choices=("json", "markdown"), default="markdown")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--commit", default=None)
     args = parser.parse_args()
 
-    report = evaluate_cases(load_cases(args.cases))
+    try:
+        report = evaluate_cases(
+            load_cases(args.cases),
+            prompt_path=args.prompt,
+            dataset_path=args.cases,
+            commit=args.commit,
+        )
+    except (FileNotFoundError, OSError, UnicodeError) as exc:
+        parser.error(str(exc))
     output = (
         json.dumps(report, ensure_ascii=False, indent=2)
         if args.format == "json"

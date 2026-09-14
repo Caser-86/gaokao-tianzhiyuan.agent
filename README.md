@@ -24,7 +24,7 @@
 | 为什么是 Agent，而不只是聊天框？ | 自动路由接口会先做 Skill 匹配；当前 Web 聊天页则直接调用指定的高考咨询 Skill。两条路径都会执行权益判断、结构化输出与失败降级，并把媒体事件和失败原因留给运营后台。 |
 | 核心 Agent 能力是什么？ | `SkillRegistry`、置信度路由、OpenAI-compatible Provider、结构化 JSON 输出、确定性 fallback、多渠道适配和轻量 Agent trace。 |
 | 工程难点在哪里？ | 模型不稳定、用户权益、微信公众号 AES、多类型消息、内容审核、媒体失败重试和本地可复现交付。 |
-| 如何证明不是概念 Demo？ | 仓库包含关系数据模型、运营后台、后端/前端测试、CI、Docker、冒烟脚本和部署模板；最新可追溯结果见 [`2026-08-30 验证记录`](docs/verification/2026-08-30-evaluation-and-data-trust.md)。 |
+| 如何证明不是概念 Demo？ | 仓库包含关系数据模型、运营后台、后端/前端测试、CI、Docker、冒烟脚本和部署模板；最新 M1 评测证据见 [`2026-09-15 验证记录`](docs/verification/2026-09-15-m1-prompt-and-quality-evaluation.md)。 |
 | 当前最重要的边界是什么？ | 演示数据不能用于真实志愿决策；生产发布、版本探针和回滚闭环仍需外部环境确认。 |
 
 适合重点查看的三个入口：
@@ -68,9 +68,9 @@
 ### Prompt 与离线评测如何保持一致？
 
 - 唯一正式 Prompt 是 [`skills/zhangxuefeng/SKILL.md`](skills/zhangxuefeng/SKILL.md)，运行时和离线 runner 都通过同一套默认路径解析规则使用它；有效的自定义 Prompt 路径仍然优先。
-- 运行时 Agent trace 与离线评测报告都记录 Prompt 的 SHA-256，不记录 Prompt 原文、API Key 或用户原文。
+- 运行时 Agent trace 与离线评测报告都记录 Prompt 资产 SHA-256 和实际 system message 的 effective SHA-256，不记录 Prompt 原文、API Key 或用户原文。
 - `apps/api/evals/offline-prompt.md` 只保留为历史路径兼容说明，不会被运行时或评测加载，避免仓库中出现两份“看起来都是真 Prompt”的资产。
-- 执行 `python -m app.evals.runner --format markdown` 可看到评测级 Prompt 来源、hash、路由/schema/fallback 指标和逐 case 结果；该离线报告只证明固定样本与确定性 stub，不代表线上模型质量。
+- 执行 `python -m app.evals.runner --format markdown` 可看到评测级 Prompt 来源、两类 hash、数据集 hash、路由/schema/fallback 指标和逐 case 结果；再执行 `python -m app.evals.quality_runner --format markdown` 查看独立的领域质量 replay。前者只证明固定样本与确定性 stub，后者只证明固定合成输出的评分器结果，二者都不代表线上模型质量。
 
 ## 系统架构
 
@@ -146,9 +146,10 @@ sequenceDiagram
 | Skill 路由 | 内置目录查询与高考咨询 Skill，按置信度选择 | [`skills.py`](apps/api/app/services/skills.py) |
 | LLM Provider | OpenAI-compatible Chat Completions，支持 `/v1`、`/v3` 和 Agent Plan 版本路径，结构化 JSON 输出 | [`llm.py`](apps/api/app/services/llm.py) |
 | 失败降级 | 区分未配置、请求失败、余额不足和非法响应 | [`chat.py`](apps/api/app/services/chat.py) |
-| Agent trace | 记录候选/选择 Skill、版本、Prompt SHA-256 指纹、Provider、模型调用标记、耗时和降级原因；session 只保留摘要引用 | [`tracing.py`](apps/api/app/services/tracing.py) |
+| Agent trace | 记录候选/选择 Skill、版本、Prompt asset/effective SHA-256 指纹、Provider、模型调用标记、耗时和降级原因；session 只保留摘要引用 | [`tracing.py`](apps/api/app/services/tracing.py) |
 | 会话持久化 | SQLModel 保存用户/Agent 消息，30 天滚动保留，按用户读取和删除；不自动注入长期记忆 | [`chat_sessions.py`](apps/api/app/services/chat_sessions.py) |
-| 离线评测 | 13 个固定样本覆盖路由、信息缺失、敏感请求边界、结构化输出、Provider 失败与 fallback；报告不访问真实模型 | [`runner.py`](apps/api/app/evals/runner.py) |
+| 工程协议评测 | 30 个固定样本覆盖路由、信息缺失、敏感请求边界、结构化输出、Provider 失败与权益分支；报告记录 Prompt/数据集身份 | [`runner.py`](apps/api/app/evals/runner.py) |
+| 领域质量评测 | 40 条合成 replay 样本，按信息不足/引用问答/比较/多轮/对抗/域外分组，检查引用、无依据数字、追问覆盖和类型契约 | [`quality_runner.py`](apps/api/app/evals/quality_runner.py) |
 | 领域知识 | 学校、专业、关联、榜单来源、精选和搜索入口关系模型 | [`models/catalog.py`](apps/api/app/models/catalog.py) |
 | 智能分析权益 | `off / gated / on` 与用户 `smart_analysis` 权益；策略只由服务端模式和数据库权益决定 | [`access_control.py`](apps/api/app/services/access_control.py) |
 | 微信公众号 | URL 验证、明文/AES、文本/图片/语音/位置/链接和菜单事件 | [`routers/chat.py`](apps/api/app/routers/chat.py) |
@@ -342,7 +343,7 @@ python scripts/wechat_aes_helper.py decrypt `
 
 源码静态统计：
 
-- 后端：26 个测试模块，另有 1 个 `conftest.py`；静态统计 194 个测试函数，pytest 当前收集 205 个用例（含参数化展开）。
+- 后端：28 个测试模块，另有 1 个 `conftest.py`；pytest 当前收集并通过 232 个用例（含参数化展开）。
 - 前端：28 个测试模块，另有 1 个 `setup.ts`；静态统计 129 个 `test/it` 用例。
 - CI：API lint/test、迁移冒烟、Web lint/test/build、API/Web Docker 构建；trace、会话、离线评测、检索边界和可信身份回归测试位于 `test_chat_services.py`、`test_chat_sessions.py`、`test_eval_runner.py`、`test_retrieval_spike.py` 和 `test_auth_context.py`。
 
@@ -379,6 +380,8 @@ npm audit --audit-level=moderate
 
 2026-09-07 Prompt/评测统一验证：运行时和离线 runner 共用正式 Prompt 路径解析与 SHA-256 计算；13/13 固定样本通过，报告声明 `skills/zhangxuefeng/SKILL.md` 及其 Prompt hash。完整命令、测试计数和边界见 [`Prompt 与离线评测统一验证`](docs/verification/2026-09-07-prompt-evaluation-unification.md)。
 
+2026-09-15 M1 验证：API `232 passed`、工程协议评测 `30/30`，新增领域质量 replay `40/40`；Prompt 评测记录资产/effective 两类 hash、数据集 hash、commit/dirty 和失败样例，真实模型质量仍未测量。完整结果与边界见 [`M1 Prompt 身份与三层评测验证`](docs/verification/2026-09-15-m1-prompt-and-quality-evaluation.md)。
+
 ## 目录结构
 
 ```text
@@ -414,7 +417,7 @@ PLAN.md                        从 MVP 到面试代表作的分阶段路线图
 
 ## 项目状态与路线图
 
-第一阶段的文档和展示增强已完成；当前工作树已执行 Phase 2.1—2.8、Phase 3.1—3.7、Phase 4.1—4.9、Phase 5.1—5.4、Phase 5.6、Phase 5.8，并完成 Phase 5.5 的本地 smoke/版本断言、重复 smoke 回归和同库 old→new→old 回滚演练，以及 Phase 5.7 的 Demo 脚本/录制清单和本地脱敏视频候选：修复本地冒烟脚本、建立验证记录、收紧 Release/生产 API 配置、增加 JSON 资产校验、统一运行时文档、补齐现有 smoke 证据，接入不含敏感原文的 Agent trace，加入 30 天滚动会话持久化与页面恢复，建立 13 个固定样本的离线评测基线，记录 Skill 版本与 Prompt 指纹，完成 SQL 覆盖边界 spike，阻断客户端 metadata 伪造智能分析权益，建立服务端签发的 HMAC guest session 与 Web cookie 身份边界，让平台权益查询复用服务端主体，为公众号回调增加 timestamp 窗口、body 上限和 MsgId/nonce 幂等，为图片/官网 URL 增加协议、主机、重定向和响应体边界，为会话/媒体事件/trace 建立保留、清理和用户删除规则，并为后台写操作加入结构化失败反馈、独立请求并发加载和首批内容质量组件拆分。`verify-project.ps1`、API/Web 测试、覆盖率、typecheck、Web 生产构建和隔离本地栈 HTTP smoke/版本断言已在 2026-08-25 本地通过；GitHub tag Release、Docker 实际发布、生产 post-deploy smoke 和 rollback 尚未完成。根目录 `data/` 是唯一权威源，未跟踪的 `apps/data/` 仅保留在当前本地工作区，CI 会拒绝其进入仓库。2026-08-30 的最新评测与数据边界证据见 [`evaluation-and-data-trust verification`](docs/verification/2026-08-30-evaluation-and-data-trust.md)。后续优先级为：
+第一阶段的文档和展示增强已完成；当前工作树已执行 Phase 2.1—2.8、Phase 3.1—3.7、Phase 4.1—4.9、Phase 5.1—5.4、Phase 5.6、Phase 5.8，并完成 Phase 5.5 的本地 smoke/版本断言、重复 smoke 回归和同库 old→new→old 回滚演练，以及 Phase 5.7 的 Demo 脚本/录制清单和本地脱敏视频候选；M0 可靠性修复与 M1 Prompt/评测建设也已完成代码和本地证据：Prompt 快照、30 条工程协议样本、40 条领域 replay、失败样例和数据集身份均已纳入。`verify-project.ps1`、API/Web 测试、覆盖率、typecheck、Web 生产构建和隔离本地栈 HTTP smoke/版本断言已在历史记录中通过；GitHub tag Release、Docker 实际发布、生产 post-deploy smoke 和 rollback 尚未完成。根目录 `data/` 是唯一权威源，未跟踪的 `apps/data/` 仅保留在当前本地工作区，CI 会拒绝其进入仓库。最新 M1 评测与边界证据见 [`2026-09-15 M1 验证记录`](docs/verification/2026-09-15-m1-prompt-and-quality-evaluation.md)。后续优先级为：
 
 1. 完成生产发布后 smoke、回滚演练和外部部署确认（Phase 5.5）。
 2. 按评测证据扩充非结构化问题样本，达到量化阈值后再评估混合检索。
@@ -438,6 +441,7 @@ PLAN.md                        从 MVP 到面试代表作的分阶段路线图
 - [`docs/interview/interview-qa.md`](docs/interview/interview-qa.md)：架构、Agent、评测、安全、成本和生产差距问答。
 - [`docs/verification/2026-08-30-evaluation-and-data-trust.md`](docs/verification/2026-08-30-evaluation-and-data-trust.md)：历史 Prompt、评测、数据治理和本地验证记录。
 - [`docs/verification/2026-09-07-prompt-evaluation-unification.md`](docs/verification/2026-09-07-prompt-evaluation-unification.md)：运行时/离线评测 Prompt 统一、报告身份和本轮验证记录。
+- [`docs/verification/2026-09-15-m1-prompt-and-quality-evaluation.md`](docs/verification/2026-09-15-m1-prompt-and-quality-evaluation.md)：Prompt 快照、30 条工程协议评测和 40 条领域质量 replay 的最新边界记录。
 
 ---
 
