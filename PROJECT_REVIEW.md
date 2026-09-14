@@ -17,7 +17,7 @@
 
 2026-09-07 继续统一 Prompt 与离线评测：运行时和 `app.evals.runner` 通过同一默认路径解析入口选择 [`skills/zhangxuefeng/SKILL.md`](skills/zhangxuefeng/SKILL.md)，并通过同一个 SHA-256 函数产生 Prompt 身份。评测顶层报告现在显式声明 Prompt 来源和 hash；`apps/api/evals/offline-prompt.md` 仅作为兼容说明保留，不会被加载。当前固定评测仍为 13/13 通过，边界与完整命令见 [`Prompt 与离线评测统一验证`](docs/verification/2026-09-07-prompt-evaluation-unification.md)。
 
-2026-09-15 M1 继续收紧 Prompt 身份并拆分评测层：运行时与评测使用同一不可变 `PromptSnapshot`，报告区分 asset/effective hash；工程协议评测为 30 条，领域质量 replay 为 40 条并保留 dev/holdout、分母与失败样例。API 本轮为 `232 passed`，Web 沿用最近验证的 `130 passed`；真实模型质量、Docker runtime smoke 和生产 SLA 仍未确认。完整记录见 [`M1 Prompt 身份与三层评测验证`](docs/verification/2026-09-15-m1-prompt-and-quality-evaluation.md)。
+2026-09-15 M1 继续收紧 Prompt 身份并拆分评测层：运行时与评测使用同一不可变 `PromptSnapshot`，报告区分 asset/effective hash；工程协议评测为 30 条，领域质量 replay 为 40 条并保留 dev/holdout、分母与失败样例。随后完成 M2 T07 的有限 SQL 证据包，支持实体、地区、关键词和精确年份筛选，并对来源 URL、过期 provenance 和预算做安全边界。API 本轮为 `236 passed`，Web 沿用最近验证的 `130 passed`；真实模型质量、Docker runtime smoke 和生产 SLA 仍未确认。完整记录见 [`M1 Prompt 身份与三层评测验证`](docs/verification/2026-09-15-m1-prompt-and-quality-evaluation.md)、[`T07 SQL 证据包验证`](docs/verification/2026-09-15-t07-sql-evidence-package.md) 与 [`数据来源和 SQL 证据边界`](data/README.md)。
 
 ## 评审范围
 
@@ -131,7 +131,7 @@ flowchart LR
 
 ### 4. 测试覆盖业务路径而非只测健康检查
 
-pytest 当前收集并通过 232 个后端用例（含参数化展开），另有 130 个前端 `test/it` 用例。测试覆盖 Skill 路由、LLM 错误、公众号 AES、内容不变量、后台筛选、会话隔离、Prompt 契约、工程协议评测、领域质量 replay、检索边界、权益扩权回归、可信身份、平台权益主体、公众号重放、URL/媒体输入安全、隐私删除、Action 状态、版本探针、数据来源契约和页面交互。源码函数数与参数化后的用例数分开记录，避免把两者混为一谈。
+pytest 当前收集并通过 236 个后端用例（含参数化展开），另有 130 个前端 `test/it` 用例。测试覆盖 Skill 路由、LLM 错误、公众号 AES、内容不变量、后台筛选、会话隔离、Prompt 契约、工程协议评测、领域质量 replay、SQL 证据筛选、检索边界、权益扩权回归、可信身份、平台权益主体、公众号重放、URL/媒体输入安全、隐私删除、Action 状态、版本探针、数据来源契约和页面交互。源码函数数与参数化后的用例数分开记录，避免把两者混为一谈。
 
 ### 5. 有可复现交付意识
 

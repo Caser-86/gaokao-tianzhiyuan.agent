@@ -2,7 +2,6 @@ import importlib.util
 import unittest
 from pathlib import Path
 
-
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "verify-data-assets.py"
 spec = importlib.util.spec_from_file_location("verify_data_assets", SCRIPT_PATH)
 if spec is None or spec.loader is None:
@@ -16,8 +15,18 @@ def _empty_featured_payload() -> dict:
         "schools": [],
         "majors": [],
         "rotation": {
-            "schools": {"enabled": False, "frequency_days": 1, "window_size": 1, "ordered_slugs": []},
-            "majors": {"enabled": False, "frequency_days": 1, "window_size": 1, "ordered_slugs": []},
+            "schools": {
+                "enabled": False,
+                "frequency_days": 1,
+                "window_size": 1,
+                "ordered_slugs": [],
+            },
+            "majors": {
+                "enabled": False,
+                "frequency_days": 1,
+                "window_size": 1,
+                "ordered_slugs": [],
+            },
         },
     }
 
@@ -99,6 +108,45 @@ class VerifyDataAssetsTests(unittest.TestCase):
             verify_data_assets.validate_data(catalog, {"schools": [], "majors": [], "rotation": {}})
 
         self.assertIn("missing-major", str(context.exception))
+
+    def test_rejects_ranking_reference_with_non_http_source_url(self) -> None:
+        catalog = {
+            "data_provenance": {
+                "status": "demo",
+                "source_name": "演示数据",
+                "source_url": None,
+                "updated_at": "2026-08-30",
+                "applicable_year": None,
+                "region": "多地区示例",
+                "official": False,
+                "disclaimer": "仅用于测试。",
+            },
+            "search_entry": {"title": "入口", "description": "说明", "quick_prompts": []},
+            "schools": [
+                {
+                    "slug": "school-a",
+                    "name": "学校 A",
+                    "region": "江苏",
+                    "city": "南京",
+                    "ranking_references": [
+                        {
+                            "source": "榜单",
+                            "year": 2025,
+                            "label": "示例",
+                            "scope": "综合",
+                            "note": "说明",
+                            "url": "javascript:alert(1)",
+                        }
+                    ],
+                }
+            ],
+            "majors": [],
+        }
+
+        with self.assertRaises(verify_data_assets.DataAssetValidationError) as context:
+            verify_data_assets.validate_data(catalog, _empty_featured_payload())
+
+        self.assertIn("HTTP(S)", str(context.exception))
 
 
 if __name__ == "__main__":

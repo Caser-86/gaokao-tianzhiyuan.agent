@@ -53,6 +53,7 @@ M4 可在 M1/M2 期间并行推进；它仍必须通过 G4 才能开放真实流
 | G0 | 条件通过，待运行时封板 | API/Web 本地回归、离线评测、GitHub required checks 与 Docker Build 已通过 | 本机 Docker runtime smoke；完成后才进入 M1 |
 | T05 | 已完成 | `PromptSnapshot` 统一运行时/评测实际 system message；支持 `--prompt`、缺文件非零退出；报告记录两类 hash、数据集 hash、commit/dirty/mode；兼容链接已修复 | 无 |
 | T06 | replay 已完成，真实质量待补 | 工程协议样本 30 条；领域合成 replay 40 条，分类与 dev/holdout 分离；质量报告记录分母、失败样例、模型/成本占位；Prompt 契约测试捕获 actual messages | 真实模型小样本、token/成本统计和线上质量基线；当前 `real` 模式带预算也明确不执行 Provider |
+| T07 | demo scope 已完成，别名与 miss 统计待补 | 新增有限 SQL 证据包；支持精确 slug/名称、关键词、地区、精确年份和条数/字符预算；来源 URL、未知实体、过期 provenance 有回归测试；数据状态继承 `demo` 边界 | 维护别名映射并测量 miss；真实招生数据仍需来源许可、更新时间和负责人 |
 | G1 | replay 条件通过 | 三层评测已分离并可复现：协议 `30/30`，Prompt 契约测试通过，领域 replay `40/40` | 不能用 replay 结果替代真实模型质量；需补真实受控评测后再封板 |
 
 ## 总计划表
@@ -168,10 +169,11 @@ G1 建议验收目标（是目标，不是当前成绩）：工程回归100%；�
 **文件：** 新增 `apps/api/app/services/evidence.py`、`apps/api/tests/test_evidence.py`；修改 `data/README.md`、`scripts/verify-data-assets.py`。
 **接口：** EvidenceItem(id, source_url, source_name, year, province, text, data_status)，返回有条数与长度上限的列表。
 
-- [ ] 从现有演示数据开始，限定支持的学校/专业与问题；示例数据标记 demo。
-- [ ] 校验来源字段、年份/地区过滤、找不到/过期证据、未知 entity 等场景。
-- [ ] 如需真实招生数据，先确定来源许可、更新时间与负责人；无法获得时只展示目录与比较能力。
-- [ ] 从精确名称/别名和 SQL 过滤开始，测量 miss；不直接引入向量检索。
+- [x] 从现有演示数据开始，限定支持的学校/专业与问题；示例数据标记 demo。
+- [x] 校验来源字段、年份/地区过滤、找不到/过期证据、未知 entity 等场景。
+- [x] 当前不引入真实招生数据；数据 README 明确来源许可、更新时间和负责人是发布前门槛，只展示目录与比较能力。
+- [x] 从精确 slug/名称和 SQL 过滤开始；不直接引入向量检索。
+- [ ] 在获得代表性输入集后补维护别名映射并测量 entity miss，不用 demo 数据推导线上召回率。
 
 ### T08 — 受控多轮上下文
 

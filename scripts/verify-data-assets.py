@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATA_DIR = REPO_ROOT / "data"
 
@@ -23,6 +22,13 @@ PROVENANCE_STATUSES = {"demo", "secondary", "official"}
 
 def _is_non_empty_string(value: Any) -> bool:
     return isinstance(value, str) and bool(value.strip())
+
+
+def _is_http_url(value: Any) -> bool:
+    if not _is_non_empty_string(value):
+        return False
+    parsed = urlparse(value.strip())
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -88,7 +94,9 @@ def _validate_relations(
 ) -> None:
     for slug, item in items.items():
         relations = item.get(field, [])
-        if not isinstance(relations, list) or not all(isinstance(value, str) for value in relations):
+        if not isinstance(relations, list) or not all(
+            isinstance(value, str) for value in relations
+        ):
             errors.append(f"{label} {slug}.{field} must be an array of strings")
             continue
         for relation in relations:
@@ -112,7 +120,11 @@ def _validate_ranking_references(
             for field in ("source", "label", "scope", "url"):
                 if not _is_non_empty_string(reference.get(field)):
                     errors.append(f"{reference_label}.{field} must be a non-empty string")
-            if not isinstance(reference.get("year"), int) or isinstance(reference.get("year"), bool):
+            if not _is_http_url(reference.get("url")):
+                errors.append(f"{reference_label}.url must be a non-empty HTTP(S) URL")
+            if not isinstance(reference.get("year"), int) or isinstance(
+                reference.get("year"), bool
+            ):
                 errors.append(f"{reference_label}.year must be an integer")
 
 
@@ -239,7 +251,9 @@ def validate_data(catalog: dict[str, Any], featured: dict[str, Any]) -> None:
         if not isinstance(search_entry.get("quick_prompts"), list) or not all(
             isinstance(prompt, str) and prompt.strip() for prompt in search_entry["quick_prompts"]
         ):
-            errors.append("catalog.search_entry.quick_prompts must be an array of non-empty strings")
+            errors.append(
+                "catalog.search_entry.quick_prompts must be an array of non-empty strings"
+            )
 
     schools = _index_by_slug(catalog.get("schools"), "catalog.schools", errors)
     majors = _index_by_slug(catalog.get("majors"), "catalog.majors", errors)

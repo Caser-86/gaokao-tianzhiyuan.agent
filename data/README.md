@@ -65,3 +65,24 @@ validator is:
 ```powershell
 python scripts/verify-data-assets.py
 ```
+
+## SQL evidence boundary
+
+`apps/api/app/services/evidence.py` exposes a deliberately small evidence
+package for the agent. It reads the seeded catalog tables with SQL filters; it
+does not crawl the `ranking_references[].url` values, call an external search
+engine, or use vector retrieval. Each returned `EvidenceItem` carries:
+
+| Field | Meaning |
+|---|---|
+| `id` | Stable entity/content identifier for tracing and citation checks |
+| `source_url` / `source_name` | Stored provenance; invalid non-HTTP(S) URLs are not emitted as citable links |
+| `year` / `province` | Exact reference year and applicable region when known |
+| `text` | Complete catalog sentence; oversized items are skipped rather than truncated |
+| `data_status` | `demo`, `secondary` or `official`, inherited from the catalog provenance boundary |
+
+Callers can constrain entity, province, keyword and exact year, with maximum
+item and character budgets. A year-specific query never falls back to an older
+reference; a stale provenance snapshot returns no usable evidence. The current
+fixture is therefore suitable for demonstrating retrieval, filtering and
+traceability, but it is not an admissions cutoff or ranking source.

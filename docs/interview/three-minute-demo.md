@@ -41,7 +41,7 @@ powershell -ExecutionPolicy Bypass -File scripts/stop-local-stack.ps1 `
 | 1:35—2:00 | 打开 `/admin` | “模型增强有 `off / gated / on` 权限策略；审核、精选、榜单来源和媒体失败都能进入运营后台，失败不会静默消失。” | [`dashboard-shell.tsx`](../../apps/web/components/admin/dashboard-shell.tsx)、后台截图 |
 | 2:00—2:25 | 展示公众号 smoke 或测试报告 | “公众号不是简单 webhook：有签名时间窗、body 上限、MsgId/nonce 幂等、明文/AES 和多类型消息适配。” | [`wechat_replay.py`](../../apps/api/app/services/wechat_replay.py)、Phase 5.5—5.6 报告 |
 | 2:25—2:45 | 展示 trace/eval 报告 | “我们用 30 个固定工程样本验证路由、结构化输出和 fallback，再用 40 条独立 replay 检查引用、无依据数字和追问覆盖，而不是只展示一次成功对话。” | [`runner.py`](../../apps/api/app/evals/runner.py)、[`quality_runner.py`](../../apps/api/app/evals/quality_runner.py)、M1 评测报告 |
-| 2:45—3:00 | 回到 README 的验证区 | “当前本地基线是 API 232 个测试通过、Web 130 个用例通过；真实模型质量、Docker runtime 和生产发布仍明确列为待确认项。” | [`README.md`](../../README.md)、[`2026-09-15 M1 验证记录`](../verification/2026-09-15-m1-prompt-and-quality-evaluation.md)、生产就绪矩阵 |
+| 2:45—3:00 | 回到 README 的验证区 | “当前本地基线是 API 236 个测试通过、Web 130 个用例通过；真实模型质量、Docker runtime 和生产发布仍明确列为待确认项。” | [`README.md`](../../README.md)、[`2026-09-15 M1 验证记录`](../verification/2026-09-15-m1-prompt-and-quality-evaluation.md)、生产就绪矩阵 |
 
 ## 最少展示的三个问题
 

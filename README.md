@@ -343,7 +343,7 @@ python scripts/wechat_aes_helper.py decrypt `
 
 源码静态统计：
 
-- 后端：28 个测试模块，另有 1 个 `conftest.py`；pytest 当前收集并通过 232 个用例（含参数化展开）。
+- 后端：29 个测试模块，另有 1 个 `conftest.py`；pytest 当前收集并通过 236 个用例（含参数化展开）。
 - 前端：28 个测试模块，另有 1 个 `setup.ts`；静态统计 129 个 `test/it` 用例。
 - CI：API lint/test、迁移冒烟、Web lint/test/build、API/Web Docker 构建；trace、会话、离线评测、检索边界和可信身份回归测试位于 `test_chat_services.py`、`test_chat_sessions.py`、`test_eval_runner.py`、`test_retrieval_spike.py` 和 `test_auth_context.py`。
 
@@ -380,7 +380,7 @@ npm audit --audit-level=moderate
 
 2026-09-07 Prompt/评测统一验证：运行时和离线 runner 共用正式 Prompt 路径解析与 SHA-256 计算；13/13 固定样本通过，报告声明 `skills/zhangxuefeng/SKILL.md` 及其 Prompt hash。完整命令、测试计数和边界见 [`Prompt 与离线评测统一验证`](docs/verification/2026-09-07-prompt-evaluation-unification.md)。
 
-2026-09-15 M1 验证：API `232 passed`、工程协议评测 `30/30`，新增领域质量 replay `40/40`；Prompt 评测记录资产/effective 两类 hash、数据集 hash、commit/dirty 和失败样例，真实模型质量仍未测量。完整结果与边界见 [`M1 Prompt 身份与三层评测验证`](docs/verification/2026-09-15-m1-prompt-and-quality-evaluation.md)。
+2026-09-15 M1 验证：API `236 passed`、工程协议评测 `30/30`，领域质量 replay `40/40`；Prompt 评测记录资产/effective 两类 hash、数据集 hash、commit/dirty 和失败样例，真实模型质量仍未测量。M2 T07 已增加有限 SQL 证据包，严格按实体、地区、年份和字符预算筛选，当前仍只使用标记为 `demo` 的演示数据。完整结果与边界见 [`M1 Prompt 身份与三层评测验证`](docs/verification/2026-09-15-m1-prompt-and-quality-evaluation.md)、[`T07 SQL 证据包验证`](docs/verification/2026-09-15-t07-sql-evidence-package.md) 与 [`数据来源和 SQL 证据边界`](data/README.md)。
 
 ## 目录结构
 
