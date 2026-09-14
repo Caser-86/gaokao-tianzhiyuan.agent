@@ -151,6 +151,98 @@ def test_chat_session_store_purges_expired_sessions_and_messages(engine) -> None
         assert session.exec(select(ChatMessage)).all() == []
 
 
+def test_chat_session_store_builds_recent_model_context_with_turn_and_char_limits(engine) -> None:
+    store = ChatSessionStore(
+        lambda: Session(engine),
+        context_max_turns=6,
+        context_max_chars=120,
+    )
+    for index in range(1, 8):
+        store.save_exchange(
+            session_id="context-session",
+            user_id="context-user",
+            channel="web",
+            request_id=f"chat-context-{index}",
+            user_message=f"问题 {index}",
+            assistant_content={
+                "rendered_reply": f"回答 {index}",
+                "analysis": "不应该把原始结构化 JSON 直接传给模型",
+            },
+        )
+
+    context = store.get_recent_model_messages(
+        session_id="context-session",
+        user_id="context-user",
+    )
+
+    assert [item["role"] for item in context] == ["user", "assistant"] * 6
+    assert [item["content"] for item in context[::2]] == [
+        "问题 2",
+        "问题 3",
+        "问题 4",
+        "问题 5",
+        "问题 6",
+        "问题 7",
+    ]
+    assert [item["content"] for item in context[1::2]] == [
+        "回答 2",
+        "回答 3",
+        "回答 4",
+        "回答 5",
+        "回答 6",
+        "回答 7",
+    ]
+    assert sum(len(item["content"]) for item in context) <= 120
+
+
+def test_chat_session_store_trims_old_turns_when_character_budget_is_reached(engine) -> None:
+    store = ChatSessionStore(
+        lambda: Session(engine),
+        context_max_turns=6,
+        context_max_chars=17,
+    )
+    for index in range(1, 5):
+        store.save_exchange(
+            session_id="small-context-session",
+            user_id="small-context-user",
+            channel="web",
+            request_id=f"chat-small-context-{index}",
+            user_message=f"问题 {index}",
+            assistant_content={"rendered_reply": f"回答 {index}"},
+        )
+
+    context = store.get_recent_model_messages(
+        session_id="small-context-session",
+        user_id="small-context-user",
+    )
+
+    assert [item["content"] for item in context] == [
+        "问题 3",
+        "回答 3",
+        "问题 4",
+        "回答 4",
+    ]
+    assert sum(len(item["content"]) for item in context) <= 17
+
+
+def test_chat_session_store_does_not_leak_context_across_users(engine) -> None:
+    store = ChatSessionStore(lambda: Session(engine))
+    store.save_exchange(
+        session_id="private-context",
+        user_id="owner",
+        channel="web",
+        request_id="chat-owner",
+        user_message="私有问题",
+        assistant_content={"rendered_reply": "私有回答"},
+    )
+
+    with pytest.raises(ChatSessionOwnershipError):
+        store.get_recent_model_messages(
+            session_id="private-context",
+            user_id="other-user",
+        )
+
+
 def test_chat_session_http_history_and_delete_are_user_scoped(engine) -> None:
     original_service = __import__(
         "app.routers.chat",

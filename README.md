@@ -21,7 +21,7 @@
 | 问题 | 回答 |
 |---|---|
 | 它解决什么问题？ | 为高考志愿咨询提供学校/专业查询、志愿问题分析、公众号回复和内容运营能力。 |
-| 为什么是 Agent，而不只是聊天框？ | 自动路由接口会先做 Skill 匹配；当前 Web 聊天页则直接调用指定的高考咨询 Skill。两条路径都会执行权益判断、结构化输出与失败降级，并把媒体事件和失败原因留给运营后台。 |
+| 为什么是 Agent，而不只是聊天框？ | 自动路由接口会先做 Skill 匹配；当前 Web 聊天页则直接调用指定的高考咨询 Skill。两条路径都会执行权益判断、结构化输出、受控多轮上下文与失败降级，并把媒体事件和失败原因留给运营后台。 |
 | 核心 Agent 能力是什么？ | `SkillRegistry`、置信度路由、OpenAI-compatible Provider、结构化 JSON 输出、确定性 fallback、多渠道适配和轻量 Agent trace。 |
 | 工程难点在哪里？ | 模型不稳定、用户权益、微信公众号 AES、多类型消息、内容审核、媒体失败重试和本地可复现交付。 |
 | 如何证明不是概念 Demo？ | 仓库包含关系数据模型、运营后台、后端/前端测试、CI、Docker、冒烟脚本和部署模板；最新 M1 评测证据见 [`2026-09-15 验证记录`](docs/verification/2026-09-15-m1-prompt-and-quality-evaluation.md)。 |
@@ -147,7 +147,7 @@ sequenceDiagram
 | LLM Provider | OpenAI-compatible Chat Completions，支持 `/v1`、`/v3` 和 Agent Plan 版本路径，结构化 JSON 输出 | [`llm.py`](apps/api/app/services/llm.py) |
 | 失败降级 | 区分未配置、请求失败、余额不足和非法响应 | [`chat.py`](apps/api/app/services/chat.py) |
 | Agent trace | 记录候选/选择 Skill、版本、Prompt asset/effective SHA-256 指纹、Provider、模型调用标记、耗时和降级原因；session 只保留摘要引用 | [`tracing.py`](apps/api/app/services/tracing.py) |
-| 会话持久化 | SQLModel 保存用户/Agent 消息，30 天滚动保留，按用户读取和删除；不自动注入长期记忆 | [`chat_sessions.py`](apps/api/app/services/chat_sessions.py) |
+| 会话持久化与受控上下文 | SQLModel 保存用户/Agent 消息，30 天滚动保留，按用户读取和删除；模型只接收服务端授权 session 的最近最多 6 轮、12000 字符，并保留完整 turn，不形成长期记忆 | [`chat_sessions.py`](apps/api/app/services/chat_sessions.py)、[`chat.py`](apps/api/app/services/chat.py) |
 | 工程协议评测 | 30 个固定样本覆盖路由、信息缺失、敏感请求边界、结构化输出、Provider 失败与权益分支；报告记录 Prompt/数据集身份 | [`runner.py`](apps/api/app/evals/runner.py) |
 | 领域质量评测 | 40 条合成 replay 样本，按信息不足/引用问答/比较/多轮/对抗/域外分组，检查引用、无依据数字、追问覆盖和类型契约 | [`quality_runner.py`](apps/api/app/evals/quality_runner.py) |
 | 领域知识 | 学校、专业、关联、榜单来源、精选和搜索入口关系模型 | [`models/catalog.py`](apps/api/app/models/catalog.py) |
@@ -343,8 +343,8 @@ python scripts/wechat_aes_helper.py decrypt `
 
 源码静态统计：
 
-- 后端：29 个测试模块，另有 1 个 `conftest.py`；pytest 当前收集并通过 236 个用例（含参数化展开）。
-- 前端：28 个测试模块，另有 1 个 `setup.ts`；静态统计 129 个 `test/it` 用例。
+- 后端：29 个测试模块，另有 1 个 `conftest.py`；pytest 当前收集并通过 241 个用例（含参数化展开）。
+- 前端：28 个测试模块，另有 1 个 `setup.ts`；当前收集并通过 131 个 `test/it` 用例。
 - CI：API lint/test、迁移冒烟、Web lint/test/build、API/Web Docker 构建；trace、会话、离线评测、检索边界和可信身份回归测试位于 `test_chat_services.py`、`test_chat_sessions.py`、`test_eval_runner.py`、`test_retrieval_spike.py` 和 `test_auth_context.py`。
 
 本节不把历史运行结果当作当前事实。可使用以下命令生成当前机器和当前 commit 的验证结果：
@@ -382,6 +382,8 @@ npm audit --audit-level=moderate
 
 2026-09-15 M1 验证：API `236 passed`、工程协议评测 `30/30`，领域质量 replay `40/40`；Prompt 评测记录资产/effective 两类 hash、数据集 hash、commit/dirty 和失败样例，真实模型质量仍未测量。M2 T07 已增加有限 SQL 证据包，严格按实体、地区、年份和字符预算筛选，当前仍只使用标记为 `demo` 的演示数据。完整结果与边界见 [`M1 Prompt 身份与三层评测验证`](docs/verification/2026-09-15-m1-prompt-and-quality-evaluation.md)、[`T07 SQL 证据包验证`](docs/verification/2026-09-15-t07-sql-evidence-package.md) 与 [`数据来源和 SQL 证据边界`](data/README.md)。
 
+2026-09-15 T08 验证：API `241 passed`、Web `28 files / 131 passed`；服务端按主体读取最近最多 6 轮/12000 字符的完整上下文，拒绝客户端伪造历史，后续明确改口优先，前端成功后追加当前 user/assistant。真实模型上下文质量、浏览器 E2E、Docker runtime 和生产发布仍未确认。完整命令与边界见 [`T08 受控多轮上下文验证`](docs/verification/2026-09-15-t08-controlled-multiturn.md)。
+
 ## 目录结构
 
 ```text
@@ -417,11 +419,11 @@ PLAN.md                        从 MVP 到面试代表作的分阶段路线图
 
 ## 项目状态与路线图
 
-第一阶段的文档和展示增强已完成；当前工作树已执行 Phase 2.1—2.8、Phase 3.1—3.7、Phase 4.1—4.9、Phase 5.1—5.4、Phase 5.6、Phase 5.8，并完成 Phase 5.5 的本地 smoke/版本断言、重复 smoke 回归和同库 old→new→old 回滚演练，以及 Phase 5.7 的 Demo 脚本/录制清单和本地脱敏视频候选；M0 可靠性修复与 M1 Prompt/评测建设也已完成代码和本地证据：Prompt 快照、30 条工程协议样本、40 条领域 replay、失败样例和数据集身份均已纳入。`verify-project.ps1`、API/Web 测试、覆盖率、typecheck、Web 生产构建和隔离本地栈 HTTP smoke/版本断言已在历史记录中通过；GitHub tag Release、Docker 实际发布、生产 post-deploy smoke 和 rollback 尚未完成。根目录 `data/` 是唯一权威源，未跟踪的 `apps/data/` 仅保留在当前本地工作区，CI 会拒绝其进入仓库。最新 M1 评测与边界证据见 [`2026-09-15 M1 验证记录`](docs/verification/2026-09-15-m1-prompt-and-quality-evaluation.md)。后续优先级为：
+第一阶段的文档和展示增强已完成；当前工作树已执行 Phase 2.1—2.8、Phase 3.1—3.7、Phase 4.1—4.9、Phase 5.1—5.4、Phase 5.6、Phase 5.8，并完成 Phase 5.5 的本地 smoke/版本断言、重复 smoke 回归和同库 old→new→old 回滚演练，以及 Phase 5.7 的 Demo 脚本/录制清单和本地脱敏视频候选；M0 可靠性修复、M1 Prompt/评测建设和 M2 T07/T08 代码与本地回归也已纳入。`verify-project.ps1`、API/Web 测试、覆盖率、typecheck、Web 生产构建和隔离本地栈 HTTP smoke/版本断言已在历史记录中通过；GitHub tag Release、Docker 实际发布、生产 post-deploy smoke 和 rollback 尚未完成。根目录 `data/` 是唯一权威源，未跟踪的 `apps/data/` 仅保留在当前本地工作区，CI 会拒绝其进入仓库。最新 T08 证据见 [`2026-09-15 T08 验证记录`](docs/verification/2026-09-15-t08-controlled-multiturn.md)。后续优先级为：
 
-1. 完成生产发布后 smoke、回滚演练和外部部署确认（Phase 5.5）。
-2. 按评测证据扩充非结构化问题样本，达到量化阈值后再评估混合检索。
-3. 按 [`三分钟 Demo 脚本`](docs/interview/three-minute-demo.md) 为已复核的静音 [`脱敏 Demo 视频候选`](docs/assets/gaokao-agent-demo.webm) 视面试场景补录旁白；旁挂字幕已提供，问答包已在 Phase 5.8 补齐。
+1. 完成 T09：把有限 SQL 证据注入模型并做同模型、同预算的成对评测。
+2. 完成 T10：把“目录证据 → 两轮追问 → fallback → trace/eval”串成浏览器 E2E 和面试演示。
+3. 在获得真实部署条件后完成 Docker runtime、生产 smoke、回滚和账号/限流等公开流量门槛。
 
 完整任务表、依赖关系和验收标准见 [`PLAN.md`](PLAN.md)。
 
@@ -442,6 +444,7 @@ PLAN.md                        从 MVP 到面试代表作的分阶段路线图
 - [`docs/verification/2026-08-30-evaluation-and-data-trust.md`](docs/verification/2026-08-30-evaluation-and-data-trust.md)：历史 Prompt、评测、数据治理和本地验证记录。
 - [`docs/verification/2026-09-07-prompt-evaluation-unification.md`](docs/verification/2026-09-07-prompt-evaluation-unification.md)：运行时/离线评测 Prompt 统一、报告身份和本轮验证记录。
 - [`docs/verification/2026-09-15-m1-prompt-and-quality-evaluation.md`](docs/verification/2026-09-15-m1-prompt-and-quality-evaluation.md)：Prompt 快照、30 条工程协议评测和 40 条领域质量 replay 的最新边界记录。
+- [`docs/verification/2026-09-15-t08-controlled-multiturn.md`](docs/verification/2026-09-15-t08-controlled-multiturn.md)：服务端受控多轮上下文、会话隔离、字符预算和前端会话展示的验证记录。
 
 ---
 

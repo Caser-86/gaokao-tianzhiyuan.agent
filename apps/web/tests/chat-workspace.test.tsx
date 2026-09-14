@@ -76,10 +76,10 @@ test("auto-sends the initial prompt when the chat page opens from a quick prompt
 
   expect(screen.getByDisplayValue("\u67e5\u5b66\u6821")).toBeInTheDocument();
   expect(
-    screen.getByText(
+    screen.getAllByText(
       "\u53ef\u4ee5\u5148\u628a\u76ee\u6807\u5b66\u6821\u8303\u56f4\u7f29\u5c0f\u5230 985/211\u3002",
     ),
-  ).toBeInTheDocument();
+  ).toHaveLength(2);
 });
 
 test("reuses the returned session id for a follow-up message", async () => {
@@ -117,6 +117,30 @@ test("reuses the returned session id for a follow-up message", async () => {
       "https://api.gaokao.test",
     );
   });
+});
+
+test("appends the submitted exchange to visible history immediately", async () => {
+  sendChatMessageMock.mockResolvedValueOnce({
+    session_id: "session-visible",
+    request_id: "chat-visible",
+    output: {
+      type: "structured_json",
+      content: { rendered_reply: "当前轮回答" },
+    },
+  });
+
+  render(<ChatWorkspace apiBaseUrl="https://api.gaokao.test" />);
+  const input = screen.getByRole("textbox", { name: "输入你的问题" });
+  fireEvent.change(input, { target: { value: "我的第一轮问题" } });
+  fireEvent.click(screen.getByRole("button", { name: "发送问题" }));
+
+  await waitFor(() => {
+    expect(screen.getByText("历史会话")).toBeInTheDocument();
+  });
+  expect(
+    screen.getByText("我的第一轮问题", { selector: "p" }),
+  ).toBeInTheDocument();
+  expect(screen.getAllByText("当前轮回答")).toHaveLength(2);
 });
 
 test("renders suggestion cards and action links from the chat response", async () => {
@@ -217,8 +241,8 @@ test("ignores provider actions without link targets", async () => {
 
   await waitFor(() => {
     expect(
-      screen.getByText("\u6cb3\u5357\u5927\u5b66\u5206\u6790\u5df2\u751f\u6210\u3002"),
-    ).toBeInTheDocument();
+      screen.getAllByText("\u6cb3\u5357\u5927\u5b66\u5206\u6790\u5df2\u751f\u6210\u3002"),
+    ).toHaveLength(2);
   });
 
   expect(

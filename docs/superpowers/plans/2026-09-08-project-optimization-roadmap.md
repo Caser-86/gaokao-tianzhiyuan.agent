@@ -54,6 +54,7 @@ M4 可在 M1/M2 期间并行推进；它仍必须通过 G4 才能开放真实流
 | T05 | 已完成 | `PromptSnapshot` 统一运行时/评测实际 system message；支持 `--prompt`、缺文件非零退出；报告记录两类 hash、数据集 hash、commit/dirty/mode；兼容链接已修复 | 无 |
 | T06 | replay 已完成，真实质量待补 | 工程协议样本 30 条；领域合成 replay 40 条，分类与 dev/holdout 分离；质量报告记录分母、失败样例、模型/成本占位；Prompt 契约测试捕获 actual messages | 真实模型小样本、token/成本统计和线上质量基线；当前 `real` 模式带预算也明确不执行 Provider |
 | T07 | demo scope 已完成，别名与 miss 统计待补 | 新增有限 SQL 证据包；支持精确 slug/名称、关键词、地区、精确年份和条数/字符预算；来源 URL、未知实体、过期 provenance 有回归测试；数据状态继承 `demo` 边界 | 维护别名映射并测量 miss；真实招生数据仍需来源许可、更新时间和负责人 |
+| T08 | 代码完成，浏览器/E2E 与真实模型待补 | 服务端从已授权 session 读取最近最多 6 轮、总计 12000 字符的完整 user/assistant turn；忽略客户端伪造历史；后续明确更正优先；Web 成功后追加当前 exchange；定向 API 55 项、Web 聊天 9 项通过 | 浏览器两轮恢复与重复提交 E2E；真实 Provider 的小样本上下文质量、token/cost 仍待受控环境确认 |
 | G1 | replay 条件通过 | 三层评测已分离并可复现：协议 `30/30`，Prompt 契约测试通过，领域 replay `40/40` | 不能用 replay 结果替代真实模型质量；需补真实受控评测后再封板 |
 
 ## 总计划表
@@ -180,10 +181,12 @@ G1 建议验收目标（是目标，不是当前成绩）：工程回归100%；�
 **文件：** 修改 `chat.py`、`chat_sessions.py`、`skills.py`、`chat-workspace.tsx`、`test_chat_sessions.py`、`apps/web/tests/chat-workspace.test.tsx`。
 **接口：** 历史按服务端主体读取；最多最近6轮、总计12000字符（初始可配置值）；用户改口覆盖旧信息。
 
-- [ ] 测试先说省份分数、再补选科；改口；不同用户访问；过期；超长历史裁剪。
-- [ ] 从已授权 session 获取上下文并传给 Skill；不把历史助手文本升级为系统指令。
-- [ ] 前端成功后追加当前 user/assistant，维持 session 链接与重新加载一致；重复提交有明确状态。
-- [ ] 用 spy provider 验证实际上下文，前端测试验证两轮都显示。
+- [x] 测试先说省份分数、再补选科；改口；不同用户访问；过期；超长历史裁剪。
+- [x] 从已授权 session 获取上下文并传给 Skill；不把历史助手文本升级为系统指令。
+- [x] 前端成功后追加当前 user/assistant，维持 session 链接与重新加载一致；重复提交保留明确的提交中状态。
+- [x] 用 spy provider 验证实际上下文，前端测试验证当前轮和历史区都显示。
+
+本轮仅完成 T08 的代码与本地回归边界；没有把 fake Provider 的上下文拼接测试表述为真实模型质量证明，也没有把前端单元测试表述为浏览器 E2E。
 
 ### T09 — 证据驱动回答与对照
 

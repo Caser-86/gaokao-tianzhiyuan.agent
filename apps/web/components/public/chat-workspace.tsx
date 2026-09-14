@@ -123,6 +123,33 @@ export default function ChatWorkspace({
       if (nextResponse.session_id) {
         setActiveSessionId(nextResponse.session_id);
       }
+      const createdAt = new Date().toISOString();
+      setHistory((previous) => {
+        const minimumId = previous.reduce(
+          (minimum, item) => Math.min(minimum, item.id),
+          0,
+        );
+        return [
+          ...previous,
+          {
+            id: minimumId - 1,
+            request_id: nextResponse.request_id,
+            role: "user",
+            content_type: "text",
+            content: normalized,
+            created_at: createdAt,
+          },
+          {
+            id: minimumId - 2,
+            request_id: nextResponse.request_id,
+            role: "assistant",
+            content_type: "structured_json",
+            content: JSON.stringify(nextResponse.output.content),
+            payload: nextResponse.output.content,
+            created_at: createdAt,
+          },
+        ];
+      });
       setResponse(nextResponse);
     } catch {
       setError(

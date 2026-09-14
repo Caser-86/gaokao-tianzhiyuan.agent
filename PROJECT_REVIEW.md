@@ -19,6 +19,8 @@
 
 2026-09-15 M1 继续收紧 Prompt 身份并拆分评测层：运行时与评测使用同一不可变 `PromptSnapshot`，报告区分 asset/effective hash；工程协议评测为 30 条，领域质量 replay 为 40 条并保留 dev/holdout、分母与失败样例。随后完成 M2 T07 的有限 SQL 证据包，支持实体、地区、关键词和精确年份筛选，并对来源 URL、过期 provenance 和预算做安全边界。API 本轮为 `236 passed`，Web 沿用最近验证的 `130 passed`；真实模型质量、Docker runtime smoke 和生产 SLA 仍未确认。完整记录见 [`M1 Prompt 身份与三层评测验证`](docs/verification/2026-09-15-m1-prompt-and-quality-evaluation.md)、[`T07 SQL 证据包验证`](docs/verification/2026-09-15-t07-sql-evidence-package.md) 与 [`数据来源和 SQL 证据边界`](data/README.md)。
 
+2026-09-15 T08 已完成代码范围：会话上下文由服务端按主体读取，只保留最近最多 6 轮和 12000 字符的完整 turn；客户端提交的历史不会覆盖服务端事实；Skill 只接收 `user`/`assistant` 消息，历史助手文本不会升级为 system；正式 Prompt 明确后续改口优先；Web 成功后把当前 exchange 追加到可见历史。API 全量 `241 passed`、Web `28 files / 131 passed`；真实模型质量、浏览器 E2E、Docker runtime smoke 和生产 SLA 仍未确认。详见 [`T08 受控多轮上下文验证`](docs/verification/2026-09-15-t08-controlled-multiturn.md)。
+
 ## 评审范围
 
 评审覆盖 `git ls-files` 返回的 256 个跟踪文件，并额外核对了当前工作区未提交内容：
@@ -89,7 +91,7 @@ flowchart LR
 | 结构化模型输出 | OpenAI-compatible Chat Completions，要求 JSON object | [`llm.py`](apps/api/app/services/llm.py) | 体现 Provider 抽象与输出协议治理 |
 | 确定性降级 | 配置缺失、请求失败、余额不足、格式错误均回退到规则结果 | [`skills.py`](apps/api/app/services/skills.py) | 体现 LLM 非确定性下的可用性设计 |
 | Agent trace | 记录候选/选择 Skill、版本、Prompt SHA-256 指纹、Provider、模型调用标记、耗时和降级原因；session 仅保存摘要引用 | [`tracing.py`](apps/api/app/services/tracing.py)、[`chat.py`](apps/api/app/services/chat.py) | 可解释一次请求为什么这样路由，且不把敏感原文写入 trace |
-| 会话生命周期 | 保存 user/assistant 消息，30 天滚动过期，按用户读取/删除；页面可通过 `session_id` 恢复 | [`chat_sessions.py`](apps/api/app/services/chat_sessions.py)、[`chat.py`](apps/api/app/services/chat.py) | 可展开数据保留、隔离和“短期会话不等于长期记忆”的取舍 |
+| 会话生命周期与上下文 | 保存 user/assistant 消息，30 天滚动过期，按用户读取/删除；服务端只向模型注入授权 session 的最近 6 轮/12000 字符，页面可通过 `session_id` 恢复 | [`chat_sessions.py`](apps/api/app/services/chat_sessions.py)、[`chat.py`](apps/api/app/services/chat.py) | 可展开数据保留、用户隔离、上下文预算和“短期会话不等于长期记忆”的取舍 |
 | 工程协议评测 | 30 个固定样本，覆盖目录、路由、信息缺失、敏感请求边界、Provider 失败、权益分支和结构化输出；当前 30/30 通过 | [`cases.json`](apps/api/evals/cases.json)、[`runner.py`](apps/api/app/evals/runner.py) | 可量化讲解“模型不可用时如何保持可用”，不伪造线上质量 |
 | 领域质量 replay | 40 条合成样本，覆盖信息不足、引用问答、比较、多轮、对抗和域外；报告保留分母和失败样例 | [`domain-cases.json`](apps/api/evals/domain-cases.json)、[`quality_runner.py`](apps/api/app/evals/quality_runner.py) | 验证评分器和边界样本，不把 replay 结果当线上模型质量 |
 | Prompt 一致性 | 运行时与离线评测共享不可变 PromptSnapshot；报告区分 asset/effective SHA-256，并由 fake Provider 捕获实际 system message | [`config.py`](apps/api/app/config.py)、[`prompt_assets.py`](apps/api/app/services/prompt_assets.py)、[`runner.py`](apps/api/app/evals/runner.py) | 可证明评测对象与运行时对象一致，避免只展示一份未被实际加载的 Prompt |
@@ -106,10 +108,11 @@ flowchart LR
   -> 读取服务端智能分析模式与用户权益
   -> 自动入口：SkillRegistry 按置信度匹配
      或直接入口：获取请求指定的 Skill
+  -> 从已授权 session 读取最近最多 6 轮 / 12000 字符上下文
   -> 目录 Skill 或高考咨询 LLM Skill
    -> 结构化结果校验
    -> 成功结果 / 规则降级结果
-   -> 以服务端解析的主体 + session_id 保存消息并返回 session_id
+  -> 以服务端解析的主体 + session_id 读取受控上下文并保存消息
    -> Web 或微信公众号适配输出
 ```
 
@@ -131,7 +134,7 @@ flowchart LR
 
 ### 4. 测试覆盖业务路径而非只测健康检查
 
-pytest 当前收集并通过 236 个后端用例（含参数化展开），另有 130 个前端 `test/it` 用例。测试覆盖 Skill 路由、LLM 错误、公众号 AES、内容不变量、后台筛选、会话隔离、Prompt 契约、工程协议评测、领域质量 replay、SQL 证据筛选、检索边界、权益扩权回归、可信身份、平台权益主体、公众号重放、URL/媒体输入安全、隐私删除、Action 状态、版本探针、数据来源契约和页面交互。源码函数数与参数化后的用例数分开记录，避免把两者混为一谈。
+pytest 当前收集并通过 241 个后端用例（含参数化展开），另有 131 个前端 `test/it` 用例。测试覆盖 Skill 路由、LLM 错误、公众号 AES、内容不变量、后台筛选、会话隔离、Prompt 契约、工程协议评测、领域质量 replay、SQL 证据筛选、检索边界、权益扩权回归、可信身份、平台权益主体、公众号重放、URL/媒体输入安全、隐私删除、Action 状态、版本探针、数据来源契约、受控多轮上下文和页面交互。源码函数数与参数化后的用例数分开记录，避免把两者混为一谈。
 
 ### 5. 有可复现交付意识
 
@@ -173,6 +176,7 @@ pytest 当前收集并通过 236 个后端用例（含参数化展开），另�
 15. Phase 4.5 已把外部 URL 校验集中到 [`url_safety.py`](apps/api/app/services/url_safety.py)：只允许 HTTP(S)，拒绝凭据、本地/保留主机、危险重定向和超过 1 MiB 的官网响应；微信图片、管理员媒体重试和官网图片候选共用边界，详细验证见 [`2026-08-25-phase4.5-verification.md`](docs/verification/2026-08-25-phase4.5-verification.md)。DNS rebinding、媒体 MIME/内容校验和速率限制仍是后续工作。
 16. Phase 4.6 已明确会话、媒体事件、replay receipt 和 Agent trace 的数据生命周期：SQLite 记录按配置清理，默认会话/媒体保留 30 天，receipt 默认保留 300 秒；`DELETE /api/privacy/me` 按服务端主体删除个人会话、消息和媒体事件，trace 继续只写脱敏 logger。账号级 token 撤销、备份擦除和外部日志轮转配置仍待后续阶段，详细验证见 [`2026-08-25-phase4.6-verification.md`](docs/verification/2026-08-25-phase4.6-verification.md)。
 17. Phase 4.7—4.9 已完成后台写操作状态、首页并发读取和首批渐进拆分：Action 返回结构化 `{ ok, message }`，`useActionState` 在对应表单显示失败原因；后台独立请求使用 `Promise.allSettled` 保留分区降级；摘要/正文/相关推荐/榜单表单已移动到独立组件。详细验证见 [`2026-08-25-phase4.7-4.9-verification.md`](docs/verification/2026-08-25-phase4.7-4.9-verification.md)。
+18. M2 T08 已完成受控多轮上下文代码：服务端按主体读取最多 6 轮/12000 字符，过滤客户端历史和 system 角色，保留结构化回答的面向用户文本；正式 Prompt 增加后续改口优先规则，Web 成功后追加当前 exchange。真实模型质量和浏览器 E2E 仍待补。
 
 ## 面试展示建议
 
@@ -191,7 +195,7 @@ pytest 当前收集并通过 236 个后端用例（含参数化展开），另�
 | 维度 | 当前判断 | 说明 |
 |---|---|---|
 | 业务闭环 | 4/5 | 公开内容、聊天、微信和后台链路齐全 |
-| Agent/LLM 工程 | 4/5 | 有 Skill、Provider、降级、请求 trace、短期会话恢复、离线评测、版本指纹、SQL 覆盖 spike 和 guest session；trace 外部日志轮转仍依赖部署 |
+| Agent/LLM 工程 | 4/5 | 有 Skill、Provider、降级、请求 trace、服务端受控多轮上下文、离线评测、版本指纹、SQL 覆盖 spike 和 guest session；真实模型质量与 trace 外部日志轮转仍依赖后续环境 |
 | 测试工程 | 4/5 | 测试资产丰富且已有可追溯运行结果与覆盖率基线；仍缺覆盖率门槛和 E2E |
 | 安全与身份 | 3/5 | 已阻断客户端 metadata 直接扩权，为聊天/会话/平台权益建立签名 guest session 主体，为公众号增加基础重放防护，收紧 URL/媒体输入并建立隐私删除/保留策略；账号认证、DNS rebinding、速率限制、MIME 和外部日志轮转仍未完成 |
 | 交付与运维 | 3/5 | CI、镜像和模板完整；发布门禁与生产闭环不足 |

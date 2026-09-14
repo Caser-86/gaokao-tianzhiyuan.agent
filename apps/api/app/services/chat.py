@@ -86,6 +86,8 @@ class ConversationService:
         self.session_store = ChatSessionStore(
             self.session_factory,
             retention_days=settings.chat_session_retention_days,
+            context_max_turns=settings.chat_context_max_turns,
+            context_max_chars=settings.chat_context_max_chars,
         )
 
     def list_skills(self) -> list[dict[str, Any]]:
@@ -144,6 +146,10 @@ class ConversationService:
                     default_mode=settings.smart_analysis_mode,
                 )
                 persisted_entitlements = get_user_entitlements(session, user_id)
+            conversation_history = self.session_store.get_recent_model_messages(
+                session_id=resolved_session_id,
+                user_id=user_id,
+            )
 
             # Request metadata may describe the channel, but it is not an
             # authorization boundary. Policy keys are always overwritten by
@@ -166,6 +172,7 @@ class ConversationService:
                     **authoritative_metadata,
                     "smart_analysis_allowed": smart_analysis_allowed,
                     "smart_analysis_reason": smart_analysis_reason,
+                    "conversation_history": conversation_history,
                 },
             )
 

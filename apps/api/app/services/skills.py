@@ -486,12 +486,26 @@ class ZhangXueFengSkill:
         if self.provider and (self.skill_prompt_path or self._prompt_snapshot is not None):
             try:
                 prompt_snapshot = self._get_prompt_snapshot()
+                history_messages: list[LLMMessage] = []
+                raw_history = request.metadata.get("conversation_history", [])
+                if isinstance(raw_history, list):
+                    for item in raw_history:
+                        if not isinstance(item, dict):
+                            continue
+                        role = item.get("role")
+                        content = item.get("content")
+                        if role not in {"user", "assistant"}:
+                            continue
+                        if not isinstance(content, str) or not content.strip():
+                            continue
+                        history_messages.append(LLMMessage(role=role, content=content.strip()))
                 raw_content = self.provider.complete_text(
                     messages=[
                         LLMMessage(
                             role="system",
                             content=prompt_snapshot.system_text,
                         ),
+                        *history_messages,
                         LLMMessage(role="user", content=request.message),
                     ]
                 )

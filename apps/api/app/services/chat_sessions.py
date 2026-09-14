@@ -10,6 +10,8 @@ from sqlmodel import Session, select
 from ..models.chat import ChatMessage, ChatSession
 
 CHAT_SESSION_RETENTION_DAYS = 30
+CHAT_CONTEXT_MAX_TURNS = 6
+CHAT_CONTEXT_MAX_CHARS = 12_000
 
 
 class ChatSessionNotFoundError(LookupError):
@@ -30,11 +32,19 @@ class ChatSessionStore:
         session_factory: Callable[[], Session],
         *,
         retention_days: int = CHAT_SESSION_RETENTION_DAYS,
+        context_max_turns: int = CHAT_CONTEXT_MAX_TURNS,
+        context_max_chars: int = CHAT_CONTEXT_MAX_CHARS,
     ) -> None:
         self.session_factory = session_factory
         if retention_days <= 0:
             raise ValueError("retention_days must be greater than zero")
         self.retention_days = retention_days
+        if context_max_turns <= 0:
+            raise ValueError("context_max_turns must be greater than zero")
+        if context_max_chars <= 0:
+            raise ValueError("context_max_chars must be greater than zero")
+        self.context_max_turns = context_max_turns
+        self.context_max_chars = context_max_chars
 
     def assert_access(self, *, session_id: str, user_id: str) -> None:
         with self.session_factory() as session:
@@ -123,6 +133,54 @@ class ChatSessionStore:
                 "items": [self._serialize_message(item) for item in messages],
             }
 
+    def get_recent_model_messages(self, *, session_id: str, user_id: str) -> list[dict[str, str]]:
+        """Return recent complete turns without exposing stored JSON envelopes."""
+        now = utcnow()
+        with self.session_factory() as session:
+            stored = self._find_session(session, session_id=session_id)
+            if stored is None:
+                return []
+            self._assert_owner(stored, user_id=user_id)
+            if self._is_expired(stored, now=now):
+                self._delete_session_row(session, stored)
+                session.commit()
+                raise ChatSessionNotFoundError(session_id)
+
+            messages = session.exec(
+                select(ChatMessage)
+                .where(ChatMessage.session_id == stored.id)
+                .order_by(ChatMessage.id)
+            ).all()
+
+        turns: list[list[dict[str, str]]] = []
+        pending_user: str | None = None
+        for message in messages:
+            if message.role == "user":
+                pending_user = message.content.strip()
+                continue
+            if message.role != "assistant" or pending_user is None:
+                continue
+            assistant_text = self._assistant_context_text(message)
+            if pending_user and assistant_text:
+                turns.append(
+                    [
+                        {"role": "user", "content": pending_user},
+                        {"role": "assistant", "content": assistant_text},
+                    ]
+                )
+            pending_user = None
+
+        selected: list[list[dict[str, str]]] = []
+        used_chars = 0
+        for turn in reversed(turns[-self.context_max_turns :]):
+            turn_chars = sum(len(item["content"]) for item in turn)
+            if used_chars + turn_chars > self.context_max_chars:
+                break
+            selected.append(turn)
+            used_chars += turn_chars
+
+        return [message for turn in reversed(selected) for message in turn]
+
     def delete_session(self, *, session_id: str, user_id: str) -> bool:
         with self.session_factory() as session:
             stored = self._require_session(session, session_id=session_id, user_id=user_id)
@@ -196,3 +254,17 @@ class ChatSessionStore:
             except json.JSONDecodeError:
                 item["payload"] = None
         return item
+
+    @staticmethod
+    def _assistant_context_text(message: ChatMessage) -> str:
+        if message.content_type == "structured_json":
+            try:
+                payload = json.loads(message.content)
+            except json.JSONDecodeError:
+                payload = None
+            if isinstance(payload, dict):
+                for key in ("rendered_reply", "summary", "analysis"):
+                    value = payload.get(key)
+                    if isinstance(value, str) and value.strip():
+                        return value.strip()
+        return message.content.strip()

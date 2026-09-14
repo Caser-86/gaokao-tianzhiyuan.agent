@@ -118,6 +118,18 @@ def test_retention_settings_are_configurable_and_must_be_positive() -> None:
         Settings(chat_session_retention_days=0)
 
 
+def test_chat_context_limits_are_configurable_and_must_be_positive() -> None:
+    configured = Settings(chat_context_max_turns=4, chat_context_max_chars=8_000)
+
+    assert configured.chat_context_max_turns == 4
+    assert configured.chat_context_max_chars == 8_000
+
+    with pytest.raises(ValidationError):
+        Settings(chat_context_max_turns=0)
+    with pytest.raises(ValidationError):
+        Settings(chat_context_max_chars=0)
+
+
 def test_cors_allowed_origins_accept_comma_separated_values() -> None:
     settings = Settings(cors_allowed_origins="http://127.0.0.1:3000, http://localhost:3000")
 
