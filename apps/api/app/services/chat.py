@@ -61,6 +61,8 @@ def build_default_registry() -> SkillRegistry:
                 api_key=settings.llm_api_key,
                 model=settings.llm_model,
                 timeout_seconds=settings.llm_timeout_seconds,
+                max_output_tokens=settings.llm_max_output_tokens,
+                max_retries=settings.llm_max_retries,
             )
         except ProviderConfigurationError:
             provider = None
@@ -217,14 +219,11 @@ class ConversationService:
                 user_message=request.message,
                 assistant_content=response["output"]["content"],
             )
+            trace.emit()
             return response
         except Exception as exc:
-            trace.emit(
-                provider="none",
-                model_called=False,
-                used_fallback=True,
-                fallback_reasons=[f"request_error:{type(exc).__name__}"],
-            )
+            trace.mark_failure(f"request_error:{type(exc).__name__}")
+            trace.emit()
             raise
 
     def _invoke_direct(
@@ -270,6 +269,7 @@ class ConversationService:
             model_called=result.model_called,
             requested_model=result.requested_model,
             returned_model=result.returned_model,
+            usage=result.usage,
             prompt_hash=metadata.prompt_hash,
             effective_prompt_hash=metadata.effective_prompt_hash,
         )
@@ -328,6 +328,7 @@ class ConversationService:
             model_called=result.model_called,
             requested_model=result.requested_model,
             returned_model=result.returned_model,
+            usage=result.usage,
             prompt_hash=metadata.prompt_hash,
             effective_prompt_hash=metadata.effective_prompt_hash,
         )
@@ -346,6 +347,7 @@ class ConversationService:
         model_called: bool,
         requested_model: str | None = None,
         returned_model: str | None = None,
+        usage: dict[str, object] | None = None,
         prompt_hash: str | None = None,
         effective_prompt_hash: str | None = None,
         trace_fallback_reasons: list[str] | None = None,
@@ -360,11 +362,12 @@ class ConversationService:
         )
         if used_fallback and not fallback_reasons:
             fallback_reasons.append("skill_fallback")
-        trace.emit(
+        trace.set_outcome(
             provider=provider,
             model_called=model_called,
             requested_model=requested_model,
             returned_model=returned_model,
+            usage=usage,
             used_fallback=used_fallback,
             fallback_reasons=fallback_reasons,
         )

@@ -19,6 +19,14 @@ DEFAULT_EVIDENCE_MAX_ITEMS = 20
 DEFAULT_EVIDENCE_MAX_CHARS = 12_000
 DEFAULT_MEDIA_ANALYSIS_RETENTION_DAYS = 30
 DEFAULT_AGENT_TRACE_RETENTION_DAYS = 7
+DEFAULT_CHAT_MAX_MESSAGE_CHARS = 4_000
+DEFAULT_MODEL_MAX_CONCURRENCY = 4
+DEFAULT_CHAT_REQUEST_TIMEOUT_SECONDS = 30
+DEFAULT_CHAT_RATE_LIMIT_REQUESTS = 20
+DEFAULT_CHAT_RATE_LIMIT_WINDOW_SECONDS = 60
+DEFAULT_CHAT_DAILY_REQUEST_BUDGET = 1_000
+DEFAULT_LLM_MAX_OUTPUT_TOKENS = 800
+DEFAULT_LLM_MAX_RETRIES = 1
 DEFAULT_CORS_ALLOWED_ORIGINS = (
     "http://127.0.0.1:3000",
     "http://localhost:3000",
@@ -69,6 +77,12 @@ class Settings(BaseSettings):
     evidence_max_chars: int = DEFAULT_EVIDENCE_MAX_CHARS
     media_analysis_retention_days: int = DEFAULT_MEDIA_ANALYSIS_RETENTION_DAYS
     agent_trace_retention_days: int = DEFAULT_AGENT_TRACE_RETENTION_DAYS
+    chat_max_message_chars: int = DEFAULT_CHAT_MAX_MESSAGE_CHARS
+    model_max_concurrency: int = DEFAULT_MODEL_MAX_CONCURRENCY
+    chat_request_timeout_seconds: int = DEFAULT_CHAT_REQUEST_TIMEOUT_SECONDS
+    chat_rate_limit_requests: int = DEFAULT_CHAT_RATE_LIMIT_REQUESTS
+    chat_rate_limit_window_seconds: int = DEFAULT_CHAT_RATE_LIMIT_WINDOW_SECONDS
+    chat_daily_request_budget: int = DEFAULT_CHAT_DAILY_REQUEST_BUDGET
     database_url: str = "sqlite:///./gaokao-agent.db"
     cors_allowed_origins: Annotated[tuple[str, ...], NoDecode] = DEFAULT_CORS_ALLOWED_ORIGINS
     llm_provider: str = ""
@@ -76,6 +90,8 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_model: str = ""
     llm_timeout_seconds: int = 30
+    llm_max_output_tokens: int = DEFAULT_LLM_MAX_OUTPUT_TOKENS
+    llm_max_retries: int = DEFAULT_LLM_MAX_RETRIES
     media_analysis_provider: str = ""
     media_analysis_base_url: str = ""
     media_analysis_api_key: str = ""
@@ -145,11 +161,33 @@ class Settings(BaseSettings):
         "evidence_max_chars",
         "media_analysis_retention_days",
         "agent_trace_retention_days",
+        "chat_max_message_chars",
+        "model_max_concurrency",
+        "chat_request_timeout_seconds",
+        "chat_rate_limit_requests",
+        "chat_rate_limit_window_seconds",
+        "chat_daily_request_budget",
+        "llm_timeout_seconds",
+        "media_analysis_timeout_seconds",
     )
     @classmethod
     def validate_positive_ttl_or_limit(cls, value: int) -> int:
         if value <= 0:
             raise ValueError("configured TTL, retention, or body limit must be greater than zero")
+        return value
+
+    @field_validator("llm_max_output_tokens")
+    @classmethod
+    def validate_max_output_tokens(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("llm_max_output_tokens must be zero or greater")
+        return value
+
+    @field_validator("llm_max_retries")
+    @classmethod
+    def validate_max_retries(cls, value: int) -> int:
+        if value not in {0, 1}:
+            raise ValueError("llm_max_retries must be 0 or 1")
         return value
 
     @model_validator(mode="after")

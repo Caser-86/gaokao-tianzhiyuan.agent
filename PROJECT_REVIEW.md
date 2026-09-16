@@ -94,7 +94,7 @@ flowchart LR
 | Skill 注册与路由 | `catalog_lookup` 与 `zhangxuefeng` 两类 Skill；按置信度选择 | [`skills.py`](apps/api/app/services/skills.py)、[`chat.py`](apps/api/app/services/chat.py) | 可讲解工具选择、阈值与澄清回退 |
 | 结构化模型输出 | OpenAI-compatible Chat Completions，要求 JSON object | [`llm.py`](apps/api/app/services/llm.py) | 体现 Provider 抽象与输出协议治理 |
 | 确定性降级 | 配置缺失、请求失败、余额不足、格式错误均回退到规则结果 | [`skills.py`](apps/api/app/services/skills.py) | 体现 LLM 非确定性下的可用性设计 |
-| Agent trace | 记录候选/选择 Skill、版本、Prompt SHA-256 指纹、Provider、模型调用标记、耗时和降级原因；session 仅保存摘要引用 | [`tracing.py`](apps/api/app/services/tracing.py)、[`chat.py`](apps/api/app/services/chat.py) | 可解释一次请求为什么这样路由，且不把敏感原文写入 trace |
+| Agent trace | 保存成功/失败后只发一次最终 trace，记录候选/选择 Skill、版本、Prompt SHA-256 指纹、Provider、请求/返回模型、模型调用标记、耗时、白名单 usage 和降级原因；session 仅保存摘要引用 | [`tracing.py`](apps/api/app/services/tracing.py)、[`chat.py`](apps/api/app/services/chat.py) | 可解释一次请求为什么这样路由，且不把敏感原文写入 trace |
 | 会话生命周期与上下文 | 保存 user/assistant 消息，30 天滚动过期，按用户读取/删除；服务端只向模型注入授权 session 的最近 6 轮/12000 字符，页面可通过 `session_id` 恢复 | [`chat_sessions.py`](apps/api/app/services/chat_sessions.py)、[`chat.py`](apps/api/app/services/chat.py) | 可展开数据保留、用户隔离、上下文预算和“短期会话不等于长期记忆”的取舍 |
 | 证据驱动回答 | 服务端对明确命名的目录实体构造受限 SQL 证据；模型只能引用包内 ID，服务端附来源 URL/名称/年份/地区；未知引用或无证据数字声明降级 | [`evidence.py`](apps/api/app/services/evidence.py)、[`skills.py`](apps/api/app/services/skills.py)、[`skill_output.py`](apps/api/app/schemas/skill_output.py) | 可展开“检索确定性与模型解释分离”、引用白名单和 fail-closed |
 | 证据可视化与面试验收 | Web 将 `entities.evidence` 渲染为引用卡片；来源 URL、演示边界、引用 ID 可见；本地浏览器实际验证两轮会话、恢复、降级和后台保存 | [`evidence-list.tsx`](apps/web/components/public/evidence-list.tsx)、[`2026-09-15-t10-browser-demo.md`](docs/verification/2026-09-15-t10-browser-demo.md) | 把“服务端有证据”落到用户可检查的界面和可复现演示 |
@@ -188,6 +188,7 @@ pytest 当前收集并通过 250 个后端用例（含参数化展开），另�
 18. M2 T08 已完成受控多轮上下文代码：服务端按主体读取最多 6 轮/12000 字符，过滤客户端历史和 system 角色，保留结构化回答的面向用户文本；正式 Prompt 增加后续改口优先规则，Web 成功后追加当前 exchange。真实模型质量和浏览器 E2E 仍待补。
 19. M2 T09 已完成受控证据闭环：服务端按消息中的明确实体构造 SQL 证据包，限制条数/字符预算；运行时把来源元数据附在嵌套结果中，拒绝未知 citation 和无证据数字声明；质量 runner 新增同问题、共享预算、实际返回模型一致性检查的成对 replay。当前 replay 证明的是协议和评分器，真实模型效果与实际返回模型仍待私有环境记录。
 20. M3 T10 已完成面试演示与唯一验证索引：`latest.json` 汇总当前验证日期、commit、模式、结果和边界；本地浏览器实际走通首页、目录详情、证据展示、两轮追问、会话恢复、Provider 失败降级和后台保存，并生成脱敏截图与视频候选。当前证据仍来自 demo 数据和本地合成 Provider，真实模型成对质量、Docker runtime 和生产发布仍待外部环境验证。详见 [`T10 浏览器验收记录`](docs/verification/2026-09-15-t10-browser-demo.md)。
+21. M4 T11 已完成单进程请求预算与最终 trace：消息长度、模型并发、请求总时限、IP/主体窗口限流、跨匿名身份日预算、瞬时 Provider 重试和 `usage=null` 边界均有回归；trace 在会话保存成功或失败后只发一次，应用启动显式开启 `app.agent_trace` 日志。API `261 passed`。多 worker 共享存储、真实 Provider token/cost、日志轮转和生产运行仍未确认。详见 [`T11 请求预算与可观测性验证`](docs/verification/2026-09-16-t11-request-budget-and-observability.md)。
 
 ## 面试展示建议
 

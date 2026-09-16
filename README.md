@@ -152,7 +152,8 @@ sequenceDiagram
 | Skill 路由 | 内置目录查询与高考咨询 Skill，按置信度选择 | [`skills.py`](apps/api/app/services/skills.py) |
 | LLM Provider | OpenAI-compatible Chat Completions，支持 `/v1`、`/v3` 和 Agent Plan 版本路径，结构化 JSON 输出 | [`llm.py`](apps/api/app/services/llm.py) |
 | 失败降级 | 区分未配置、请求失败、余额不足和非法响应 | [`chat.py`](apps/api/app/services/chat.py) |
-| Agent trace | 记录候选/选择 Skill、版本、Prompt asset/effective SHA-256 指纹、Provider、模型调用标记、耗时和降级原因；session 只保留摘要引用 | [`tracing.py`](apps/api/app/services/tracing.py) |
+| Agent trace | 保存成功/失败后只发一次最终 trace，记录候选/选择 Skill、版本、Prompt asset/effective SHA-256 指纹、Provider、请求/返回模型、耗时、usage（未知为 `null`）和降级原因；session 只保留摘要引用 | [`tracing.py`](apps/api/app/services/tracing.py)、[`chat.py`](apps/api/app/services/chat.py) |
+| 请求预算 | 消息 4000 字符、单进程模型并发 4、30 秒总时限、IP/主体限流和全局日预算；429/5xx/超时最多重试一次 | [`request_budget.py`](apps/api/app/services/request_budget.py)、[`config.py`](apps/api/app/config.py) |
 | 会话持久化与受控上下文 | SQLModel 保存用户/Agent 消息，30 天滚动保留，按用户读取和删除；模型只接收服务端授权 session 的最近最多 6 轮、12000 字符，并保留完整 turn，不形成长期记忆 | [`chat_sessions.py`](apps/api/app/services/chat_sessions.py)、[`chat.py`](apps/api/app/services/chat.py) |
 | 证据驱动回答与成对评测 | 服务端按明确实体生成最多 20 条/12000 字符 SQL 证据；模型引用白名单 ID，服务端附来源元数据，未知 citation/无证据数字声明降级；同问题同预算对比直接调用与上下文+证据+校验 | [`evidence.py`](apps/api/app/services/evidence.py)、[`skills.py`](apps/api/app/services/skills.py)、[`quality_runner.py`](apps/api/app/evals/quality_runner.py) |
 | 工程协议评测 | 30 个固定样本覆盖路由、信息缺失、敏感请求边界、结构化输出、Provider 失败与权益分支；报告记录 Prompt/数据集身份 | [`runner.py`](apps/api/app/evals/runner.py) |
@@ -352,7 +353,7 @@ python scripts/wechat_aes_helper.py decrypt `
 
 源码静态统计：
 
-- 后端：32 个测试模块，另有 1 个 `conftest.py`；pytest 当前收集并通过 251 个用例（含参数化展开）。
+- 后端：33 个测试模块，另有 1 个 `conftest.py`；pytest 当前收集并通过 261 个用例（含参数化展开）。
 - 前端：28 个测试模块，另有 1 个 `setup.ts`；当前收集并通过 132 个 `test/it` 用例。
 - CI：API lint/test、迁移冒烟、Web lint/test/build、API/Web Docker 构建；trace、会话、离线评测、检索边界和可信身份回归测试位于 `test_chat_services.py`、`test_chat_sessions.py`、`test_eval_runner.py`、`test_retrieval_spike.py` 和 `test_auth_context.py`。
 
@@ -396,7 +397,9 @@ npm audit --audit-level=moderate
 
 2026-09-15 T09 验证：API `250 passed`、Web `28 files / 131 passed`；服务端按消息中明确命名的实体生成最多 20 条/12000 字符 SQL 证据，运行时引用位于 `entities.evidence_refs`，来源元数据位于 `entities.evidence`，未知 citation 和无证据数字声明进入规则降级；领域质量 replay `40/40`，成对 replay `1/1` 可比且逐样本记录两侧失败检查；另用 `ark-code-latest` 完成一次真实 Provider smoke，验证完整链路会对无证据数字声明安全降级。真实模型成对质量、真实 token/cost 与实际返回模型证据、浏览器 E2E、Docker runtime 和生产发布仍未确认。完整命令与边界见 [`T09 证据驱动回答与成对评测验证`](docs/verification/2026-09-15-t09-grounded-answers.md)。
 
-2026-09-15 T10 验证：API `251 passed`、Web `28 files / 132 passed`；Playwright 在本地合成 Provider 下实际覆盖首页、目录详情、证据卡片、两轮会话、`session_id` 恢复、Provider 断开后的规则降级和后台摘要保存；同时生成脱敏截图与无音轨视频候选。该轮的 `ark-code-latest` 只是本地合成服务返回的模型标签，不是火山引擎真实质量验证。当前统一入口是 [`docs/verification/latest.json`](docs/verification/latest.json)，详细记录见 [`T10 三分钟 Demo 与浏览器验收`](docs/verification/2026-09-15-t10-browser-demo.md)。
+2026-09-15 T10 验证：API `251 passed`、Web `28 files / 132 passed`；Playwright 在本地合成 Provider 下实际覆盖首页、目录详情、证据卡片、两轮会话、`session_id` 恢复、Provider 断开后的规则降级和后台摘要保存；同时生成脱敏截图与无音轨视频候选。该轮的 `ark-code-latest` 只是本地合成服务返回的模型标签，不是火山引擎真实质量验证。详细记录见 [`T10 三分钟 Demo 与浏览器验收`](docs/verification/2026-09-15-t10-browser-demo.md)。
+
+2026-09-16 T11 验证：API `261 passed`；新增消息长度、单进程并发、IP/主体限流、跨匿名身份日预算、总时限、Provider 瞬时错误重试和最终 trace 回归。trace 在会话保存成功或失败后只发一次，白名单保留 token usage，未知 usage 为 `null`；默认值与生产模板已同步。该轮仍未确认多 worker 共享预算、真实 Provider token/cost 语义、Docker runtime 或外部日志轮转。完整记录见 [`T11 请求预算与可观测性验证`](docs/verification/2026-09-16-t11-request-budget-and-observability.md)。
 
 ## 目录结构
 
@@ -433,10 +436,10 @@ PLAN.md                        从 MVP 到面试代表作的分阶段路线图
 
 ## 项目状态与路线图
 
-第一阶段的文档和展示增强已完成；当前工作树已执行 Phase 2.1—2.8、Phase 3.1—3.7、Phase 4.1—4.9、Phase 5.1—5.4、Phase 5.6、Phase 5.8，并完成 Phase 5.5 的本地 smoke/版本断言、重复 smoke 回归和同库 old→new→old 回滚演练，以及 Phase 5.7 的 Demo 脚本/录制清单和本地脱敏视频候选；M0 可靠性修复、M1 Prompt/评测建设和 M2 T07/T08/T09 代码与本地回归也已纳入。`verify-project.ps1`、API/Web 测试、覆盖率、typecheck、Web 生产构建和隔离本地栈 HTTP smoke/版本断言已在历史记录中通过；GitHub tag Release、Docker 实际发布、生产 post-deploy smoke 和 rollback 尚未完成。根目录 `data/` 是唯一权威源，未跟踪的 `apps/data/` 仅保留在当前本地工作区，CI 会拒绝其进入仓库。最新 T09 证据见 [`2026-09-15 T09 验证记录`](docs/verification/2026-09-15-t09-grounded-answers.md)。后续优先级为：
+第一阶段的文档和展示增强已完成；当前工作树已执行 Phase 2.1—2.8、Phase 3.1—3.7、Phase 4.1—4.9、Phase 5.1—5.4、Phase 5.6、Phase 5.8，并完成 Phase 5.5 的本地 smoke/版本断言、重复 smoke 回归和同库 old→new→old 回滚演练，以及 Phase 5.7 的 Demo 脚本/录制清单和本地脱敏视频候选；M0 可靠性修复、M1 Prompt/评测建设、M2 T07/T08/T09 与 M4 T11 的代码和本地回归也已纳入。`verify-project.ps1`、API/Web 测试、覆盖率、typecheck、Web 生产构建和隔离本地栈 HTTP smoke/版本断言已在历史记录中通过；GitHub tag Release、Docker 实际发布、生产 post-deploy smoke 和 rollback 尚未完成。根目录 `data/` 是唯一权威源，未跟踪的 `apps/data/` 仅保留在当前本地工作区，CI 会拒绝其进入仓库。最新 T11 证据见 [`2026-09-16 T11 验证记录`](docs/verification/2026-09-16-t11-request-budget-and-observability.md)。后续优先级为：
 
 1. 在私有环境用受控预算执行真实 Provider 成对评测，记录实际返回模型、token/cost 与失败样本，不把路由别名写成版本结论。
-2. 补齐请求预算、最终 trace、限流、DNS rebinding、媒体 MIME 校验和外部日志轮转。
+2. 继续补齐 DNS rebinding、媒体 MIME 校验、多 worker 共享预算和外部日志轮转；当前 T11 已完成单进程请求预算与最终 trace。
 3. 在获得真实部署条件后完成 Docker runtime、生产 smoke、回滚和账号等公开流量门槛。
 
 完整任务表、依赖关系和验收标准见 [`PLAN.md`](PLAN.md)。
@@ -446,7 +449,7 @@ PLAN.md                        从 MVP 到面试代表作的分阶段路线图
 - 不要提交 `.env`、`.env.local`、API Key、管理员 token、微信 token、App ID、AES Key、数据库或真实用户数据。
 - 当前目录数据是用于功能演示的少量样例，其中可能包含占位来源；不能用于真实招生、排名或志愿决策。会话消息默认保留 30 天；聊天与会话主体已由服务端 guest session 解析，开发/测试环境仍保留显式 `user_id` 兼容回退，不能视为账号级认证。
 - 高考政策、招生计划和录取数据具有年份与地区差异，生产使用前必须接入可追溯权威来源。
-- 当前账号注册/撤销、DNS rebinding、速率限制、媒体 MIME/内容校验和外部日志轮转自动化仍有待加固；Phase 4.5 已阻断常见协议、凭据、本地/保留地址、危险重定向和超限 HTML 路径，Phase 4.6 已明确会话/媒体/trace 的保留与用户删除边界，客户端 metadata 扩权问题已在 Phase 4.1 阻断，聊天与平台权益身份上下文已在 Phase 4.2—4.3 收紧，公众号重放已在 Phase 4.4 增加基础防护，详见项目评审。
+- 当前账号注册/撤销、DNS rebinding、媒体 MIME/内容校验、多 worker 共享预算和外部日志轮转自动化仍有待加固；T11 已加入单进程消息长度、并发、IP/主体限流、全局日预算、请求总时限和最终 trace。Phase 4.5 已阻断常见协议、凭据、本地/保留地址、危险重定向和超限 HTML 路径，Phase 4.6 已明确会话/媒体/trace 的保留与用户删除边界，客户端 metadata 扩权问题已在 Phase 4.1 阻断，聊天与平台权益身份上下文已在 Phase 4.2—4.3 收紧，公众号重放已在 Phase 4.4 增加基础防护，详见项目评审。
 
 ## 深入阅读
 

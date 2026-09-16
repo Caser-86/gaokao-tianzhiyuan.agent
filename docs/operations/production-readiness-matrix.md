@@ -12,6 +12,7 @@ requires a deployment owner, a host, or an external provider account.
 | Backup/restore | [`backup-restore-runbook.md`](backup-restore-runbook.md), standard-library SQLite backup/restore scripts | Off-host encrypted backup, retention, restore drill and access review |
 | Release | CI workflow and Release workflow share the verification gate; production Web API URL is required | GitHub tag workflow, Docker daemon build, approval and artifact promotion |
 | Post-deploy | Health, `/version` and local smoke scripts cover API/Web/chat/admin/WeChat fixtures; `smoke-local-stack.ps1 -ExpectedReleaseVersion` can compare a deployed value | Public HTTPS smoke, monitoring, alert routing and rollback owner |
+| Request budget/trace | Chat input/concurrency/time/rate/daily guards, bounded retry, structured redacted trace and usage=`null` when absent; see [`T11 verification`](../verification/2026-09-16-t11-request-budget-and-observability.md) | Shared store for multi-worker limits, real provider token/cost semantics, log shipping/rotation and alert thresholds |
 | Privacy | API startup/request cleanup and `DELETE /api/privacy/me`; trace retention depends on runtime logs | Journald/container rotation, backup deletion policy and incident process |
 
 ## Configuration rules

@@ -29,6 +29,13 @@ from ..services.media_analysis import (
     resolve_media_analysis_access,
 )
 from ..services.media_analysis_events import create_media_analysis_event
+from ..services.request_budget import (
+    DailyRequestBudgetExceededError,
+    ModelConcurrencyLimitError,
+    RateLimitExceededError,
+    RequestBudget,
+    RequestTimeoutError,
+)
 from ..services.url_safety import UnsafeExternalUrlError, validate_external_url
 from ..services.wechat_official_account_crypto import (
     WeChatOfficialAccountCryptoError,
@@ -40,6 +47,12 @@ from ..services.wechat_replay import claim_wechat_message
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 conversation_service = ConversationService()
+request_budget = RequestBudget(
+    max_concurrent=settings.model_max_concurrency,
+    rate_limit_requests=settings.chat_rate_limit_requests,
+    rate_limit_window_seconds=settings.chat_rate_limit_window_seconds,
+    daily_request_budget=settings.chat_daily_request_budget,
+)
 media_analysis_provider = build_media_analysis_provider(
     provider=settings.media_analysis_provider,
     base_url=settings.media_analysis_base_url,
@@ -88,14 +101,26 @@ class ChatMessageRequest(BaseModel):
     skill_id: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-    @field_validator("user_id", "message")
+    @field_validator("user_id")
     @classmethod
-    def validate_non_empty(cls, value: str | None) -> str | None:
+    def validate_user_id(cls, value: str | None) -> str | None:
         if value is None:
             return value
         normalized = value.strip()
         if not normalized:
             raise ValueError("must not be empty")
+        return normalized
+
+    @field_validator("message")
+    @classmethod
+    def validate_message(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("must not be empty")
+        if len(normalized) > settings.chat_max_message_chars:
+            raise ValueError(
+                f"message must not exceed {settings.chat_max_message_chars} characters"
+            )
         return normalized
 
 
@@ -106,14 +131,26 @@ class DirectSkillInvokeRequest(BaseModel):
     session_id: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-    @field_validator("user_id", "message")
+    @field_validator("user_id")
     @classmethod
-    def validate_non_empty(cls, value: str | None) -> str | None:
+    def validate_user_id(cls, value: str | None) -> str | None:
         if value is None:
             return value
         normalized = value.strip()
         if not normalized:
             raise ValueError("must not be empty")
+        return normalized
+
+    @field_validator("message")
+    @classmethod
+    def validate_message(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("must not be empty")
+        if len(normalized) > settings.chat_max_message_chars:
+            raise ValueError(
+                f"message must not exceed {settings.chat_max_message_chars} characters"
+            )
         return normalized
 
 
@@ -123,14 +160,26 @@ class WeChatChannelRequest(BaseModel):
     message_type: str = "text"
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-    @field_validator("openid", "message")
+    @field_validator("openid")
     @classmethod
-    def validate_non_empty(cls, value: str | None) -> str | None:
+    def validate_openid(cls, value: str | None) -> str | None:
         if value is None:
             return value
         normalized = value.strip()
         if not normalized:
             raise ValueError("must not be empty")
+        return normalized
+
+    @field_validator("message")
+    @classmethod
+    def validate_message(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("must not be empty")
+        if len(normalized) > settings.chat_max_message_chars:
+            raise ValueError(
+                f"message must not exceed {settings.chat_max_message_chars} characters"
+            )
         return normalized
 
 
@@ -164,6 +213,43 @@ def _resolve_request_user_id(
     if issued_token:
         set_session_cookie(response, issued_token)
     return identity.user_id
+
+
+def _request_client_ip(request: Request) -> str:
+    """Use the socket peer only; forwarded headers are not trusted by default."""
+    return request.client.host if request.client and request.client.host else "unknown"
+
+
+def _execute_chat_request(
+    *,
+    request: Request | None,
+    client_ip: str | None,
+    user_id: str,
+    callback,
+) -> dict[str, Any]:
+    try:
+        return request_budget.execute(
+            callback,
+            client_ip=client_ip or (_request_client_ip(request) if request else "unknown"),
+            subject=user_id,
+            timeout_seconds=settings.chat_request_timeout_seconds,
+        )
+    except RateLimitExceededError as exc:
+        raise HTTPException(
+            status_code=429,
+            detail=str(exc),
+            headers={"Retry-After": str(settings.chat_rate_limit_window_seconds)},
+        ) from exc
+    except DailyRequestBudgetExceededError as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
+    except ModelConcurrencyLimitError as exc:
+        raise HTTPException(
+            status_code=429,
+            detail=str(exc),
+            headers={"Retry-After": "1"},
+        ) from exc
+    except RequestTimeoutError as exc:
+        raise HTTPException(status_code=504, detail=str(exc)) from exc
 
 
 def _get_wechat_official_account_aes_settings() -> tuple[str, str]:
@@ -366,15 +452,22 @@ def _route_wechat_official_account_event_into_chat(
     metadata: dict[str, Any],
 ) -> str:
     try:
-        result = conversation_service.handle_message(
-            channel="wechat",
+        result = _execute_chat_request(
+            request=None,
+            client_ip="wechat-official-account",
             user_id=from_user,
-            message=message,
-            metadata=metadata,
+            callback=lambda: conversation_service.handle_message(
+                channel="wechat",
+                user_id=from_user,
+                message=message,
+                metadata=metadata,
+            ),
         )
     except ChatSkillNotFoundError:
         return WECHAT_OFFICIAL_ACCOUNT_SKILL_NOT_FOUND_REPLY
     except ChatSkillUnavailableError:
+        return WECHAT_OFFICIAL_ACCOUNT_SKILL_UNAVAILABLE_REPLY
+    except HTTPException:
         return WECHAT_OFFICIAL_ACCOUNT_SKILL_UNAVAILABLE_REPLY
 
     content = result.get("output", {}).get("content", {})
@@ -887,13 +980,18 @@ def create_chat_message(
             response=response,
             claimed_user_id=payload.user_id,
         )
-        return conversation_service.handle_message(
-            channel=payload.channel,
+        return _execute_chat_request(
+            request=request,
+            client_ip=None,
             user_id=user_id,
-            message=payload.message,
-            session_id=payload.session_id,
-            skill_id=payload.skill_id,
-            metadata=payload.metadata,
+            callback=lambda: conversation_service.handle_message(
+                channel=payload.channel,
+                user_id=user_id,
+                message=payload.message,
+                session_id=payload.session_id,
+                skill_id=payload.skill_id,
+                metadata=payload.metadata,
+            ),
         )
     except ChatSkillNotFoundError as exc:
         raise HTTPException(status_code=404, detail="chat skill not found") from exc
@@ -914,13 +1012,18 @@ def invoke_chat_skill(
             response=response,
             claimed_user_id=payload.user_id,
         )
-        return conversation_service.handle_message(
-            channel=payload.channel,
+        return _execute_chat_request(
+            request=request,
+            client_ip=None,
             user_id=user_id,
-            message=payload.message,
-            session_id=payload.session_id,
-            skill_id=skill_id,
-            metadata=payload.metadata,
+            callback=lambda: conversation_service.handle_message(
+                channel=payload.channel,
+                user_id=user_id,
+                message=payload.message,
+                session_id=payload.session_id,
+                skill_id=skill_id,
+                metadata=payload.metadata,
+            ),
         )
     except ChatSkillNotFoundError as exc:
         raise HTTPException(status_code=404, detail="chat skill not found") from exc
@@ -983,14 +1086,19 @@ def create_wechat_chat_message(
             response=response,
             claimed_user_id=payload.openid,
         )
-        return conversation_service.handle_message(
-            channel="wechat",
+        return _execute_chat_request(
+            request=request,
+            client_ip=None,
             user_id=user_id,
-            message=payload.message,
-            metadata={
-                **payload.metadata,
-                "message_type": payload.message_type,
-            },
+            callback=lambda: conversation_service.handle_message(
+                channel="wechat",
+                user_id=user_id,
+                message=payload.message,
+                metadata={
+                    **payload.metadata,
+                    "message_type": payload.message_type,
+                },
+            ),
         )
     except ChatSkillNotFoundError as exc:
         raise HTTPException(status_code=404, detail="chat skill not found") from exc
@@ -1166,19 +1274,26 @@ async def handle_wechat_official_account_message(
             reply_text = WECHAT_OFFICIAL_ACCOUNT_EMPTY_TEXT_REPLY
         else:
             try:
-                result = conversation_service.handle_message(
-                    channel="wechat",
+                result = _execute_chat_request(
+                    request=request,
+                    client_ip=None,
                     user_id=from_user,
-                    message=message,
-                    metadata=_build_wechat_official_account_metadata(
-                        to_user=to_user,
-                        message_type=message_type,
-                        payload=payload,
+                    callback=lambda: conversation_service.handle_message(
+                        channel="wechat",
+                        user_id=from_user,
+                        message=message,
+                        metadata=_build_wechat_official_account_metadata(
+                            to_user=to_user,
+                            message_type=message_type,
+                            payload=payload,
+                        ),
                     ),
                 )
             except ChatSkillNotFoundError:
                 reply_text = WECHAT_OFFICIAL_ACCOUNT_SKILL_NOT_FOUND_REPLY
             except ChatSkillUnavailableError:
+                reply_text = WECHAT_OFFICIAL_ACCOUNT_SKILL_UNAVAILABLE_REPLY
+            except HTTPException:
                 reply_text = WECHAT_OFFICIAL_ACCOUNT_SKILL_UNAVAILABLE_REPLY
             else:
                 content = result.get("output", {}).get("content", {})

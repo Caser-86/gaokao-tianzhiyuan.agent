@@ -66,11 +66,21 @@ Provider 未配置、请求失败、余额不足和非法 JSON 会被区分；�
 
 ## 5. trace 为什么不记录完整 Prompt 和用户原文？
 
-trace 只保留请求 ID、渠道、消息长度、候选 Skill、选择原因、Provider、耗时、
-模型调用标记和 fallback 原因；session ID 只保存截断后的 SHA-256 引用，Prompt 只
+trace 只保留请求 ID、渠道、消息长度、候选 Skill、选择原因、Provider、请求/返回模型、
+耗时、白名单 token usage（Provider 未提供时为 `null`）、模型调用标记和 fallback 原因；
+session ID 只保存截断后的 SHA-256 引用，Prompt 只
 记录 SHA-256 指纹。这样能解释路由和版本变化，又减少日志中的隐私与敏感内容。
 证据：[`tracing.py`](../../apps/api/app/services/tracing.py)、
 [`agent-trace-design.md`](../superpowers/specs/2026-08-25-agent-trace-design.md)。
+
+## 6.1 如何防止一次请求拖垮模型预算？
+
+当前仓库在单进程内限制消息 4000 字符、模型并发 4、请求总时限 30 秒，并按
+IP/服务端主体做窗口限流，同时用不依赖主体的 UTC 日预算阻断匿名身份轮换绕过。
+Provider 只对超时、429 和 5xx 最多重试一次；多 worker 部署前还需要换成共享预算
+存储并由部署环境确认 token/cost 口径。
+证据：[`request_budget.py`](../../apps/api/app/services/request_budget.py)、
+[`T11 请求预算与可观测性验证`](../verification/2026-09-16-t11-request-budget-and-observability.md)。
 
 ## 6. 为什么需要服务端身份和权益，而不能信前端传来的 metadata？
 
@@ -120,7 +130,7 @@ rebinding、MIME/内容校验和速率限制是后续加固项，不能把现有
 
 后端用 API、服务、迁移和安全回归测试覆盖业务边界；前端用 API client、页面、表单
 状态和后台交互测试；另有离线评测、检索 spike、数据资产校验和本地 HTTP smoke。
-当前本地验证为 API `251 passed`、Web `132 passed`；Prompt 快照、工程协议评测和
+当前本地验证为 API `261 passed`、Web `132 passed`；Prompt 快照、工程协议评测和
 领域质量 replay 也有聚焦测试。工程协议评测为 30/30，领域 replay 为 40/40，且报告
 记录样本分母和失败样例。覆盖率和历史阶段结果
 应以带日期的验证记录为准，不应把固定样本通过率表述为线上模型质量。受控多轮上下文
@@ -157,8 +167,8 @@ grounded 成对 replay；T10 又用 Playwright 真实走通证据卡、两轮历
 ## 15. 你认为下一项最值得做的工作是什么？
 
 先在私有环境完成真实 Provider 的受控成对评测，记录实际返回模型、token/cost 和失败样本；
-然后补齐请求预算、最终 trace、账号认证、速率限制、DNS rebinding、媒体 MIME 校验和外部
-日志轮转。只有评测显示 SQL 优先边界不足，才引入更复杂的检索组件；最后完成 Docker runtime、
+然后继续补齐账号认证、DNS rebinding、媒体 MIME 校验、多 worker 预算共享和外部日志轮转。
+只有评测显示 SQL 优先边界不足，才引入更复杂的检索组件；最后完成 Docker runtime、
 生产发布、回滚和监控演练。
 
 ## 面试回答纪律

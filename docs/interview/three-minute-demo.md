@@ -43,7 +43,7 @@ powershell -ExecutionPolicy Bypass -File scripts/stop-local-stack.ps1 `
 | 1:25—1:45 | 停止合成 Provider，再提问 | “Provider 不可用时不把 500 直接交给用户；页面仍显示规则降级结果，响应 debug 和 trace 会记录 `provider_request_failed`。” | [`tracing.py`](../../apps/api/app/services/tracing.py)、[`T10 验证记录`](../verification/2026-09-15-t10-browser-demo.md) |
 | 1:45—2:05 | 打开 `/admin` 并保存一次学校摘要 | “模型增强有 `off / gated / on` 权限策略；内容摘要、精选、榜单来源和媒体失败都能进入运营后台，保存结果可见。” | [`dashboard-shell.tsx`](../../apps/web/components/admin/dashboard-shell.tsx)、后台截图 |
 | 2:05—2:30 | 展示 trace/eval 报告 | “我们用 30 个固定工程样本验证路由、结构化输出和 fallback，再用 40 条独立 replay 检查引用、无依据数字和追问覆盖；另有 1 条同问题同预算的 direct vs grounded 成对样本，逐项展示失败原因，而不是只展示一次成功对话。” | [`runner.py`](../../apps/api/app/evals/runner.py)、[`quality_runner.py`](../../apps/api/app/evals/quality_runner.py)、T09 评测报告 |
-| 2:30—3:00 | 回到 README 的验证区 | “当前本地基线是 API 251 个测试通过、Web 132 个用例通过；T10 浏览器验收已通过，但真实模型成对质量、Docker runtime 和生产发布仍明确列为待确认项。” | [`latest.json`](../verification/latest.json)、[`T10 验证记录`](../verification/2026-09-15-t10-browser-demo.md)、生产就绪矩阵 |
+| 2:30—3:00 | 回到 README 的验证区 | “当前本地基线是 API 261 个测试通过、Web 132 个用例通过；T10 浏览器验收和 T11 请求预算回归已通过，但真实模型成对质量、多 worker 预算、Docker runtime 和生产发布仍明确列为待确认项。” | [`latest.json`](../verification/latest.json)、[`T10 验证记录`](../verification/2026-09-15-t10-browser-demo.md)、[`T11 验证记录`](../verification/2026-09-16-t11-request-budget-and-observability.md)、生产就绪矩阵 |
 
 ## 最少展示的三个问题
 

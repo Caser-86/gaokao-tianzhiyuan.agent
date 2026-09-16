@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -15,8 +16,18 @@ from .routers.public import router as public_router
 from .services.data_retention import purge_expired_data
 
 
+def configure_logging() -> None:
+    """Make the redacted agent trace visible in a standard process log."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
+    logging.getLogger("app.agent_trace").setLevel(logging.INFO)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    configure_logging()
     create_all_models()
     with Session(get_engine()) as session:
         purge_expired_data(session)

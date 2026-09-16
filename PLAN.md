@@ -405,7 +405,7 @@ git diff --check
 
 后续执行以 [新版优化路线图](docs/superpowers/plans/2026-09-08-project-optimization-roadmap.md) 为准；上述阶段保留为历史记录。
 本次 [深度审核](docs/reviews/2026-09-08-deep-audit.md) 核实最新 CI 格式检查失败，并发现容器 Prompt 缺失、生产 session secret 未映射、Provider 输出校验与规则降级边界等问题。
-新版计划包含 16 项发现、14 个任务、依赖图、工作量估算和阶段验收门；任务状态均为未实施。
+新版计划包含 16 项发现、14 个任务、依赖图、工作量估算和阶段验收门；T01—T10 已完成代码/本地回归，T11 已完成单进程请求预算与最终 trace，外部 Provider 质量、Docker runtime 和生产部署证据仍按路线图单独验收。
 
 优先顺序：M0 可信交付与正确性 → M1 评测与 Prompt 身份 → M2 领域证据与多轮上下文 → M3 面试演示；M4 公开部署准备单独验收，M5 按测量优化。
 
