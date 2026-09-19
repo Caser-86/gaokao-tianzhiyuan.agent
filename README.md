@@ -26,7 +26,7 @@
 | 为什么是 Agent，而不只是聊天框？ | 自动路由接口会先做 Skill 匹配；当前 Web 聊天页则直接调用指定的高考咨询 Skill。两条路径都会执行权益判断、结构化输出、受控多轮上下文与失败降级，并把媒体事件和失败原因留给运营后台。 |
 | 核心 Agent 能力是什么？ | `SkillRegistry`、置信度路由、OpenAI-compatible Provider、结构化 JSON 输出、确定性 fallback、多渠道适配和轻量 Agent trace。 |
 | 工程难点在哪里？ | 模型不稳定、用户权益、微信公众号 AES、多类型消息、内容审核、媒体失败重试和本地可复现交付。 |
-| 如何证明不是概念 Demo？ | 仓库包含关系数据模型、运营后台、后端/前端测试、CI、Docker、冒烟脚本和部署模板；最新验证索引见 [`latest.json`](docs/verification/latest.json)，T10 浏览器记录见 [`2026-09-15 T10 验证记录`](docs/verification/2026-09-15-t10-browser-demo.md)。 |
+| 如何证明不是概念 Demo？ | 仓库包含关系数据模型、运营后台、后端/前端测试、CI、Docker、冒烟脚本和部署模板；当前验证索引见 [`latest.json`](docs/verification/latest.json)，最新浏览器验收记录见 [`T10 浏览器验收`](docs/verification/2026-09-15-t10-browser-demo.md)，请求预算与 trace 见 [`T11 验证记录`](docs/verification/2026-09-16-t11-request-budget-and-observability.md)。 |
 | 当前最重要的边界是什么？ | 演示数据不能用于真实志愿决策；生产发布、版本探针和回滚闭环仍需外部环境确认。 |
 
 适合重点查看的三个入口：
@@ -415,11 +415,15 @@ docs/
   assets/                      README 截图与脱敏 Demo 视频候选
   interview/                   三分钟 Demo 脚本与面试问答包
   operations/                  运维交接手册
-  superpowers/                 设计规格与实施计划
+  reviews/                     审核结论与项目评审
+  verification/                可追溯验证报告与最新索引
+  superpowers/                 历史设计规格与实施计划
 scripts/                       启停、验证、冒烟与微信 AES 工具
 .github/workflows/             CI 与 Release workflow
-PROJECT_REVIEW.md              代码证据、亮点、风险与成熟度评审
-PLAN.md                        从 MVP 到面试代表作的分阶段路线图
+CONTEXT.md                     当前项目状态、架构与关键决策
+TODO.md                        只保留未完成任务和下一步优先级
+PROJECT_REVIEW.md              历史深度评审与代码证据
+PLAN.md                        历史阶段计划与验收记录
 ```
 
 ## 部署资料
@@ -432,17 +436,17 @@ PLAN.md                        从 MVP 到面试代表作的分阶段路线图
 - [SQLite 备份与恢复手册](docs/operations/backup-restore-runbook.md)
 - [Release smoke 与回滚手册](docs/operations/release-smoke-rollback-runbook.md)
 
-当前仓库具备镜像发布与手工部署模板；工作树已收紧 Release 门禁与生产 Web API 地址策略，但还没有完成生产环境审批、HTTPS、自动迁移、发布后 smoke、监控告警和自动回滚闭环。详细边界见 [`PROJECT_REVIEW.md`](PROJECT_REVIEW.md)。
+当前仓库具备镜像发布与手工部署模板；工作树已收紧 Release 门禁与生产 Web API 地址策略，但还没有完成生产环境审批、HTTPS、自动迁移、发布后 smoke、监控告警和自动回滚闭环。当前状态见 [`CONTEXT.md`](CONTEXT.md)，未完成任务见 [`TODO.md`](TODO.md)。
 
 ## 项目状态与路线图
 
-第一阶段的文档和展示增强已完成；当前工作树已执行 Phase 2.1—2.8、Phase 3.1—3.7、Phase 4.1—4.9、Phase 5.1—5.4、Phase 5.6、Phase 5.8，并完成 Phase 5.5 的本地 smoke/版本断言、重复 smoke 回归和同库 old→new→old 回滚演练，以及 Phase 5.7 的 Demo 脚本/录制清单和本地脱敏视频候选；M0 可靠性修复、M1 Prompt/评测建设、M2 T07/T08/T09 与 M4 T11 的代码和本地回归也已纳入。`verify-project.ps1`、API/Web 测试、覆盖率、typecheck、Web 生产构建和隔离本地栈 HTTP smoke/版本断言已在历史记录中通过；GitHub tag Release、Docker 实际发布、生产 post-deploy smoke 和 rollback 尚未完成。根目录 `data/` 是唯一权威源，未跟踪的 `apps/data/` 仅保留在当前本地工作区，CI 会拒绝其进入仓库。最新 T11 证据见 [`2026-09-16 T11 验证记录`](docs/verification/2026-09-16-t11-request-budget-and-observability.md)。后续优先级为：
+第一阶段的文档和展示增强已完成；当前代码已覆盖 Skill 路由、结构化目录与证据、受控多轮、规则降级、请求预算、trace、微信公众号适配、运营后台、离线评测和本地浏览器验收。`verify-project.ps1`、API/Web 测试、typecheck、Web 生产构建和 GitHub CI 已通过；真实 Provider 质量、Docker runtime、生产 post-deploy smoke、监控告警和 rollback 尚未完成。根目录 `data/` 是唯一权威源。最新 T11 证据见 [`2026-09-16 T11 验证记录`](docs/verification/2026-09-16-t11-request-budget-and-observability.md)。后续优先级以 [`TODO.md`](TODO.md) 为准：
 
 1. 在私有环境用受控预算执行真实 Provider 成对评测，记录实际返回模型、token/cost 与失败样本，不把路由别名写成版本结论。
 2. 继续补齐 DNS rebinding、媒体 MIME 校验、多 worker 共享预算和外部日志轮转；当前 T11 已完成单进程请求预算与最终 trace。
 3. 在获得真实部署条件后完成 Docker runtime、生产 smoke、回滚和账号等公开流量门槛。
 
-完整任务表、依赖关系和验收标准见 [`PLAN.md`](PLAN.md)。
+完整历史阶段表和验收记录见 [`PLAN.md`](PLAN.md)；当前只执行 [`TODO.md`](TODO.md)。
 
 ## 安全与数据声明
 
@@ -453,8 +457,11 @@ PLAN.md                        从 MVP 到面试代表作的分阶段路线图
 
 ## 深入阅读
 
+- [`CONTEXT.md`](CONTEXT.md)：当前项目目标、已实现功能、架构、技术栈、限制和关键决策。
+- [`TODO.md`](TODO.md)：按 P0—P3 划分的未完成任务，不重复记录已完成工作。
+- [`docs/README.md`](docs/README.md)：正式文档、验证证据、运维手册和历史设计资料的导航。
 - [`PROJECT_REVIEW.md`](PROJECT_REVIEW.md)：完整仓库评审、架构证据、亮点、缺口与面试建议。
-- [`PLAN.md`](PLAN.md)：分阶段实施计划、优先级、依赖和 Definition of Done。
+- [`PLAN.md`](PLAN.md)：历史阶段实施计划、优先级、依赖和 Definition of Done；当前待办以 `TODO.md` 为准。
 - [`docs/operations/local-handover-runbook.md`](docs/operations/local-handover-runbook.md)：本地运行、冒烟和排障。
 - [`docs/interview/three-minute-demo.md`](docs/interview/three-minute-demo.md)：录制时间线、台词和安全清单。
 - [`docs/interview/interview-qa.md`](docs/interview/interview-qa.md)：架构、Agent、评测、安全、成本和生产差距问答。

@@ -4,13 +4,15 @@
 > 评审基线：`main` / `772948a`
 > 评审方式：仓库静态阅读与配置核对；本地可执行验证结果独立记录在 `docs/verification/`，本轮未调用外部模型或部署生产环境。
 
+> 文档定位：历史深度评审与代码证据。当前状态请先看 [`CONTEXT.md`](CONTEXT.md) 和 [`TODO.md`](TODO.md)；最新验证数字以 [`docs/verification/latest.json`](docs/verification/latest.json) 为准。
+
 ## 结论
 
 这是一个已经跨过“聊天页面 + 单次模型调用”阶段的垂直领域 AI Agent 应用雏形。项目把结构化高考目录、可插拔 Skill、OpenAI-compatible Provider、确定性降级、用户权益、微信公众号适配、内容运营后台和交付脚本连接成了一条完整产品链路。
 
 它目前最适合作为“有真实业务约束的 LLM 应用工程项目”展示，而不是宣称为已完成生产验证的招生决策系统。面试价值主要来自工程取舍、异常治理、多渠道接入、会话生命周期和运营闭环；当前工作树已补入轻量调用 trace、最小会话持久化、离线评测基线、版本指纹和 SQL 覆盖边界 spike，后续仍应优先补齐账号级身份生命周期和可追溯的生产发布验证。
 
-本轮更新（2026-08-30）已让离线评测默认使用项目内置 Prompt，并扩展到 13 个固定样本；本地 API 最新验证为 `213 passed`，Web 最新验证为 `129 passed`。这些结果只代表本地工作树和固定样本，不代表线上模型质量或生产 SLA，完整记录见 [`evaluation-and-data-trust verification`](docs/verification/2026-08-30-evaluation-and-data-trust.md)。
+本文保留历史阶段评审和代码证据；当前项目状态、未完成任务和下一步以 [`CONTEXT.md`](CONTEXT.md)、[`TODO.md`](TODO.md) 和 [`docs/verification/latest.json`](docs/verification/latest.json) 为准。2026-08-30 的 `213 passed / 129 passed` 是当日历史基线，不是当前测试结果；完整记录见 [`evaluation-and-data-trust verification`](docs/verification/2026-08-30-evaluation-and-data-trust.md)。
 
 2026-08-31 继续补齐了数据可信度的可执行边界：根目录 `data/catalog.json`
 新增顶层 `data_provenance` 契约，资产校验器检查状态、来源、更新时间、适用范围和免责声明；公开搜索/列表/详情 API 返回该元数据，学校与专业详情页展示演示数据声明。该能力只标注来源边界，不把样例内容变成官方招生数据。本轮 API `215 passed`、Web `130 passed`，完整结果见 [`data provenance contract verification`](docs/verification/2026-08-31-data-provenance-contract.md)。
@@ -143,7 +145,7 @@ flowchart LR
 
 ### 4. 测试覆盖业务路径而非只测健康检查
 
-pytest 当前收集并通过 250 个后端用例（含参数化展开），另有 132 个前端 `test/it` 用例。测试覆盖 Skill 路由、LLM 错误、公众号 AES、内容不变量、后台筛选、会话隔离、Prompt 契约、工程协议评测、领域质量 replay、SQL 证据筛选、证据注入与 citation 校验、成对质量 replay、检索边界、权益扩权回归、可信身份、平台权益主体、公众号重放、URL/媒体输入安全、隐私删除、Action 状态、版本探针、数据来源契约、受控多轮上下文、证据卡片和页面交互。源码函数数与参数化后的用例数分开记录，避免把两者混为一谈。
+当前最新验证为 API 261 个后端用例、Web 132 个 `test/it` 用例；历史阶段的 250 等数字只对各自日期负责。测试覆盖 Skill 路由、LLM 错误、公众号 AES、内容不变量、后台筛选、会话隔离、Prompt 契约、工程协议评测、领域质量 replay、SQL 证据筛选、证据注入与 citation 校验、成对质量 replay、检索边界、权益扩权回归、可信身份、平台权益主体、公众号重放、URL/媒体输入安全、隐私删除、Action 状态、版本探针、数据来源契约、受控多轮上下文、证据卡片和页面交互。源码函数数与参数化后的用例数分开记录，避免把两者混为一谈。当前数字以 [`docs/verification/latest.json`](docs/verification/latest.json) 为准。
 
 ### 5. 有可复现交付意识
 
@@ -172,7 +174,7 @@ pytest 当前收集并通过 250 个后端用例（含参数化展开），另�
 2. 原 README 的测试通过数、构建和审计结果没有日期与 commit，不能当作当前验证事实；当前验证结果单独记录在 `docs/verification/`。
 3. Python 运行时文档已统一为 3.11+；CI、API Dockerfile 和 `pyproject.toml` 均以 Python 3.11 作为最低基线。
 4. Release Web 镜像原先默认把浏览器 API 地址构建为 `http://localhost:8000`；当前工作树已要求生产 Environment 显式提供 API 根地址，并让 Dockerfile/Compose 在构建时校验该值。
-5. 根目录 `data/` 已被播种脚本、测试和校验器定义为权威源，并新增顶层 `data_provenance` 契约；公开 API/详情页会展示该来源边界。未跟踪的 `apps/data/` 当前内容相同但仍会产生未来漂移风险，尚未擅自删除。
+5. 根目录 `data/` 已被播种脚本、测试和校验器定义为权威源，并新增顶层 `data_provenance` 契约；公开 API/详情页会展示该来源边界。旧版未跟踪的 `apps/data/` 重复目录已在 2026-09-19 清理，并加入 `.gitignore` 防止再次混入。
 6. Phase 3.1 已新增 `AgentTraceRecorder`；默认只写结构化日志，不持久化消息、Prompt、API Key、openid 或用户 ID 原值，详细 schema 见 [`agent-trace-design.md`](docs/superpowers/specs/2026-08-25-agent-trace-design.md)。
 7. Phase 3.2 已新增 `ChatSession`/`ChatMessage`、Alembic 迁移和按用户读取/删除接口；消息默认 30 天滚动保留，页面支持用 `session_id` 恢复展示，详细设计见 [`chat-session-persistence-design.md`](docs/superpowers/specs/2026-08-25-chat-session-persistence-design.md)。
 8. Phase 3.3—3.5 已新增 9 个固定离线评测样本、Provider stub、路由/schema/fallback 指标和报告；当前 9/9 通过，详细结果见 [`2026-08-25-phase3.3-3.5-evaluation.md`](docs/verification/2026-08-25-phase3.3-3.5-evaluation.md)。

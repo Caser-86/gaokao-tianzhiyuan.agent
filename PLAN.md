@@ -1,6 +1,6 @@
 # AI Agent 面试代表作打磨 Implementation Plan
 
-> **For agentic workers:** 后续阶段必须先阅读 [`PROJECT_REVIEW.md`](PROJECT_REVIEW.md)；执行代码阶段时使用 `superpowers:subagent-driven-development`（推荐）或 `superpowers:executing-plans`，逐项实现、验证和复查。
+> 文档定位：历史阶段计划与验收记录。当前状态请先阅读 [`CONTEXT.md`](CONTEXT.md)，当前未完成任务只维护在 [`TODO.md`](TODO.md)。本文保留实现背景和历史证据，不应被当作未清理的任务清单。
 
 **Goal:** 在不大规模重构、不删除功能、不引入重型依赖的前提下，把本项目逐步打磨成适合 AI Agent 工程师或 LLM 应用开发面试展示的代表作。
 
@@ -122,7 +122,7 @@
 | 2.2 | P0 | 建立可追溯验证记录 | `README.md`、可选 `docs/verification/` | 记录日期、完整 commit、运行环境、命令和结果；禁止复制历史数字 | 2.1 |
 | 2.3 | P0 | 修正 Release 门禁 | `.github/workflows/ci.yml`、`.github/workflows/release.yml` | Tag 镜像发布只能使用已通过同一 commit CI 的工件或复用工作流 | CI 设计确认 |
 | 2.4 | P0 | 修正 Web 生产 API 地址策略 | Dockerfile、Compose、Release workflow、部署文档 | 远程浏览器不再默认请求自身 `localhost:8000` | 2.3 |
-| 2.5 | P1 | 统一 JSON 数据源 | `data/`、`apps/data/`、播种脚本、文档 | 根目录 `data/` 为唯一权威源；CI 校验 slug、关联和 JSON 结构；重复目录不进入发布 | 已完成；本地 legacy duplicate 保留但 CI 严格拒绝 |
+| 2.5 | P1 | 统一 JSON 数据源 | `data/`、`apps/data/`、播种脚本、文档 | 根目录 `data/` 为唯一权威源；CI 校验 slug、关联和 JSON 结构；重复目录不进入发布 | 已完成；旧版 `apps/data/` 重复目录已于 2026-09-19 清理，CI 继续保留严格拒绝门禁 |
 | 2.6 | P1 | 对齐运行时版本文档 | `pyproject.toml`、CI、运维手册、部署模板 | Python 3.11+、Node.js 20+ 最低版本在所有入口一致 | 无 |
 | 2.7 | P1 | 增加类型与覆盖率证据 | Web scripts、Pytest/Vitest 配置、CI | 独立 typecheck；生成覆盖率报告并先观察后设合理门槛 | 2.2 |
 | 2.8 | P1 | 增加最小端到端冒烟 | 现有 smoke 或轻量浏览器脚本 | 覆盖公开页、聊天降级、后台读取三条主路径，不引入重型测试平台除非必要 | 2.1、2.4 |
@@ -160,7 +160,7 @@ git diff --check
 | 2.2 | 已完成本地可追溯验证 | `verify-project.ps1` 退出码 `0`；Phase 2 当时 API `152 passed`、Web `124 passed`；生产构建通过；lint 仅 3 个 `<img>` 警告；最新回归见 Phase 3.2 记录 |
 | 2.3 | 已完成工作流门禁改造 | `ci.yml` 增加 `workflow_call`；`release.yml` 的 `ci-pass` 复用同一 workflow；GitHub tag 尚未实际触发 |
 | 2.4 | 已完成配置策略改造 | Web Dockerfile/Compose 要求显式 API 根地址；Release 从 `production` Environment 读取并校验 URL；实际 Docker 构建受本机 daemon 未运行阻塞 |
-| 2.5 | 已完成权威源与门禁收口 | 新增标准库 JSON 校验器并接入本地验证/CI；根目录 `data/` 校验通过（2 所学校、4 个专业）；本地 `apps/data/` 不删除，CI 使用 `--fail-on-legacy-duplicate` 防止重复目录进入仓库发布 |
+| 2.5 | 已完成权威源与门禁收口 | 新增标准库 JSON 校验器并接入本地验证/CI；根目录 `data/` 校验通过（2 所学校、4 个专业）；旧版 `apps/data/` 重复目录已清理，CI 使用 `--fail-on-legacy-duplicate` 防止重复目录进入仓库发布 |
 | 2.6 | 已完成文档对齐 | 运维交接手册、项目评审、CI 说明统一为 Python 3.11+；Node.js 20+ 与 Docker/CI 保持一致 |
 | 2.7 | 已完成观察基线 | 新增独立 `typecheck`，并接入 pytest-cov/Vitest V8 覆盖率报告；本轮未设置覆盖率门槛，先记录真实基线 |
 | 2.8 | 已完成现有 smoke 验收 | 复用 `scripts/smoke-local-stack.ps1`：公开首页、聊天页、后台页、API 聊天降级结构化输出和后台智能分析设置均有断言；未引入浏览器平台 |

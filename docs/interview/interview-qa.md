@@ -137,9 +137,10 @@ rebinding、MIME/内容校验和速率限制是后续加固项，不能把现有
 还覆盖了服务端主体隔离、最近 6 轮/12000 字符预算、客户端历史过滤和前端当前轮追加；
 T09 又补充了受限 SQL 证据、嵌套 citation 白名单、无证据数字声明降级和直接调用 vs
 grounded 成对 replay；T10 又用 Playwright 真实走通证据卡、两轮历史、session 恢复、Provider
-故障降级和后台保存。当前事实以 [`latest.json`](../verification/latest.json) 为准，历史阶段
+故障降级和后台保存；T11 又补充了请求长度、并发、限流、日预算、总时限和最终 trace 回归。
+当前事实以 [`latest.json`](../verification/latest.json) 为准，历史阶段
 数字仍以各自日期记录为准。
-证据：[`README 测试区`](../../README.md)、[`2026-09-15 T09 验证记录`](../verification/2026-09-15-t09-grounded-answers.md)。
+证据：[`README 测试区`](../../README.md)、[`T09 验证记录`](../verification/2026-09-15-t09-grounded-answers.md)、[`T11 验证记录`](../verification/2026-09-16-t11-request-budget-and-observability.md)。
 
 ## 12. 你会如何解释当前生产差距？
 

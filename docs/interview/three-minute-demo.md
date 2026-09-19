@@ -66,4 +66,4 @@ powershell -ExecutionPolicy Bypass -File scripts/stop-local-stack.ps1 `
 [`gaokao-agent-demo.webm`](../../docs/assets/gaokao-agent-demo.webm)及旁挂字幕
 [`gaokao-agent-demo.vtt`](../../docs/assets/gaokao-agent-demo.vtt)。候选视频包含首页、目录详情、证据引用卡、两轮问答和运营后台保存动作；当前仍为无音轨的静音录屏，旁白可按面试场景
 后续补录；这不是生产演示，面试前仍需做最终敏感信息复核。
-最新 T10 的完整事实见 [`latest.json`](../verification/latest.json) 和 [`2026-09-15 T10 验证记录`](../verification/2026-09-15-t10-browser-demo.md)；T09 的证据注入、citation 校验和成对评测记录见 [`2026-09-15 T09 验证记录`](../verification/2026-09-15-t09-grounded-answers.md)。
+最新事实以 [`latest.json`](../verification/latest.json) 为准；浏览器场景见 [`2026-09-15 T10 验证记录`](../verification/2026-09-15-t10-browser-demo.md)，请求预算与最终 trace 见 [`2026-09-16 T11 验证记录`](../verification/2026-09-16-t11-request-budget-and-observability.md)，T09 的证据注入、citation 校验和成对评测记录见 [`2026-09-15 T09 验证记录`](../verification/2026-09-15-t09-grounded-answers.md)。
