@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import DataProvenanceNotice from '../../../components/public/data-provenance-notice';
 import PageSectionRenderer from '../../../components/public/page-section-renderer';
 import RankingReferenceList from '../../../components/public/ranking-reference-list';
 import { PublicApiError, getSchoolBySlug } from '../../../lib/public-content-api';
@@ -42,6 +43,7 @@ export default async function SchoolPage({ params }: SchoolPageProps) {
           </div>
         </section>
 
+        <DataProvenanceNotice provenance={school.dataProvenance} />
         <PageSectionRenderer sections={school.sections} />
         <RankingReferenceList references={school.rankingReferences} />
       </main>

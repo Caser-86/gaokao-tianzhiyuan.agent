@@ -38,6 +38,58 @@ import {
 } from '../../../lib/admin-smart-analysis-api';
 import { retryMediaAnalysisEvent } from '../../../lib/admin-media-analysis-api';
 
+export type AdminActionResult =
+  | { ok: true; message: string }
+  | { ok: false; message: string };
+
+const ADMIN_ERROR_MESSAGE_LIMIT = 280;
+
+const extractErrorMessage = (error: unknown): string => {
+  const rawMessage = error instanceof Error ? error.message : String(error ?? '');
+  const trimmedMessage = rawMessage.trim();
+
+  if (trimmedMessage) {
+    try {
+      const payload: unknown = JSON.parse(trimmedMessage);
+      if (payload && typeof payload === 'object' && 'detail' in payload) {
+        const detail = payload.detail;
+        if (typeof detail === 'string' && detail.trim()) {
+          return detail.trim().slice(0, ADMIN_ERROR_MESSAGE_LIMIT);
+        }
+        if (Array.isArray(detail)) {
+          const messages = detail
+            .map((item) => {
+              if (typeof item === 'string') {
+                return item.trim();
+              }
+              if (item && typeof item === 'object' && 'msg' in item) {
+                return typeof item.msg === 'string' ? item.msg.trim() : '';
+              }
+              return '';
+            })
+            .filter(Boolean);
+          if (messages.length > 0) {
+            return messages.join('；').slice(0, ADMIN_ERROR_MESSAGE_LIMIT);
+          }
+        }
+      }
+    } catch {
+      // Non-JSON backend messages are still shown below after truncation.
+    }
+  }
+
+  return (
+    trimmedMessage.slice(0, ADMIN_ERROR_MESSAGE_LIMIT) || '管理操作失败，请稍后重试'
+  );
+};
+
+const actionSuccess = (message: string): AdminActionResult => ({ ok: true, message });
+
+const actionFailure = (error: unknown): AdminActionResult => ({
+  ok: false,
+  message: extractErrorMessage(error),
+});
+
 const parseQueueId = (rawValue: FormDataEntryValue | null): number => {
   const value = typeof rawValue === 'string' ? Number.parseInt(rawValue, 10) : Number.NaN;
   if (Number.isNaN(value)) {
@@ -177,19 +229,20 @@ const parseRankingReferenceRows = (formData: FormData): AdminRankingReference[] 
   return rows;
 };
 
-export async function approveReviewQueueAction(formData: FormData): Promise<void> {
+export async function approveReviewQueueAction(formData: FormData): Promise<AdminActionResult> {
   try {
     const queueId = parseQueueId(formData.get('queueId'));
     const reviewedBy = String(formData.get('reviewedBy') ?? 'web-admin');
 
     await approveReviewQueueItem(queueId, reviewedBy);
     revalidatePath('/admin');
-  } catch {
-    return;
+    return actionSuccess('审核已通过');
+  } catch (error) {
+    return actionFailure(error);
   }
 }
 
-export async function rejectReviewQueueAction(formData: FormData): Promise<void> {
+export async function rejectReviewQueueAction(formData: FormData): Promise<AdminActionResult> {
   try {
     const queueId = parseQueueId(formData.get('queueId'));
     const reviewedBy = String(formData.get('reviewedBy') ?? 'web-admin');
@@ -197,23 +250,25 @@ export async function rejectReviewQueueAction(formData: FormData): Promise<void>
 
     await rejectReviewQueueItem(queueId, reviewedBy, reviewNote || undefined);
     revalidatePath('/admin');
-  } catch {
-    return;
+    return actionSuccess('审核已驳回');
+  } catch (error) {
+    return actionFailure(error);
   }
 }
 
-export async function retryMediaAnalysisEventAction(formData: FormData): Promise<void> {
+export async function retryMediaAnalysisEventAction(formData: FormData): Promise<AdminActionResult> {
   try {
     const eventId = parseEventId(formData.get('eventId'));
 
     await retryMediaAnalysisEvent(eventId);
     revalidatePath('/admin');
-  } catch {
-    return;
+    return actionSuccess('媒体分析已提交重试');
+  } catch (error) {
+    return actionFailure(error);
   }
 }
 
-export async function updateFeaturedSchoolAction(formData: FormData): Promise<void> {
+export async function updateFeaturedSchoolAction(formData: FormData): Promise<AdminActionResult> {
   try {
     const slug = parseRequiredSlug(formData.get('slug'));
     const heroImageUrl = String(formData.get('heroImageUrl') ?? '').trim();
@@ -222,17 +277,22 @@ export async function updateFeaturedSchoolAction(formData: FormData): Promise<vo
     await updateFeaturedSchool(slug, isFeatured, heroImageUrl);
     revalidatePath('/admin');
     revalidatePath('/');
-  } catch {
-    return;
+    return actionSuccess('学校展示配置已保存');
+  } catch (error) {
+    return actionFailure(error);
   }
 }
 
 export async function suggestSchoolImageAction(formData: FormData) {
-  const slug = parseRequiredSlug(formData.get('slug'));
-  return suggestFeaturedSchoolImage(slug);
+  try {
+    const slug = parseRequiredSlug(formData.get('slug'));
+    return suggestFeaturedSchoolImage(slug);
+  } catch (error) {
+    return actionFailure(error);
+  }
 }
 
-export async function updateFeaturedMajorAction(formData: FormData): Promise<void> {
+export async function updateFeaturedMajorAction(formData: FormData): Promise<AdminActionResult> {
   try {
     const slug = parseRequiredSlug(formData.get('slug'));
     const isFeatured = formData.get('isFeatured') === 'on';
@@ -240,35 +300,38 @@ export async function updateFeaturedMajorAction(formData: FormData): Promise<voi
     await updateFeaturedMajor(slug, isFeatured);
     revalidatePath('/admin');
     revalidatePath('/');
-  } catch {
-    return;
+    return actionSuccess('专业展示配置已保存');
+  } catch (error) {
+    return actionFailure(error);
   }
 }
 
-export async function updateSmartAnalysisModeAction(formData: FormData): Promise<void> {
+export async function updateSmartAnalysisModeAction(formData: FormData): Promise<AdminActionResult> {
   try {
     const mode = parseSmartAnalysisMode(formData.get('mode'));
 
     await updateSmartAnalysisSettings(mode);
     revalidatePath('/admin');
-  } catch {
-    return;
+    return actionSuccess('智能分析全局模式已保存');
+  } catch (error) {
+    return actionFailure(error);
   }
 }
 
-export async function updateSmartAnalysisUserAction(formData: FormData): Promise<void> {
+export async function updateSmartAnalysisUserAction(formData: FormData): Promise<AdminActionResult> {
   try {
     const userId = parseRequiredUserId(formData.get('userId'));
     const enabled = parseBooleanFlag(formData.get('enabled'), 'enabled');
 
     await updateSmartAnalysisUser(userId, enabled);
     revalidatePath('/admin');
-  } catch {
-    return;
+    return actionSuccess('用户智能分析权益已更新');
+  } catch (error) {
+    return actionFailure(error);
   }
 }
 
-export async function updateSchoolRotationAction(formData: FormData): Promise<void> {
+export async function updateSchoolRotationAction(formData: FormData): Promise<AdminActionResult> {
   try {
     await updateSchoolRotationRule({
       enabled: formData.get('enabled') === 'on',
@@ -278,12 +341,13 @@ export async function updateSchoolRotationAction(formData: FormData): Promise<vo
     });
     revalidatePath('/admin');
     revalidatePath('/');
-  } catch {
-    return;
+    return actionSuccess('学校轮换规则已保存');
+  } catch (error) {
+    return actionFailure(error);
   }
 }
 
-export async function updateMajorRotationAction(formData: FormData): Promise<void> {
+export async function updateMajorRotationAction(formData: FormData): Promise<AdminActionResult> {
   try {
     await updateMajorRotationRule({
       enabled: formData.get('enabled') === 'on',
@@ -293,12 +357,13 @@ export async function updateMajorRotationAction(formData: FormData): Promise<voi
     });
     revalidatePath('/admin');
     revalidatePath('/');
-  } catch {
-    return;
+    return actionSuccess('专业轮换规则已保存');
+  } catch (error) {
+    return actionFailure(error);
   }
 }
 
-export async function updateSchoolRankingReferencesAction(formData: FormData): Promise<void> {
+export async function updateSchoolRankingReferencesAction(formData: FormData): Promise<AdminActionResult> {
   try {
     const slug = parseRequiredSlug(formData.get('slug'));
     const rankingReferences = parseRankingReferenceRows(formData);
@@ -307,12 +372,13 @@ export async function updateSchoolRankingReferencesAction(formData: FormData): P
     revalidatePath('/admin');
     revalidatePath('/');
     revalidatePath(`/schools/${slug}`);
-  } catch {
-    return;
+    return actionSuccess('学校榜单引用已保存');
+  } catch (error) {
+    return actionFailure(error);
   }
 }
 
-export async function updateMajorRankingReferencesAction(formData: FormData): Promise<void> {
+export async function updateMajorRankingReferencesAction(formData: FormData): Promise<AdminActionResult> {
   try {
     const slug = parseRequiredSlug(formData.get('slug'));
     const rankingReferences = parseRankingReferenceRows(formData);
@@ -321,12 +387,13 @@ export async function updateMajorRankingReferencesAction(formData: FormData): Pr
     revalidatePath('/admin');
     revalidatePath('/');
     revalidatePath(`/majors/${slug}`);
-  } catch {
-    return;
+    return actionSuccess('专业榜单引用已保存');
+  } catch (error) {
+    return actionFailure(error);
   }
 }
 
-export async function updateSchoolSummaryAction(formData: FormData): Promise<void> {
+export async function updateSchoolSummaryAction(formData: FormData): Promise<AdminActionResult> {
   try {
     const slug = parseRequiredSlug(formData.get('slug'));
     const summary = parseRequiredSummary(formData.get('summary'));
@@ -335,12 +402,13 @@ export async function updateSchoolSummaryAction(formData: FormData): Promise<voi
     revalidatePath('/admin');
     revalidatePath('/');
     revalidatePath(`/schools/${slug}`);
-  } catch {
-    return;
+    return actionSuccess('学校摘要已保存');
+  } catch (error) {
+    return actionFailure(error);
   }
 }
 
-export async function updateMajorSummaryAction(formData: FormData): Promise<void> {
+export async function updateMajorSummaryAction(formData: FormData): Promise<AdminActionResult> {
   try {
     const slug = parseRequiredSlug(formData.get('slug'));
     const summary = parseRequiredSummary(formData.get('summary'));
@@ -349,12 +417,13 @@ export async function updateMajorSummaryAction(formData: FormData): Promise<void
     revalidatePath('/admin');
     revalidatePath('/');
     revalidatePath(`/majors/${slug}`);
-  } catch {
-    return;
+    return actionSuccess('专业摘要已保存');
+  } catch (error) {
+    return actionFailure(error);
   }
 }
 
-export async function updateSchoolSectionsAction(formData: FormData): Promise<void> {
+export async function updateSchoolSectionsAction(formData: FormData): Promise<AdminActionResult> {
   try {
     const slug = parseRequiredSlug(formData.get('slug'));
     const sections = parseContentSectionRows(formData);
@@ -363,12 +432,13 @@ export async function updateSchoolSectionsAction(formData: FormData): Promise<vo
     revalidatePath('/admin');
     revalidatePath('/');
     revalidatePath(`/schools/${slug}`);
-  } catch {
-    return;
+    return actionSuccess('学校正文模块已保存');
+  } catch (error) {
+    return actionFailure(error);
   }
 }
 
-export async function updateMajorSectionsAction(formData: FormData): Promise<void> {
+export async function updateMajorSectionsAction(formData: FormData): Promise<AdminActionResult> {
   try {
     const slug = parseRequiredSlug(formData.get('slug'));
     const sections = parseContentSectionRows(formData);
@@ -377,12 +447,13 @@ export async function updateMajorSectionsAction(formData: FormData): Promise<voi
     revalidatePath('/admin');
     revalidatePath('/');
     revalidatePath(`/majors/${slug}`);
-  } catch {
-    return;
+    return actionSuccess('专业正文模块已保存');
+  } catch (error) {
+    return actionFailure(error);
   }
 }
 
-export async function updateSchoolRelatedContentAction(formData: FormData): Promise<void> {
+export async function updateSchoolRelatedContentAction(formData: FormData): Promise<AdminActionResult> {
   try {
     const slug = parseRequiredSlug(formData.get('slug'));
     const relatedMajors = parseSlugLines(formData.get('relatedMajors'));
@@ -391,12 +462,13 @@ export async function updateSchoolRelatedContentAction(formData: FormData): Prom
     revalidatePath('/admin');
     revalidatePath('/');
     revalidatePath(`/schools/${slug}`);
-  } catch {
-    return;
+    return actionSuccess('学校相关推荐已保存');
+  } catch (error) {
+    return actionFailure(error);
   }
 }
 
-export async function updateMajorRelatedContentAction(formData: FormData): Promise<void> {
+export async function updateMajorRelatedContentAction(formData: FormData): Promise<AdminActionResult> {
   try {
     const slug = parseRequiredSlug(formData.get('slug'));
     const relatedSchools = parseSlugLines(formData.get('relatedSchools'));
@@ -405,7 +477,8 @@ export async function updateMajorRelatedContentAction(formData: FormData): Promi
     revalidatePath('/admin');
     revalidatePath('/');
     revalidatePath(`/majors/${slug}`);
-  } catch {
-    return;
+    return actionSuccess('专业相关推荐已保存');
+  } catch (error) {
+    return actionFailure(error);
   }
 }

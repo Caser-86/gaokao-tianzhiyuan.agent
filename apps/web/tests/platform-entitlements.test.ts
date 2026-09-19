@@ -36,6 +36,7 @@ test('evaluatePlatformEntitlements posts selected products to the entitlement AP
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify({
         product_slugs: ['insight-weekly', 'deep-dive-pack'],
       }),
@@ -44,7 +45,7 @@ test('evaluatePlatformEntitlements posts selected products to the entitlement AP
   expect(payload.entitlements).toEqual(['major_basic_access', 'school_basic_access']);
 });
 
-test('evaluatePlatformEntitlements includes user context when provided', async () => {
+test('evaluatePlatformEntitlements does not serialize a client user context', async () => {
   fetchMock.mockResolvedValueOnce({
     ok: true,
     json: async () => ({
@@ -53,11 +54,7 @@ test('evaluatePlatformEntitlements includes user context when provided', async (
     }),
   });
 
-  await evaluatePlatformEntitlements(
-    ['deep-dive-pack'],
-    'https://api.gaokao.test',
-    'wx-openid-123',
-  );
+  await evaluatePlatformEntitlements(['deep-dive-pack'], 'https://api.gaokao.test');
 
   expect(fetchMock).toHaveBeenCalledWith(
     'https://api.gaokao.test/api/platform/entitlements/evaluate',
@@ -66,9 +63,9 @@ test('evaluatePlatformEntitlements includes user context when provided', async (
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify({
         product_slugs: ['deep-dive-pack'],
-        user_id: 'wx-openid-123',
       }),
     },
   );

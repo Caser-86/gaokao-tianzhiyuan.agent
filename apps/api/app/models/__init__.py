@@ -12,10 +12,13 @@ from .catalog import (
     SchoolRankingReference,
     SearchEntry,
 )
+from .chat import ChatMessage, ChatSession
 from .content import SchoolContentVersion, VersionStatus
-from .ingestion import MediaAnalysisEvent, ReviewQueue
+from .ingestion import MediaAnalysisEvent, ReviewQueue, WeChatMessageReceipt
 
 __all__ = [
+    "ChatMessage",
+    "ChatSession",
     "FeaturedMajor",
     "FeaturedRotationRule",
     "FeaturedSchool",
@@ -31,4 +34,5 @@ __all__ = [
     "SearchEntry",
     "UserEntitlement",
     "VersionStatus",
+    "WeChatMessageReceipt",
 ]

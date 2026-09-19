@@ -1,6 +1,7 @@
 param(
   [string]$ApiBaseUrl = 'http://127.0.0.1:8000',
   [string]$WebBaseUrl = 'http://127.0.0.1:3000',
+  [string]$ExpectedReleaseVersion = '',
   [string]$AdminToken = '',
   [string]$WechatOfficialAccountToken = '',
   [string]$WechatOfficialAccountAppId = '',
@@ -18,6 +19,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 Add-Type -AssemblyName System.Net.Http
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
+$apiVenvPython = Join-Path $repoRoot 'apps/api/.venv/Scripts/python.exe'
 
 function Read-EnvFile {
   param(
@@ -196,7 +198,7 @@ function Get-WechatMsgSignature {
   )
 
   $helperPath = Join-Path $repoRoot 'scripts/wechat_aes_helper.py'
-  $output = & python $helperPath sign --value $Encrypted --token $Token --timestamp $Timestamp --nonce $Nonce
+  $output = & $apiVenvPython $helperPath sign --value $Encrypted --token $Token --timestamp $Timestamp --nonce $Nonce
   if ($LASTEXITCODE -ne 0) {
     throw "WeChat AES helper failed while running 'sign'."
   }
@@ -217,7 +219,7 @@ function Invoke-WechatCryptoHelper {
   )
 
   $helperPath = Join-Path $repoRoot 'scripts/wechat_aes_helper.py'
-  $output = & python $helperPath $Operation --value $Value --app-id $AppId --encoding-aes-key $EncodingAesKey
+  $output = & $apiVenvPython $helperPath $Operation --value $Value --app-id $AppId --encoding-aes-key $EncodingAesKey
   if ($LASTEXITCODE -ne 0) {
     throw "WeChat AES helper failed while running '$Operation'."
   }
@@ -291,8 +293,9 @@ function Invoke-WechatOfficialAccountProbe {
     [string]$EncodingAesKey
   )
 
-  $timestamp = '1710000000'
-  $nonce = 'smoke-nonce-1'
+  $timestamp = ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds()).ToString()
+  $smokeRunId = [Guid]::NewGuid().ToString('N').Substring(0, 12)
+  $nonce = "smoke-$smokeRunId-verify"
   $echostr = 'smoke-echo'
   $signature = Get-WechatSignature -Token $Token -Timestamp $timestamp -Nonce $nonce
   $verifyUri = "$BaseUrl/api/chat/channels/wechat/official-account?signature=$signature&timestamp=$timestamp&nonce=$nonce&echostr=$echostr"
@@ -304,7 +307,26 @@ function Invoke-WechatOfficialAccountProbe {
     return
   }
 
-  $postUri = "$BaseUrl/api/chat/channels/wechat/official-account?signature=$signature&timestamp=$timestamp&nonce=$nonce"
+  function New-WechatPlaintextPostUri {
+    param(
+      [Parameter(Mandatory = $true)]
+      [string]$Nonce
+    )
+
+    $postSignature = Get-WechatSignature -Token $Token -Timestamp $timestamp -Nonce $Nonce
+    return "$BaseUrl/api/chat/channels/wechat/official-account?signature=$postSignature&timestamp=$timestamp&nonce=$Nonce"
+  }
+
+  $postUri = New-WechatPlaintextPostUri -Nonce "smoke-$smokeRunId-text"
+  $subscribePostUri = New-WechatPlaintextPostUri -Nonce "smoke-$smokeRunId-subscribe"
+  $clickPostUri = New-WechatPlaintextPostUri -Nonce "smoke-$smokeRunId-click"
+  $scanPostUri = New-WechatPlaintextPostUri -Nonce "smoke-$smokeRunId-scan"
+  $picturePostUri = New-WechatPlaintextPostUri -Nonce "smoke-$smokeRunId-picture"
+  $directImagePostUri = New-WechatPlaintextPostUri -Nonce "smoke-$smokeRunId-direct-image"
+  $videoPostUri = New-WechatPlaintextPostUri -Nonce "smoke-$smokeRunId-video"
+  $voicePostUri = New-WechatPlaintextPostUri -Nonce "smoke-$smokeRunId-voice"
+  $locationPostUri = New-WechatPlaintextPostUri -Nonce "smoke-$smokeRunId-location"
+  $linkPostUri = New-WechatPlaintextPostUri -Nonce "smoke-$smokeRunId-link"
   $xmlBody = @"
 <xml>
   <ToUserName><![CDATA[gh_smoke]]></ToUserName>
@@ -312,7 +334,7 @@ function Invoke-WechatOfficialAccountProbe {
   <CreateTime>1710000001</CreateTime>
   <MsgType><![CDATA[text]]></MsgType>
   <Content><![CDATA[Smoke test question]]></Content>
-  <MsgId>1234567890</MsgId>
+  <MsgId>1234567890-$smokeRunId</MsgId>
 </xml>
 "@
   $subscribeBody = @"
@@ -373,7 +395,7 @@ function Invoke-WechatOfficialAccountProbe {
   <MsgType><![CDATA[image]]></MsgType>
   <PicUrl><![CDATA[https://example.com/direct-image.png]]></PicUrl>
   <MediaId><![CDATA[direct-image-media-1]]></MediaId>
-  <MsgId>2234567891</MsgId>
+  <MsgId>2234567891-$smokeRunId</MsgId>
 </xml>
 "@
   $videoBody = @"
@@ -384,7 +406,7 @@ function Invoke-WechatOfficialAccountProbe {
   <MsgType><![CDATA[video]]></MsgType>
   <MediaId><![CDATA[video-media-1]]></MediaId>
   <ThumbMediaId><![CDATA[video-thumb-1]]></ThumbMediaId>
-  <MsgId>2234567892</MsgId>
+  <MsgId>2234567892-$smokeRunId</MsgId>
 </xml>
 "@
   $voiceBody = @"
@@ -396,7 +418,7 @@ function Invoke-WechatOfficialAccountProbe {
   <MediaId><![CDATA[voice-media-1]]></MediaId>
   <Format><![CDATA[amr]]></Format>
   <Recognition><![CDATA[Henan 560 recommend majors]]></Recognition>
-  <MsgId>3234567890</MsgId>
+  <MsgId>3234567890-$smokeRunId</MsgId>
 </xml>
 "@
   $locationBody = @"
@@ -409,7 +431,7 @@ function Invoke-WechatOfficialAccountProbe {
   <Location_Y>116.307490</Location_Y>
   <Scale>15</Scale>
   <Label><![CDATA[Beijing Haidian District]]></Label>
-  <MsgId>4234567893</MsgId>
+  <MsgId>4234567893-$smokeRunId</MsgId>
 </xml>
 "@
   $linkBody = @"
@@ -421,7 +443,7 @@ function Invoke-WechatOfficialAccountProbe {
   <Title><![CDATA[Henan admission report]]></Title>
   <Description><![CDATA[2025 analysis report]]></Description>
   <Url><![CDATA[https://example.com/report]]></Url>
-  <MsgId>4234567894</MsgId>
+  <MsgId>4234567894-$smokeRunId</MsgId>
 </xml>
 "@
 
@@ -451,14 +473,14 @@ function Invoke-WechatOfficialAccountProbe {
     Assert-True ($postContent -match '<MsgType><!\[CDATA\[text\]\]></MsgType>') 'WeChat official account probe did not return a text passive reply'
 
     Write-Host '==> WeChat official account subscribe probe' -ForegroundColor Cyan
-    Write-Host "    POST $postUri"
+    Write-Host "    POST $subscribePostUri"
     $subscribeRequestContent = [System.Net.Http.StringContent]::new(
       $subscribeBody,
       [System.Text.Encoding]::UTF8,
       'application/xml'
     )
     try {
-      $subscribeResponse = $client.PostAsync($postUri, $subscribeRequestContent).GetAwaiter().GetResult()
+      $subscribeResponse = $client.PostAsync($subscribePostUri, $subscribeRequestContent).GetAwaiter().GetResult()
     }
     finally {
       $subscribeRequestContent.Dispose()
@@ -469,14 +491,14 @@ function Invoke-WechatOfficialAccountProbe {
     Assert-True ($subscribeContent -match 'Agent') 'WeChat official account subscribe probe did not return the welcome reply'
 
     Write-Host '==> WeChat official account menu click probe' -ForegroundColor Cyan
-    Write-Host "    POST $postUri"
+    Write-Host "    POST $clickPostUri"
     $clickRequestContent = [System.Net.Http.StringContent]::new(
       $clickBody,
       [System.Text.Encoding]::UTF8,
       'application/xml'
     )
     try {
-      $clickResponse = $client.PostAsync($postUri, $clickRequestContent).GetAwaiter().GetResult()
+      $clickResponse = $client.PostAsync($clickPostUri, $clickRequestContent).GetAwaiter().GetResult()
     }
     finally {
       $clickRequestContent.Dispose()
@@ -487,14 +509,14 @@ function Invoke-WechatOfficialAccountProbe {
     Assert-True ($clickContent -match '<MsgType><!\[CDATA\[text\]\]></MsgType>') 'WeChat official account menu click probe did not return a text passive reply'
 
     Write-Host '==> WeChat official account scan event probe' -ForegroundColor Cyan
-    Write-Host "    POST $postUri"
+    Write-Host "    POST $scanPostUri"
     $scanRequestContent = [System.Net.Http.StringContent]::new(
       $scanBody,
       [System.Text.Encoding]::UTF8,
       'application/xml'
     )
     try {
-      $scanResponse = $client.PostAsync($postUri, $scanRequestContent).GetAwaiter().GetResult()
+      $scanResponse = $client.PostAsync($scanPostUri, $scanRequestContent).GetAwaiter().GetResult()
     }
     finally {
       $scanRequestContent.Dispose()
@@ -505,14 +527,14 @@ function Invoke-WechatOfficialAccountProbe {
     Assert-True ($scanContent -match '<MsgType><!\[CDATA\[text\]\]></MsgType>') 'WeChat official account scan event probe did not return a text passive reply'
 
     Write-Host '==> WeChat official account picture event probe' -ForegroundColor Cyan
-    Write-Host "    POST $postUri"
+    Write-Host "    POST $picturePostUri"
     $pictureRequestContent = [System.Net.Http.StringContent]::new(
       $pictureBody,
       [System.Text.Encoding]::UTF8,
       'application/xml'
     )
     try {
-      $pictureResponse = $client.PostAsync($postUri, $pictureRequestContent).GetAwaiter().GetResult()
+      $pictureResponse = $client.PostAsync($picturePostUri, $pictureRequestContent).GetAwaiter().GetResult()
     }
     finally {
       $pictureRequestContent.Dispose()
@@ -523,14 +545,14 @@ function Invoke-WechatOfficialAccountProbe {
     Assert-True ($pictureContent -match '2') 'WeChat official account picture event probe did not include the picture count guidance'
 
     Write-Host '==> WeChat official account direct image probe' -ForegroundColor Cyan
-    Write-Host "    POST $postUri"
+    Write-Host "    POST $directImagePostUri"
     $directImageRequestContent = [System.Net.Http.StringContent]::new(
       $directImageBody,
       [System.Text.Encoding]::UTF8,
       'application/xml'
     )
     try {
-      $directImageResponse = $client.PostAsync($postUri, $directImageRequestContent).GetAwaiter().GetResult()
+      $directImageResponse = $client.PostAsync($directImagePostUri, $directImageRequestContent).GetAwaiter().GetResult()
     }
     finally {
       $directImageRequestContent.Dispose()
@@ -541,14 +563,14 @@ function Invoke-WechatOfficialAccountProbe {
     Assert-True ($directImageContent -match '<MsgType><!\[CDATA\[text\]\]></MsgType>') 'WeChat official account direct image probe did not return a text passive reply'
 
     Write-Host '==> WeChat official account video message probe' -ForegroundColor Cyan
-    Write-Host "    POST $postUri"
+    Write-Host "    POST $videoPostUri"
     $videoRequestContent = [System.Net.Http.StringContent]::new(
       $videoBody,
       [System.Text.Encoding]::UTF8,
       'application/xml'
     )
     try {
-      $videoResponse = $client.PostAsync($postUri, $videoRequestContent).GetAwaiter().GetResult()
+      $videoResponse = $client.PostAsync($videoPostUri, $videoRequestContent).GetAwaiter().GetResult()
     }
     finally {
       $videoRequestContent.Dispose()
@@ -559,14 +581,14 @@ function Invoke-WechatOfficialAccountProbe {
     Assert-True ($videoContent -match '<MsgType><!\[CDATA\[text\]\]></MsgType>') 'WeChat official account video message probe did not return a text passive reply'
 
     Write-Host '==> WeChat official account voice message probe' -ForegroundColor Cyan
-    Write-Host "    POST $postUri"
+    Write-Host "    POST $voicePostUri"
     $voiceRequestContent = [System.Net.Http.StringContent]::new(
       $voiceBody,
       [System.Text.Encoding]::UTF8,
       'application/xml'
     )
     try {
-      $voiceResponse = $client.PostAsync($postUri, $voiceRequestContent).GetAwaiter().GetResult()
+      $voiceResponse = $client.PostAsync($voicePostUri, $voiceRequestContent).GetAwaiter().GetResult()
     }
     finally {
       $voiceRequestContent.Dispose()
@@ -577,14 +599,14 @@ function Invoke-WechatOfficialAccountProbe {
     Assert-True ($voiceContent -match '<MsgType><!\[CDATA\[text\]\]></MsgType>') 'WeChat official account voice message probe did not return a text passive reply'
 
     Write-Host '==> WeChat official account location message probe' -ForegroundColor Cyan
-    Write-Host "    POST $postUri"
+    Write-Host "    POST $locationPostUri"
     $locationRequestContent = [System.Net.Http.StringContent]::new(
       $locationBody,
       [System.Text.Encoding]::UTF8,
       'application/xml'
     )
     try {
-      $locationResponse = $client.PostAsync($postUri, $locationRequestContent).GetAwaiter().GetResult()
+      $locationResponse = $client.PostAsync($locationPostUri, $locationRequestContent).GetAwaiter().GetResult()
     }
     finally {
       $locationRequestContent.Dispose()
@@ -595,14 +617,14 @@ function Invoke-WechatOfficialAccountProbe {
     Assert-True ($locationContent -match '<MsgType><!\[CDATA\[text\]\]></MsgType>') 'WeChat official account location message probe did not return a text passive reply'
 
     Write-Host '==> WeChat official account link message probe' -ForegroundColor Cyan
-    Write-Host "    POST $postUri"
+    Write-Host "    POST $linkPostUri"
     $linkRequestContent = [System.Net.Http.StringContent]::new(
       $linkBody,
       [System.Text.Encoding]::UTF8,
       'application/xml'
     )
     try {
-      $linkResponse = $client.PostAsync($postUri, $linkRequestContent).GetAwaiter().GetResult()
+      $linkResponse = $client.PostAsync($linkPostUri, $linkRequestContent).GetAwaiter().GetResult()
     }
     finally {
       $linkRequestContent.Dispose()
@@ -612,7 +634,7 @@ function Invoke-WechatOfficialAccountProbe {
     Assert-True ($linkContent -match '<ToUserName><!\[CDATA\[smoke-link-user\]\]></ToUserName>') 'WeChat official account link message probe did not target the link user'
     Assert-True ($linkContent -match '<MsgType><!\[CDATA\[text\]\]></MsgType>') 'WeChat official account link message probe did not return a text passive reply'
 
-    $aesVerifyNonce = 'smoke-aes-nonce-1'
+    $aesVerifyNonce = "smoke-$smokeRunId-aes-verify"
     $aesEchostrPlaintext = 'smoke-echo-aes'
     $aesEchostrEncrypted = Protect-WechatMessage `
       -Plaintext $aesEchostrPlaintext `
@@ -639,14 +661,14 @@ function Invoke-WechatOfficialAccountProbe {
   <CreateTime>1710000006</CreateTime>
   <MsgType><![CDATA[text]]></MsgType>
   <Content><![CDATA[Smoke AES test question]]></Content>
-  <MsgId>2234567890</MsgId>
+  <MsgId>2234567890-$smokeRunId</MsgId>
 </xml>
 "@
     $aesEncryptedBody = Protect-WechatMessage `
       -Plaintext $aesInnerBody `
       -AppId $AppId `
       -EncodingAesKey $EncodingAesKey
-    $aesMessageNonce = 'smoke-aes-nonce-2'
+    $aesMessageNonce = "smoke-$smokeRunId-aes-message"
     $aesMessageSignature = Get-WechatMsgSignature `
       -Token $Token `
       -Timestamp $timestamp `
@@ -728,6 +750,11 @@ $effectiveWechatOfficialAccountEncodingAesKey = Resolve-SettingValue `
   -EnvMaps @($apiEnvValues) `
   -Name 'GAOKAO_AGENT_WECHAT_OFFICIAL_ACCOUNT_ENCODING_AES_KEY' `
   -Fallback 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY'
+$effectiveExpectedReleaseVersion = Resolve-SettingValue `
+  -ExplicitValue $ExpectedReleaseVersion `
+  -EnvMaps @($apiEnvValues) `
+  -Name 'GAOKAO_AGENT_RELEASE_VERSION' `
+  -Fallback ''
 
 $normalizedApiBaseUrl = $ApiBaseUrl.TrimEnd('/')
 $normalizedWebBaseUrl = $WebBaseUrl.TrimEnd('/')
@@ -738,6 +765,15 @@ $adminHeaders = @{
 $apiHealth = Invoke-JsonProbe -Label 'API health check' -Uri "$normalizedApiBaseUrl/health"
 if (-not $DryRun) {
   Assert-True ($apiHealth.status -eq 'ok') 'API health check did not return status=ok'
+}
+
+$apiVersion = Invoke-JsonProbe -Label 'API release version probe' -Uri "$normalizedApiBaseUrl/version"
+if (-not $DryRun) {
+  $reportedVersion = [string]$apiVersion.version
+  Assert-True (-not [string]::IsNullOrWhiteSpace($reportedVersion)) 'API release version probe returned an empty version'
+  if (-not [string]::IsNullOrWhiteSpace($effectiveExpectedReleaseVersion)) {
+    Assert-True ($reportedVersion -eq $effectiveExpectedReleaseVersion) "API release version mismatch: expected '$effectiveExpectedReleaseVersion', got '$reportedVersion'"
+  }
 }
 
 $chatHealth = Invoke-JsonProbe -Label 'Chat health check' -Uri "$normalizedApiBaseUrl/api/chat/health"

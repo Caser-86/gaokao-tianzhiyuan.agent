@@ -19,6 +19,7 @@ COPY apps/api/app ./apps/api/app
 COPY apps/api/alembic.ini ./apps/api/
 COPY apps/api/alembic ./apps/api/alembic
 COPY data ./data
+COPY skills ./skills
 
 # 安装依赖
 RUN pip install ./apps/api
@@ -34,5 +35,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD curl -fsS http://127.0.0.1:8000/health || exit 1
 
-# 启动前运行迁移并播种数据，然后启动 uvicorn
-CMD ["sh", "-c", "alembic upgrade head && python -m app.scripts.seed_catalog && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+# 启动前运行迁移，并仅在数据库为空时初始化演示数据，然后启动 uvicorn。
+# 已有数据库不会被重启时的种子文件覆盖；需要强制重灌时手动执行 seed_catalog。
+CMD ["sh", "-c", "alembic upgrade head && python -m app.scripts.seed_catalog --if-empty && uvicorn app.main:app --host 0.0.0.0 --port 8000"]

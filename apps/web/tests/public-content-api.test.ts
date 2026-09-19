@@ -120,3 +120,43 @@ test('getMajorBySlug propagates non-404 failures with status', async () => {
     }),
   );
 });
+
+test('getSchoolBySlug maps public data provenance metadata', async () => {
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      slug: 'southeast-university',
+      name: '东南大学',
+      region: '江苏',
+      city: '南京',
+      tags: ['985'],
+      summary: '工科见长。',
+      sections: [],
+      related_majors: [],
+      ranking_references: [],
+      data_provenance: {
+        status: 'demo',
+        source_name: '项目手工编写演示数据',
+        source_url: null,
+        updated_at: '2026-08-30',
+        applicable_year: null,
+        region: '多地区示例',
+        official: false,
+        disclaimer: '仅用于功能演示，不构成招生、排名或志愿决策依据。',
+      },
+    }),
+  });
+
+  const school = await getSchoolBySlug('southeast-university');
+
+  expect(school.dataProvenance).toEqual({
+    status: 'demo',
+    sourceName: '项目手工编写演示数据',
+    sourceUrl: null,
+    updatedAt: '2026-08-30',
+    applicableYear: null,
+    region: '多地区示例',
+    official: false,
+    disclaimer: '仅用于功能演示，不构成招生、排名或志愿决策依据。',
+  });
+});

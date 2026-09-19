@@ -95,6 +95,10 @@ powershell -ExecutionPolicy Bypass -File scripts/smoke-local-stack.ps1 `
 By default, the smoke check now verifies that `/api/chat/skills` exposes both
 `zhangxuefeng` and `catalog_lookup`.
 
+It also probes `/version`. Pass `-ExpectedReleaseVersion <tag-or-sha>` to
+`scripts/smoke-local-stack.ps1` when checking a deployed release; without an
+expected value it only requires a non-empty version response.
+
 If you only want to validate the WeChat official-account callback path, use:
 
 ```powershell

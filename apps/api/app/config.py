@@ -1,17 +1,38 @@
 import json
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Annotated
 
 from pydantic import field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 DEFAULT_ADMIN_TOKEN = "dev-admin-token"
 SAFE_DEFAULT_ADMIN_TOKEN_ENVIRONMENTS = {"development", "test"}
+DEFAULT_SESSION_SECRET = "dev-session-secret"
+DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 24 * 30
+DEFAULT_WECHAT_SIGNATURE_TTL_SECONDS = 300
+DEFAULT_WECHAT_MAX_BODY_BYTES = 256 * 1024
+DEFAULT_CHAT_SESSION_RETENTION_DAYS = 30
+DEFAULT_CHAT_CONTEXT_MAX_TURNS = 6
+DEFAULT_CHAT_CONTEXT_MAX_CHARS = 12_000
+DEFAULT_EVIDENCE_MAX_ITEMS = 20
+DEFAULT_EVIDENCE_MAX_CHARS = 12_000
+DEFAULT_MEDIA_ANALYSIS_RETENTION_DAYS = 30
+DEFAULT_AGENT_TRACE_RETENTION_DAYS = 7
+DEFAULT_CHAT_MAX_MESSAGE_CHARS = 4_000
+DEFAULT_MODEL_MAX_CONCURRENCY = 4
+DEFAULT_CHAT_REQUEST_TIMEOUT_SECONDS = 30
+DEFAULT_CHAT_RATE_LIMIT_REQUESTS = 20
+DEFAULT_CHAT_RATE_LIMIT_WINDOW_SECONDS = 60
+DEFAULT_CHAT_DAILY_REQUEST_BUDGET = 1_000
+DEFAULT_LLM_MAX_OUTPUT_TOKENS = 800
+DEFAULT_LLM_MAX_RETRIES = 1
 DEFAULT_CORS_ALLOWED_ORIGINS = (
     "http://127.0.0.1:3000",
     "http://localhost:3000",
 )
 DEFAULT_ZHANGXUEFENG_SKILL_CANDIDATES = (
+    Path(__file__).resolve().parents[3] / "skills" / "zhangxuefeng" / "SKILL.md",
     Path(__file__).resolve().parents[3] / "vendor" / "zhangxuefeng-skill" / "SKILL.md",
     Path(__file__).resolve().parents[3] / ".tmp" / "zhangxuefeng-skill" / "SKILL.md",
 )
@@ -41,16 +62,36 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "gaokao-agent-api"
+    release_version: str = "dev"
     api_prefix: str = "/api"
     environment: str = "development"
     admin_token: str = DEFAULT_ADMIN_TOKEN
+    session_secret: str = DEFAULT_SESSION_SECRET
+    session_ttl_seconds: int = DEFAULT_SESSION_TTL_SECONDS
+    wechat_signature_ttl_seconds: int = DEFAULT_WECHAT_SIGNATURE_TTL_SECONDS
+    wechat_max_body_bytes: int = DEFAULT_WECHAT_MAX_BODY_BYTES
+    chat_session_retention_days: int = DEFAULT_CHAT_SESSION_RETENTION_DAYS
+    chat_context_max_turns: int = DEFAULT_CHAT_CONTEXT_MAX_TURNS
+    chat_context_max_chars: int = DEFAULT_CHAT_CONTEXT_MAX_CHARS
+    evidence_max_items: int = DEFAULT_EVIDENCE_MAX_ITEMS
+    evidence_max_chars: int = DEFAULT_EVIDENCE_MAX_CHARS
+    media_analysis_retention_days: int = DEFAULT_MEDIA_ANALYSIS_RETENTION_DAYS
+    agent_trace_retention_days: int = DEFAULT_AGENT_TRACE_RETENTION_DAYS
+    chat_max_message_chars: int = DEFAULT_CHAT_MAX_MESSAGE_CHARS
+    model_max_concurrency: int = DEFAULT_MODEL_MAX_CONCURRENCY
+    chat_request_timeout_seconds: int = DEFAULT_CHAT_REQUEST_TIMEOUT_SECONDS
+    chat_rate_limit_requests: int = DEFAULT_CHAT_RATE_LIMIT_REQUESTS
+    chat_rate_limit_window_seconds: int = DEFAULT_CHAT_RATE_LIMIT_WINDOW_SECONDS
+    chat_daily_request_budget: int = DEFAULT_CHAT_DAILY_REQUEST_BUDGET
     database_url: str = "sqlite:///./gaokao-agent.db"
-    cors_allowed_origins: tuple[str, ...] = DEFAULT_CORS_ALLOWED_ORIGINS
+    cors_allowed_origins: Annotated[tuple[str, ...], NoDecode] = DEFAULT_CORS_ALLOWED_ORIGINS
     llm_provider: str = ""
     llm_base_url: str = ""
     llm_api_key: str = ""
     llm_model: str = ""
     llm_timeout_seconds: int = 30
+    llm_max_output_tokens: int = DEFAULT_LLM_MAX_OUTPUT_TOKENS
+    llm_max_retries: int = DEFAULT_LLM_MAX_RETRIES
     media_analysis_provider: str = ""
     media_analysis_base_url: str = ""
     media_analysis_api_key: str = ""
@@ -109,6 +150,46 @@ class Settings(BaseSettings):
             raise ValueError("wechat official account encoding aes key must be 43 chars")
         return normalized
 
+    @field_validator(
+        "session_ttl_seconds",
+        "wechat_signature_ttl_seconds",
+        "wechat_max_body_bytes",
+        "chat_session_retention_days",
+        "chat_context_max_turns",
+        "chat_context_max_chars",
+        "evidence_max_items",
+        "evidence_max_chars",
+        "media_analysis_retention_days",
+        "agent_trace_retention_days",
+        "chat_max_message_chars",
+        "model_max_concurrency",
+        "chat_request_timeout_seconds",
+        "chat_rate_limit_requests",
+        "chat_rate_limit_window_seconds",
+        "chat_daily_request_budget",
+        "llm_timeout_seconds",
+        "media_analysis_timeout_seconds",
+    )
+    @classmethod
+    def validate_positive_ttl_or_limit(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("configured TTL, retention, or body limit must be greater than zero")
+        return value
+
+    @field_validator("llm_max_output_tokens")
+    @classmethod
+    def validate_max_output_tokens(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("llm_max_output_tokens must be zero or greater")
+        return value
+
+    @field_validator("llm_max_retries")
+    @classmethod
+    def validate_max_retries(cls, value: int) -> int:
+        if value not in {0, 1}:
+            raise ValueError("llm_max_retries must be 0 or 1")
+        return value
+
     @model_validator(mode="after")
     def validate_admin_token(self) -> "Settings":
         environment = self.environment.strip().lower()
@@ -117,6 +198,11 @@ class Settings(BaseSettings):
             and environment not in SAFE_DEFAULT_ADMIN_TOKEN_ENVIRONMENTS
         ):
             raise ValueError("default admin token is only allowed in development/test mode")
+        if (
+            self.session_secret.strip() in {"", DEFAULT_SESSION_SECRET}
+            and environment not in SAFE_DEFAULT_ADMIN_TOKEN_ENVIRONMENTS
+        ):
+            raise ValueError("default session secret is only allowed in development/test mode")
         return self
 
 

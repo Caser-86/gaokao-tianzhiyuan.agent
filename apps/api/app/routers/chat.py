@@ -3,18 +3,25 @@ from time import time
 from typing import Any, Literal
 from xml.etree import ElementTree
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field, field_validator
 from sqlmodel import Session
 
 from ..config import settings
-from ..db import get_engine
+from ..db import get_engine, get_session
+from ..services.auth import (
+    AuthenticationRequiredError,
+    IdentityMismatchError,
+    resolve_request_identity,
+    set_session_cookie,
+)
 from ..services.chat import (
     ChatSkillNotFoundError,
     ChatSkillUnavailableError,
     ConversationService,
 )
+from ..services.chat_sessions import ChatSessionNotFoundError, ChatSessionOwnershipError
 from ..services.media_analysis import (
     MediaAnalysisRequest,
     MediaAnalysisResult,
@@ -22,15 +29,30 @@ from ..services.media_analysis import (
     resolve_media_analysis_access,
 )
 from ..services.media_analysis_events import create_media_analysis_event
+from ..services.request_budget import (
+    DailyRequestBudgetExceededError,
+    ModelConcurrencyLimitError,
+    RateLimitExceededError,
+    RequestBudget,
+    RequestTimeoutError,
+)
+from ..services.url_safety import UnsafeExternalUrlError, validate_external_url
 from ..services.wechat_official_account_crypto import (
     WeChatOfficialAccountCryptoError,
     build_wechat_msg_signature,
     decrypt_wechat_message,
     encrypt_wechat_message,
 )
+from ..services.wechat_replay import claim_wechat_message
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 conversation_service = ConversationService()
+request_budget = RequestBudget(
+    max_concurrent=settings.model_max_concurrency,
+    rate_limit_requests=settings.chat_rate_limit_requests,
+    rate_limit_window_seconds=settings.chat_rate_limit_window_seconds,
+    daily_request_budget=settings.chat_daily_request_budget,
+)
 media_analysis_provider = build_media_analysis_provider(
     provider=settings.media_analysis_provider,
     base_url=settings.media_analysis_base_url,
@@ -73,49 +95,91 @@ WECHAT_OFFICIAL_ACCOUNT_MENU_KEY_CONFIG: dict[str, dict[str, str]] = {
 
 class ChatMessageRequest(BaseModel):
     channel: Literal["wechat", "web"]
-    user_id: str
+    user_id: str | None = None
     message: str
     session_id: str | None = None
     skill_id: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-    @field_validator("user_id", "message")
+    @field_validator("user_id")
     @classmethod
-    def validate_non_empty(cls, value: str) -> str:
+    def validate_user_id(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
         normalized = value.strip()
         if not normalized:
             raise ValueError("must not be empty")
+        return normalized
+
+    @field_validator("message")
+    @classmethod
+    def validate_message(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("must not be empty")
+        if len(normalized) > settings.chat_max_message_chars:
+            raise ValueError(
+                f"message must not exceed {settings.chat_max_message_chars} characters"
+            )
         return normalized
 
 
 class DirectSkillInvokeRequest(BaseModel):
     channel: Literal["wechat", "web"]
-    user_id: str
+    user_id: str | None = None
     message: str
     session_id: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-    @field_validator("user_id", "message")
+    @field_validator("user_id")
     @classmethod
-    def validate_non_empty(cls, value: str) -> str:
+    def validate_user_id(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
         normalized = value.strip()
         if not normalized:
             raise ValueError("must not be empty")
         return normalized
 
+    @field_validator("message")
+    @classmethod
+    def validate_message(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("must not be empty")
+        if len(normalized) > settings.chat_max_message_chars:
+            raise ValueError(
+                f"message must not exceed {settings.chat_max_message_chars} characters"
+            )
+        return normalized
+
 
 class WeChatChannelRequest(BaseModel):
-    openid: str
+    openid: str | None = None
     message: str
     message_type: str = "text"
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-    @field_validator("openid", "message")
+    @field_validator("openid")
     @classmethod
-    def validate_non_empty(cls, value: str) -> str:
+    def validate_openid(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
         normalized = value.strip()
         if not normalized:
             raise ValueError("must not be empty")
+        return normalized
+
+    @field_validator("message")
+    @classmethod
+    def validate_message(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("must not be empty")
+        if len(normalized) > settings.chat_max_message_chars:
+            raise ValueError(
+                f"message must not exceed {settings.chat_max_message_chars} characters"
+            )
         return normalized
 
 
@@ -127,6 +191,65 @@ def _get_wechat_official_account_token() -> str:
             detail="wechat official account token not configured",
         )
     return token
+
+
+def _resolve_request_user_id(
+    *,
+    request: Request,
+    response: Response,
+    claimed_user_id: str | None,
+) -> str:
+    try:
+        identity, issued_token = resolve_request_identity(
+            authorization=request.headers.get("authorization"),
+            cookie_token=request.cookies.get("gaokao_session"),
+            claimed_user_id=claimed_user_id,
+        )
+    except AuthenticationRequiredError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+    except IdentityMismatchError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+    if issued_token:
+        set_session_cookie(response, issued_token)
+    return identity.user_id
+
+
+def _request_client_ip(request: Request) -> str:
+    """Use the socket peer only; forwarded headers are not trusted by default."""
+    return request.client.host if request.client and request.client.host else "unknown"
+
+
+def _execute_chat_request(
+    *,
+    request: Request | None,
+    client_ip: str | None,
+    user_id: str,
+    callback,
+) -> dict[str, Any]:
+    try:
+        return request_budget.execute(
+            callback,
+            client_ip=client_ip or (_request_client_ip(request) if request else "unknown"),
+            subject=user_id,
+            timeout_seconds=settings.chat_request_timeout_seconds,
+        )
+    except RateLimitExceededError as exc:
+        raise HTTPException(
+            status_code=429,
+            detail=str(exc),
+            headers={"Retry-After": str(settings.chat_rate_limit_window_seconds)},
+        ) from exc
+    except DailyRequestBudgetExceededError as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
+    except ModelConcurrencyLimitError as exc:
+        raise HTTPException(
+            status_code=429,
+            detail=str(exc),
+            headers={"Retry-After": "1"},
+        ) from exc
+    except RequestTimeoutError as exc:
+        raise HTTPException(status_code=504, detail=str(exc)) from exc
 
 
 def _get_wechat_official_account_aes_settings() -> tuple[str, str]:
@@ -149,6 +272,33 @@ def _verify_wechat_signature(*, signature: str, timestamp: str, nonce: str) -> N
             status_code=403,
             detail="wechat signature verification failed",
         )
+
+
+def _verify_wechat_timestamp(*, timestamp: str, nonce: str) -> None:
+    normalized_timestamp = timestamp.strip()
+    if not normalized_timestamp or not nonce.strip():
+        raise HTTPException(status_code=400, detail="missing wechat timestamp or nonce")
+    try:
+        timestamp_value = int(normalized_timestamp)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="invalid wechat timestamp") from exc
+
+    if abs(int(time()) - timestamp_value) > settings.wechat_signature_ttl_seconds:
+        raise HTTPException(
+            status_code=403,
+            detail="wechat timestamp outside allowed window",
+        )
+
+
+def _verify_wechat_request_size(request: Request) -> None:
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            declared_length = int(content_length)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="invalid content length") from exc
+        if declared_length > settings.wechat_max_body_bytes:
+            raise HTTPException(status_code=413, detail="wechat request body too large")
 
 
 def _verify_wechat_aes_signature(
@@ -302,15 +452,22 @@ def _route_wechat_official_account_event_into_chat(
     metadata: dict[str, Any],
 ) -> str:
     try:
-        result = conversation_service.handle_message(
-            channel="wechat",
+        result = _execute_chat_request(
+            request=None,
+            client_ip="wechat-official-account",
             user_id=from_user,
-            message=message,
-            metadata=metadata,
+            callback=lambda: conversation_service.handle_message(
+                channel="wechat",
+                user_id=from_user,
+                message=message,
+                metadata=metadata,
+            ),
         )
     except ChatSkillNotFoundError:
         return WECHAT_OFFICIAL_ACCOUNT_SKILL_NOT_FOUND_REPLY
     except ChatSkillUnavailableError:
+        return WECHAT_OFFICIAL_ACCOUNT_SKILL_UNAVAILABLE_REPLY
+    except HTTPException:
         return WECHAT_OFFICIAL_ACCOUNT_SKILL_UNAVAILABLE_REPLY
 
     content = result.get("output", {}).get("content", {})
@@ -514,6 +671,11 @@ def _build_wechat_official_account_media_analysis_context(
 
     for payload_key, context_key in field_mappings:
         value = str(payload.get(payload_key, "")).strip()
+        if payload_key == "PicUrl" and value:
+            try:
+                value = validate_external_url(value)
+            except UnsafeExternalUrlError:
+                value = ""
         if value:
             context[context_key] = value
 
@@ -553,7 +715,7 @@ def _route_wechat_official_account_image_media_analysis_into_chat(
         source="wechat_official_account_image_media_analysis",
     )
     metadata["wechat_official_account"]["media_id"] = str(payload.get("MediaId", "")).strip()
-    metadata["wechat_official_account"]["pic_url"] = str(payload.get("PicUrl", "")).strip()
+    metadata["wechat_official_account"]["pic_url"] = _get_safe_wechat_pic_url(payload)
     metadata["media_analysis"] = {
         "provider": result.provider,
         "summary": result.summary or "",
@@ -565,6 +727,16 @@ def _route_wechat_official_account_image_media_analysis_into_chat(
         message=message,
         metadata=metadata,
     )
+
+
+def _get_safe_wechat_pic_url(payload: dict[str, Any]) -> str:
+    value = str(payload.get("PicUrl", "")).strip()
+    if not value:
+        return ""
+    try:
+        return validate_external_url(value)
+    except UnsafeExternalUrlError:
+        return ""
 
 
 def _record_wechat_official_account_media_analysis_event(
@@ -605,13 +777,29 @@ def _handle_wechat_official_account_image_message(
     payload: dict[str, Any],
 ) -> str:
     _ = str(payload.get("MediaId", "")).strip()
-    _ = str(payload.get("PicUrl", "")).strip()
+    pic_url = str(payload.get("PicUrl", "")).strip()
     if _is_wechat_official_account_media_analysis_enabled(from_user):
-        result = _run_wechat_official_account_media_analysis(
-            media_type="image",
-            from_user=from_user,
-            payload=payload,
-        )
+        if pic_url:
+            try:
+                validate_external_url(pic_url)
+            except UnsafeExternalUrlError:
+                result = MediaAnalysisResult(
+                    status="failed",
+                    provider="input_validation",
+                    failure_reason="图片地址未通过安全校验，暂不发送给媒体分析上游",
+                )
+            else:
+                result = _run_wechat_official_account_media_analysis(
+                    media_type="image",
+                    from_user=from_user,
+                    payload=payload,
+                )
+        else:
+            result = _run_wechat_official_account_media_analysis(
+                media_type="image",
+                from_user=from_user,
+                payload=payload,
+            )
         routed_reply = _route_wechat_official_account_image_media_analysis_into_chat(
             from_user=from_user,
             to_user=to_user,
@@ -781,15 +969,29 @@ def list_chat_skills() -> dict[str, list[dict[str, Any]]]:
 
 
 @router.post("/messages")
-def create_chat_message(payload: ChatMessageRequest) -> dict[str, Any]:
+def create_chat_message(
+    payload: ChatMessageRequest,
+    request: Request,
+    response: Response,
+) -> dict[str, Any]:
     try:
-        return conversation_service.handle_message(
-            channel=payload.channel,
-            user_id=payload.user_id,
-            message=payload.message,
-            session_id=payload.session_id,
-            skill_id=payload.skill_id,
-            metadata=payload.metadata,
+        user_id = _resolve_request_user_id(
+            request=request,
+            response=response,
+            claimed_user_id=payload.user_id,
+        )
+        return _execute_chat_request(
+            request=request,
+            client_ip=None,
+            user_id=user_id,
+            callback=lambda: conversation_service.handle_message(
+                channel=payload.channel,
+                user_id=user_id,
+                message=payload.message,
+                session_id=payload.session_id,
+                skill_id=payload.skill_id,
+                metadata=payload.metadata,
+            ),
         )
     except ChatSkillNotFoundError as exc:
         raise HTTPException(status_code=404, detail="chat skill not found") from exc
@@ -798,15 +1000,30 @@ def create_chat_message(payload: ChatMessageRequest) -> dict[str, Any]:
 
 
 @router.post("/skills/{skill_id}/invoke")
-def invoke_chat_skill(skill_id: str, payload: DirectSkillInvokeRequest) -> dict[str, Any]:
+def invoke_chat_skill(
+    skill_id: str,
+    payload: DirectSkillInvokeRequest,
+    request: Request,
+    response: Response,
+) -> dict[str, Any]:
     try:
-        return conversation_service.handle_message(
-            channel=payload.channel,
-            user_id=payload.user_id,
-            message=payload.message,
-            session_id=payload.session_id,
-            skill_id=skill_id,
-            metadata=payload.metadata,
+        user_id = _resolve_request_user_id(
+            request=request,
+            response=response,
+            claimed_user_id=payload.user_id,
+        )
+        return _execute_chat_request(
+            request=request,
+            client_ip=None,
+            user_id=user_id,
+            callback=lambda: conversation_service.handle_message(
+                channel=payload.channel,
+                user_id=user_id,
+                message=payload.message,
+                session_id=payload.session_id,
+                skill_id=skill_id,
+                metadata=payload.metadata,
+            ),
         )
     except ChatSkillNotFoundError as exc:
         raise HTTPException(status_code=404, detail="chat skill not found") from exc
@@ -814,17 +1031,74 @@ def invoke_chat_skill(skill_id: str, payload: DirectSkillInvokeRequest) -> dict[
         raise HTTPException(status_code=409, detail="chat skill unavailable") from exc
 
 
-@router.post("/channels/wechat")
-def create_wechat_chat_message(payload: WeChatChannelRequest) -> dict[str, Any]:
+@router.get("/sessions/{session_id}/messages")
+def get_chat_session_messages(
+    session_id: str,
+    request: Request,
+    response: Response,
+    user_id: str | None = None,
+) -> dict[str, Any]:
     try:
-        return conversation_service.handle_message(
-            channel="wechat",
-            user_id=payload.openid,
-            message=payload.message,
-            metadata={
-                **payload.metadata,
-                "message_type": payload.message_type,
-            },
+        resolved_user_id = _resolve_request_user_id(
+            request=request,
+            response=response,
+            claimed_user_id=user_id,
+        )
+        return conversation_service.get_session_messages(
+            session_id=session_id,
+            user_id=resolved_user_id,
+        )
+    except (ChatSessionNotFoundError, ChatSessionOwnershipError) as exc:
+        raise HTTPException(status_code=404, detail="chat session not found") from exc
+
+
+@router.delete("/sessions/{session_id}")
+def delete_chat_session(
+    session_id: str,
+    request: Request,
+    response: Response,
+    user_id: str | None = None,
+) -> dict[str, Any]:
+    try:
+        resolved_user_id = _resolve_request_user_id(
+            request=request,
+            response=response,
+            claimed_user_id=user_id,
+        )
+        deleted = conversation_service.delete_session(
+            session_id=session_id,
+            user_id=resolved_user_id,
+        )
+    except (ChatSessionNotFoundError, ChatSessionOwnershipError) as exc:
+        raise HTTPException(status_code=404, detail="chat session not found") from exc
+    return {"session_id": session_id, "deleted": deleted}
+
+
+@router.post("/channels/wechat")
+def create_wechat_chat_message(
+    payload: WeChatChannelRequest,
+    request: Request,
+    response: Response,
+) -> dict[str, Any]:
+    try:
+        user_id = _resolve_request_user_id(
+            request=request,
+            response=response,
+            claimed_user_id=payload.openid,
+        )
+        return _execute_chat_request(
+            request=request,
+            client_ip=None,
+            user_id=user_id,
+            callback=lambda: conversation_service.handle_message(
+                channel="wechat",
+                user_id=user_id,
+                message=payload.message,
+                metadata={
+                    **payload.metadata,
+                    "message_type": payload.message_type,
+                },
+            ),
         )
     except ChatSkillNotFoundError as exc:
         raise HTTPException(status_code=404, detail="chat skill not found") from exc
@@ -844,6 +1118,7 @@ def verify_wechat_official_account(
     msg_signature: str | None = None,
     encrypt_type: str | None = None,
 ) -> str:
+    _verify_wechat_timestamp(timestamp=timestamp, nonce=nonce)
     normalized_encrypt_type = (encrypt_type or "").strip().lower()
     if normalized_encrypt_type == "aes":
         if not msg_signature:
@@ -881,9 +1156,14 @@ async def handle_wechat_official_account_message(
     signature: str | None = None,
     msg_signature: str | None = None,
     encrypt_type: str | None = None,
+    session: Session = Depends(get_session),
 ) -> Response:
+    _verify_wechat_timestamp(timestamp=timestamp, nonce=nonce)
+    _verify_wechat_request_size(request)
     normalized_encrypt_type = (encrypt_type or "").strip().lower()
     raw_body = await request.body()
+    if len(raw_body) > settings.wechat_max_body_bytes:
+        raise HTTPException(status_code=413, detail="wechat request body too large")
     use_aes = normalized_encrypt_type == "aes"
 
     if use_aes:
@@ -921,6 +1201,12 @@ async def handle_wechat_official_account_message(
 
     from_user = payload["FromUserName"]
     to_user = payload["ToUserName"]
+    if not claim_wechat_message(
+        session,
+        message_id=str(payload.get("MsgId", "")),
+        nonce=nonce,
+    ):
+        return PlainTextResponse("success")
     message_type = payload.get("MsgType", "").lower()
     event_type = payload.get("Event", "").lower()
 
@@ -988,19 +1274,26 @@ async def handle_wechat_official_account_message(
             reply_text = WECHAT_OFFICIAL_ACCOUNT_EMPTY_TEXT_REPLY
         else:
             try:
-                result = conversation_service.handle_message(
-                    channel="wechat",
+                result = _execute_chat_request(
+                    request=request,
+                    client_ip=None,
                     user_id=from_user,
-                    message=message,
-                    metadata=_build_wechat_official_account_metadata(
-                        to_user=to_user,
-                        message_type=message_type,
-                        payload=payload,
+                    callback=lambda: conversation_service.handle_message(
+                        channel="wechat",
+                        user_id=from_user,
+                        message=message,
+                        metadata=_build_wechat_official_account_metadata(
+                            to_user=to_user,
+                            message_type=message_type,
+                            payload=payload,
+                        ),
                     ),
                 )
             except ChatSkillNotFoundError:
                 reply_text = WECHAT_OFFICIAL_ACCOUNT_SKILL_NOT_FOUND_REPLY
             except ChatSkillUnavailableError:
+                reply_text = WECHAT_OFFICIAL_ACCOUNT_SKILL_UNAVAILABLE_REPLY
+            except HTTPException:
                 reply_text = WECHAT_OFFICIAL_ACCOUNT_SKILL_UNAVAILABLE_REPLY
             else:
                 content = result.get("output", {}).get("content", {})

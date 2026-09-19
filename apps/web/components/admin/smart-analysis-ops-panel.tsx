@@ -1,11 +1,12 @@
 import type { AdminSmartAnalysisMode } from '../../lib/admin-smart-analysis-api';
+import AdminActionForm, { type AdminAction } from './admin-action-form';
 
 type SmartAnalysisOpsPanelProps = {
   mode: AdminSmartAnalysisMode;
   userId?: string;
   userEnabled: boolean;
-  updateModeAction: (formData: FormData) => Promise<void>;
-  updateUserAction: (formData: FormData) => Promise<void>;
+  updateModeAction: AdminAction;
+  updateUserAction: AdminAction;
 };
 
 const modeOptions: Array<{ value: AdminSmartAnalysisMode; label: string }> = [
@@ -28,7 +29,7 @@ export default function SmartAnalysisOpsPanel({
       <h2 id="smart-analysis-ops-heading">智能分析权限运营</h2>
       <p>支持全局模式切换，也支持按用户开通或关闭智能分析。</p>
 
-      <form action={updateModeAction}>
+      <AdminActionForm action={updateModeAction}>
         <label>
           全局模式
           <select name="mode" defaultValue={mode}>
@@ -40,7 +41,7 @@ export default function SmartAnalysisOpsPanel({
           </select>
         </label>
         <button type="submit">保存智能分析模式</button>
-      </form>
+      </AdminActionForm>
 
       <form action="/admin" method="GET">
         <label>
@@ -60,17 +61,17 @@ export default function SmartAnalysisOpsPanel({
           <p>{`当前用户：${normalizedUserId}`}</p>
           <p>{userEnabled ? '当前已开通智能分析' : '当前未开通智能分析'}</p>
 
-          <form action={updateUserAction}>
+          <AdminActionForm action={updateUserAction}>
             <input type="hidden" name="userId" value={normalizedUserId} />
             <input type="hidden" name="enabled" value="true" />
             <button type="submit">开通智能分析</button>
-          </form>
+          </AdminActionForm>
 
-          <form action={updateUserAction}>
+          <AdminActionForm action={updateUserAction}>
             <input type="hidden" name="userId" value={normalizedUserId} />
             <input type="hidden" name="enabled" value="false" />
             <button type="submit">关闭智能分析</button>
-          </form>
+          </AdminActionForm>
         </div>
       ) : (
         <p>输入用户 ID 后可查询并调整该用户的智能分析权益。</p>

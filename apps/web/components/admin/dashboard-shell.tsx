@@ -1,8 +1,5 @@
+import type { AdminContentSummaryEntity } from '../../lib/admin-content-summary-api';
 import type {
-  AdminContentSummaryEntity,
-} from '../../lib/admin-content-summary-api';
-import type {
-  AdminContentSection,
   AdminContentSectionsEntity,
 } from '../../lib/admin-content-sections-api';
 import type {
@@ -21,6 +18,13 @@ import type { AdminRankingReferenceEntity } from '../../lib/admin-ranking-refere
 import type { AdminMediaAnalysisEvent } from '../../lib/admin-media-analysis-api';
 import type { AdminSmartAnalysisMode } from '../../lib/admin-smart-analysis-api';
 import SmartAnalysisOpsPanel from './smart-analysis-ops-panel';
+import AdminActionForm, { type AdminAction } from './admin-action-form';
+import {
+  ContentSectionsForm,
+  ContentSummaryForm,
+  RankingReferenceForm,
+  RelatedContentForm,
+} from './content-quality-forms';
 
 export type AdminReviewItem = {
   id: number;
@@ -40,6 +44,7 @@ export type { AdminMediaAnalysisEvent };
 
 type DashboardShellProps = {
   title: string;
+  adminActionError?: string;
   queueItems: AdminReviewItem[];
   mediaAnalysisEvents?: AdminMediaAnalysisEvent[];
   mediaAnalysisError?: string;
@@ -49,7 +54,7 @@ type DashboardShellProps = {
   clearMediaAnalysisFiltersHref?: string;
   showFailedMediaAnalysisOnlyHref?: string;
   showAllMediaAnalysisStatusesHref?: string;
-  retryMediaAnalysisEventAction?: (formData: FormData) => Promise<void>;
+  retryMediaAnalysisEventAction?: AdminAction;
   featuredSchools: AdminFeaturedSchool[];
   featuredMajors: AdminFeaturedMajor[];
   schoolRotation: AdminRotationRule;
@@ -131,22 +136,22 @@ type DashboardShellProps = {
   relatedContentError?: string;
   queueError?: string;
   featuredContentError?: string;
-  approveAction: (formData: FormData) => Promise<void>;
-  rejectAction: (formData: FormData) => Promise<void>;
-  updateFeaturedSchoolAction: (formData: FormData) => Promise<void>;
-  updateFeaturedMajorAction: (formData: FormData) => Promise<void>;
-  updateSchoolSummaryAction?: (formData: FormData) => Promise<void>;
-  updateMajorSummaryAction?: (formData: FormData) => Promise<void>;
-  updateSchoolSectionsAction?: (formData: FormData) => Promise<void>;
-  updateMajorSectionsAction?: (formData: FormData) => Promise<void>;
-  updateSchoolRelatedContentAction?: (formData: FormData) => Promise<void>;
-  updateMajorRelatedContentAction?: (formData: FormData) => Promise<void>;
-  updateSchoolRankingReferencesAction?: (formData: FormData) => Promise<void>;
-  updateMajorRankingReferencesAction?: (formData: FormData) => Promise<void>;
-  updateSmartAnalysisModeAction?: (formData: FormData) => Promise<void>;
-  updateSmartAnalysisUserAction?: (formData: FormData) => Promise<void>;
-  updateSchoolRotationAction: (formData: FormData) => Promise<void>;
-  updateMajorRotationAction: (formData: FormData) => Promise<void>;
+  approveAction: AdminAction;
+  rejectAction: AdminAction;
+  updateFeaturedSchoolAction: AdminAction;
+  updateFeaturedMajorAction: AdminAction;
+  updateSchoolSummaryAction?: AdminAction;
+  updateMajorSummaryAction?: AdminAction;
+  updateSchoolSectionsAction?: AdminAction;
+  updateMajorSectionsAction?: AdminAction;
+  updateSchoolRelatedContentAction?: AdminAction;
+  updateMajorRelatedContentAction?: AdminAction;
+  updateSchoolRankingReferencesAction?: AdminAction;
+  updateMajorRankingReferencesAction?: AdminAction;
+  updateSmartAnalysisModeAction?: AdminAction;
+  updateSmartAnalysisUserAction?: AdminAction;
+  updateSchoolRotationAction: AdminAction;
+  updateMajorRotationAction: AdminAction;
 };
 
 const cards = ['待审核内容', '最近发布', '抓取状态'];
@@ -240,171 +245,9 @@ function PreviewList({
   );
 }
 
-function RankingReferenceForm({
-  entity,
-  entityLabel,
-  action,
-  submitLabel,
-}: {
-  entity: AdminRankingReferenceEntity;
-  entityLabel: string;
-  action: (formData: FormData) => Promise<void>;
-  submitLabel: string;
-}) {
-  const rows = [
-    ...entity.rankingReferences,
-    {
-      source: '',
-      year: '',
-      label: '',
-      scope: '',
-      note: '',
-      url: '',
-    },
-  ];
-
-  return (
-    <form action={action}>
-      <input type="hidden" name="slug" value={entity.slug} />
-      <input type="hidden" name="rowCount" value={rows.length} />
-      <h3>{entity.name}</h3>
-      <p>{entity.slug}</p>
-
-      {rows.map((row, index) => (
-        <fieldset key={`${entity.slug}-${index}`}>
-          <legend>{`${entityLabel}榜单条目 ${index + 1}`}</legend>
-          <label>
-            来源
-            <input name={`source_${index}`} defaultValue={row.source} />
-          </label>
-          <label>
-            年份
-            <input
-              type="number"
-              min={1}
-              name={`year_${index}`}
-              defaultValue={row.year === '' ? '' : row.year}
-            />
-          </label>
-          <label>
-            结果
-            <input name={`label_${index}`} defaultValue={row.label} />
-          </label>
-          <label>
-            范围
-            <input name={`scope_${index}`} defaultValue={row.scope} />
-          </label>
-          <label>
-            备注
-            <input name={`note_${index}`} defaultValue={row.note} />
-          </label>
-          <label>
-            来源链接
-            <input name={`url_${index}`} defaultValue={row.url} />
-          </label>
-        </fieldset>
-      ))}
-
-      <button type="submit">{submitLabel}</button>
-    </form>
-  );
-}
-
-function ContentSummaryForm({
-  entity,
-  action,
-}: {
-  entity: AdminContentSummaryEntity;
-  action: (formData: FormData) => Promise<void>;
-}) {
-  return (
-    <form action={action}>
-      <input type="hidden" name="slug" value={entity.slug} />
-      <h3>{entity.name}</h3>
-      <p>{entity.slug}</p>
-      <label>
-        摘要
-        <textarea name="summary" defaultValue={entity.summary} />
-      </label>
-      <button type="submit">保存摘要</button>
-    </form>
-  );
-}
-
-function ContentSectionsForm({
-  entity,
-  action,
-}: {
-  entity: AdminContentSectionsEntity;
-  action: (formData: FormData) => Promise<void>;
-}) {
-  const rows: AdminContentSection[] = [
-    ...entity.sections,
-    {
-      type: '',
-      title: '',
-      items: [],
-    },
-  ];
-
-  return (
-    <form action={action}>
-      <input type="hidden" name="slug" value={entity.slug} />
-      <input type="hidden" name="rowCount" value={rows.length} />
-      <h3>{entity.name}</h3>
-      <p>{entity.slug}</p>
-      {rows.map((row, index) => (
-        <fieldset key={`${entity.slug}-section-${index}`}>
-          <legend>{`正文模块 ${index + 1}`}</legend>
-          <label>
-            类型
-            <input name={`section_type_${index}`} defaultValue={row.type} />
-          </label>
-          <label>
-            标题
-            <input name={`section_title_${index}`} defaultValue={row.title} />
-          </label>
-          <label>
-            条目
-            <textarea
-              name={`section_items_${index}`}
-              defaultValue={row.items.join('\n')}
-            />
-          </label>
-        </fieldset>
-      ))}
-      <button type="submit">保存正文</button>
-    </form>
-  );
-}
-
-function RelatedContentForm({
-  entity,
-  fieldName,
-  relatedSlugs,
-  action,
-}: {
-  entity: { slug: string; name: string };
-  fieldName: 'relatedMajors' | 'relatedSchools';
-  relatedSlugs: string[];
-  action: (formData: FormData) => Promise<void>;
-}) {
-  return (
-    <form action={action}>
-      <input type="hidden" name="slug" value={entity.slug} />
-      <h3>{entity.name}</h3>
-      <p>{entity.slug}</p>
-      <label>
-        关联 slug
-        <textarea name={fieldName} defaultValue={relatedSlugs.join('\n')} />
-      </label>
-      <button type="submit">保存相关推荐</button>
-    </form>
-  );
-}
-
 export default function DashboardShell({
   title,
+  adminActionError,
   queueItems,
   mediaAnalysisEvents = [],
   mediaAnalysisError,
@@ -1656,10 +1499,17 @@ export default function DashboardShell({
   });
 
   return (
-    <main>
+    <main className="admin-shell">
       <h1>{title}</h1>
+      {adminActionError ? (
+        <section role="alert" aria-labelledby="admin-action-error-heading">
+          <h2 id="admin-action-error-heading">后台操作失败</h2>
+          <p>{adminActionError}</p>
+          <a href="/admin">关闭提示</a>
+        </section>
+      ) : null}
 
-      <section>
+      <section className="admin-summary-grid">
         {cards.map((card) => (
           <article key={card}>
             <h2>{card}</h2>
@@ -1739,10 +1589,10 @@ export default function DashboardShell({
                   <pre>{JSON.stringify(event.extractedFields, null, 2)}</pre>
                   <p>{event.autoRoutedToChat ? '已自动进入高考分析' : '未自动进入高考分析'}</p>
                   {event.retryable ? (
-                    <form action={retryMediaAnalysisEventAction}>
+                    <AdminActionForm action={retryMediaAnalysisEventAction}>
                       <input type="hidden" name="eventId" value={String(event.id)} />
                       <button type="submit">重试分析</button>
-                    </form>
+                    </AdminActionForm>
                   ) : null}
                   {!event.retryable && retryBlockReason ? (
                     <p>{`不可重试：${retryBlockReason}`}</p>
@@ -1851,18 +1701,18 @@ export default function DashboardShell({
                 <p>{`候选版本: ${item.candidate_version ?? '未提供'}`}</p>
                 <p>{`创建时间: ${item.created_at}`}</p>
 
-                <form action={approveAction}>
+                <AdminActionForm action={approveAction}>
                   <input type="hidden" name="queueId" value={item.id} />
                   <input type="hidden" name="reviewedBy" value="web-admin" />
                   <button type="submit">通过</button>
-                </form>
+                </AdminActionForm>
 
-                <form action={rejectAction}>
+                <AdminActionForm action={rejectAction}>
                   <input type="hidden" name="queueId" value={item.id} />
                   <input type="hidden" name="reviewedBy" value="web-admin" />
                   <input type="text" name="reviewNote" aria-label={`驳回备注 ${item.id}`} />
                   <button type="submit">驳回</button>
-                </form>
+                </AdminActionForm>
               </article>
             ))}
           </div>
@@ -1891,7 +1741,7 @@ export default function DashboardShell({
             ) : null}
             {displayedFeaturedSchools.map((school) => (
               <div key={school.slug} id={`featured-school-${school.slug}`}>
-                <form action={updateFeaturedSchoolAction}>
+                <AdminActionForm action={updateFeaturedSchoolAction}>
                   <input type="hidden" name="slug" value={school.slug} />
                   <label>
                     <input type="checkbox" name="isFeatured" defaultChecked={school.isFeatured} />
@@ -1924,7 +1774,7 @@ export default function DashboardShell({
                     </a>
                   ) : null}
                   <button type="submit">保存</button>
-                </form>
+                </AdminActionForm>
 
                 {suggestSchoolImageHrefBySlug[school.slug] ? (
                   <form action={suggestSchoolImageHrefBySlug[school.slug]} method="GET">
@@ -1950,7 +1800,7 @@ export default function DashboardShell({
                         {'\u67e5\u770b\u6765\u6e90\u9875'}
                       </a>
                     ) : null}
-                    <form action={updateFeaturedSchoolAction}>
+                    <AdminActionForm action={updateFeaturedSchoolAction}>
                       <input type="hidden" name="slug" value={school.slug} />
                       <input type="hidden" name="isFeatured" value={school.isFeatured ? 'on' : ''} />
                       <input
@@ -1959,7 +1809,7 @@ export default function DashboardShell({
                         value={schoolImageSuggestions[school.slug]?.suggestedImageUrl ?? ''}
                       />
                       <button type="submit">{'\u4f7f\u7528\u8be5\u56fe\u7247'}</button>
-                    </form>
+                    </AdminActionForm>
                     {clearSuggestedSchoolImageHref ? (
                       <a href={clearSuggestedSchoolImageHref}>{'\u6e05\u9664\u5019\u9009\u56fe'}</a>
                     ) : null}
@@ -1990,12 +1840,12 @@ export default function DashboardShell({
                 ) : null}
 
                 {school.heroImageUrl ? (
-                  <form action={updateFeaturedSchoolAction}>
+                  <AdminActionForm action={updateFeaturedSchoolAction}>
                     <input type="hidden" name="slug" value={school.slug} />
                     <input type="hidden" name="isFeatured" value={school.isFeatured ? 'on' : ''} />
                     <input type="hidden" name="heroImageUrl" value="" />
                     <button type="submit">清空图片</button>
-                  </form>
+                  </AdminActionForm>
                 ) : null}
               </div>
             ))}
@@ -2035,7 +1885,7 @@ export default function DashboardShell({
         {featuredContentError ? null : (
           <div>
             {featuredMajors.map((major) => (
-              <form key={major.slug} action={updateFeaturedMajorAction}>
+              <AdminActionForm key={major.slug} action={updateFeaturedMajorAction}>
                 <input type="hidden" name="slug" value={major.slug} />
                 <label>
                   <input type="checkbox" name="isFeatured" defaultChecked={major.isFeatured} />
@@ -2043,7 +1893,7 @@ export default function DashboardShell({
                 </label>
                 <p>{major.slug}</p>
                 <button type="submit">保存</button>
-              </form>
+              </AdminActionForm>
             ))}
           </div>
         )}
@@ -2677,7 +2527,7 @@ export default function DashboardShell({
         <h2 id="school-rotation-heading">学校轮换规则</h2>
 
         {featuredContentError ? null : (
-          <form action={updateSchoolRotationAction}>
+          <AdminActionForm action={updateSchoolRotationAction}>
             <label>
               <input type="checkbox" name="enabled" defaultChecked={schoolRotation.enabled} />
               启用自动轮换
@@ -2704,7 +2554,7 @@ export default function DashboardShell({
               />
             </label>
             <button type="submit">保存轮换规则</button>
-          </form>
+          </AdminActionForm>
         )}
       </section>
 
@@ -2712,7 +2562,7 @@ export default function DashboardShell({
         <h2 id="major-rotation-heading">专业轮换规则</h2>
 
         {featuredContentError ? null : (
-          <form action={updateMajorRotationAction}>
+          <AdminActionForm action={updateMajorRotationAction}>
             <label>
               <input type="checkbox" name="enabled" defaultChecked={majorRotation.enabled} />
               启用自动轮换
@@ -2739,7 +2589,7 @@ export default function DashboardShell({
               />
             </label>
             <button type="submit">保存轮换规则</button>
-          </form>
+          </AdminActionForm>
         )}
       </section>
 

@@ -13,6 +13,8 @@ from app.config import settings
 
 # 确保所有模型被导入，以便 SQLModel.metadata 包含全部表定义
 from app.models import (  # noqa: F401
+    ChatMessage,
+    ChatSession,
     FeaturedMajor,
     FeaturedRotationRule,
     FeaturedSchool,
@@ -27,6 +29,7 @@ from app.models import (  # noqa: F401
     SchoolRankingReference,
     SearchEntry,
     UserEntitlement,
+    WeChatMessageReceipt,
 )
 
 config = context.config

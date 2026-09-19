@@ -6,23 +6,18 @@ import { trackPlatformEvent } from '../../lib/platform-events';
 
 type SearchEntryProps = {
   apiBaseUrl: string;
-  userId?: string;
   title: string;
   description: string;
   quickPrompts: string[];
 };
 
-const buildChatHref = (prompt: string, userId?: string) => {
+const buildChatHref = (prompt: string) => {
   const params = new URLSearchParams({ prompt });
-  if (userId) {
-    params.set('user_id', userId);
-  }
   return `/chat?${params.toString()}`;
 };
 
 export default function SearchEntry({
   apiBaseUrl,
-  userId,
   title,
   description,
   quickPrompts,
@@ -38,7 +33,7 @@ export default function SearchEntry({
           <Link
             key={prompt}
             className="chip"
-            href={buildChatHref(prompt, userId)}
+            href={buildChatHref(prompt)}
             onClick={() => {
               void trackPlatformEvent(
                 {

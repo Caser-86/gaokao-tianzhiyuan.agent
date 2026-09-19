@@ -56,11 +56,11 @@ test('renders search entry prompts as chat links for candidates and parents', ()
   expect(screen.getByText('帮你看学校、专业、地域、就业和坑点。')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '查学校' })).toHaveAttribute(
     'href',
-    '/chat?prompt=%E6%9F%A5%E5%AD%A6%E6%A0%A1&user_id=wx-openid-123',
+    '/chat?prompt=%E6%9F%A5%E5%AD%A6%E6%A0%A1',
   );
   expect(screen.getByRole('link', { name: '看地域对比' })).toHaveAttribute(
     'href',
-    '/chat?prompt=%E7%9C%8B%E5%9C%B0%E5%9F%9F%E5%AF%B9%E6%AF%94&user_id=wx-openid-123',
+    '/chat?prompt=%E7%9C%8B%E5%9C%B0%E5%9F%9F%E5%AF%B9%E6%AF%94',
   );
 });
 

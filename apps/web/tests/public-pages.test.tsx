@@ -75,6 +75,17 @@ const RANKING_HINT_TEXT = '\u4e0d\u540c\u699c\u5355\u53e3\u5f84\u4e0d\u540c\uff0
 const RANKING_BADGE_TEXT = '\u542b\u53c2\u8003\u699c\u5355';
 const PUBLIC_ERROR_TEXT =
   '\u516c\u5f00\u5185\u5bb9\u52a0\u8f7d\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002';
+const DEMO_DATA_PROVENANCE = {
+  status: 'demo' as const,
+  sourceName: '\u9879\u76ee\u624b\u5de5\u7f16\u5199\u6f14\u793a\u6570\u636e',
+  sourceUrl: null,
+  updatedAt: '2026-08-30',
+  applicableYear: null,
+  region: '\u591a\u5730\u533a\u793a\u4f8b',
+  official: false,
+  disclaimer:
+    '\u4ec5\u7528\u4e8e\u529f\u80fd\u6f14\u793a\uff0c\u4e0d\u6784\u6210\u62db\u751f\u3001\u6392\u540d\u6216\u5fd7\u613f\u51b3\u7b56\u4f9d\u636e\u3002',
+};
 
 beforeEach(() => {
   getSearchEntryMock.mockReset();
@@ -190,7 +201,7 @@ test('home page renders an explicit error state on public API failure', async ()
   expect(screen.getByText(PUBLIC_ERROR_TEXT)).toBeInTheDocument();
 });
 
-test('home page accepts openid query params for platform entitlement lookup', async () => {
+test('home page ignores URL identity hints for platform entitlement lookup', async () => {
   getSearchEntryMock.mockResolvedValue({
     title: HOME_TITLE,
     description: HOME_DESCRIPTION,
@@ -251,7 +262,6 @@ test('home page accepts openid query params for platform entitlement lookup', as
     expect(evaluatePlatformEntitlementsMock).toHaveBeenCalledWith(
       ['insight-weekly'],
       'http://127.0.0.1:8000',
-      'wx-openid-homepage',
     );
   });
 });
@@ -318,6 +328,7 @@ test('school page renders API-backed detail data', async () => {
       },
     ],
     relatedMajors: ['architecture'],
+    dataProvenance: DEMO_DATA_PROVENANCE,
     rankingReferences: [
       {
         source: '\u8f6f\u79d1\u4e2d\u56fd\u5927\u5b66\u6392\u540d',
@@ -334,6 +345,13 @@ test('school page renders API-backed detail data', async () => {
 
   expect(screen.getByRole('heading', { name: '\u4e1c\u5357\u5927\u5b66' })).toBeInTheDocument();
   expect(screen.getByText('\u5b66\u6821\u4eae\u70b9')).toBeInTheDocument();
+  expect(screen.getByText('\u6f14\u793a\u6570\u636e')).toBeInTheDocument();
+  expect(screen.getByText('\u66f4\u65b0\u65f6\u95f4\uff1a2026-08-30')).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      '\u4ec5\u7528\u4e8e\u529f\u80fd\u6f14\u793a\uff0c\u4e0d\u6784\u6210\u62db\u751f\u3001\u6392\u540d\u6216\u5fd7\u613f\u51b3\u7b56\u4f9d\u636e\u3002',
+    ),
+  ).toBeInTheDocument();
   expect(
     screen.getByRole('link', { name: '\u67e5\u770b\u53c2\u8003\u699c\u5355' }),
   ).toHaveAttribute('href', '#ranking-references');

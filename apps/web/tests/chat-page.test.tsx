@@ -22,7 +22,7 @@ beforeEach(() => {
   chatWorkspaceMock.mockClear();
 });
 
-test('chat page forwards openid query params to the chat workspace', async () => {
+test('chat page does not forward URL identity hints to the chat workspace', async () => {
   render(
     await ChatPage({
       searchParams: Promise.resolve({
@@ -32,10 +32,10 @@ test('chat page forwards openid query params to the chat workspace', async () =>
     }),
   );
 
-  expect(screen.getByText(`workspace:wx-openid-123:${SCHOOL_PROMPT}`)).toBeInTheDocument();
+  expect(screen.getByText(`workspace:anon:${SCHOOL_PROMPT}`)).toBeInTheDocument();
 });
 
-test('chat page prefers user_id when both user_id and openid are present', async () => {
+test('chat page ignores user_id and openid when both are present', async () => {
   render(
     await ChatPage({
       searchParams: Promise.resolve({
@@ -46,7 +46,7 @@ test('chat page prefers user_id when both user_id and openid are present', async
     }),
   );
 
-  expect(screen.getByText(`workspace:user-1:${MAJOR_PROMPT}`)).toBeInTheDocument();
+  expect(screen.getByText(`workspace:anon:${MAJOR_PROMPT}`)).toBeInTheDocument();
 });
 
 test('chat page renders an anonymous workspace when search params are absent', async () => {

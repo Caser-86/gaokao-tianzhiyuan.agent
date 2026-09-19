@@ -11,6 +11,16 @@ from app.services import featured_content as featured_content_service
 client = TestClient(app)
 
 CATALOG_PATH = Path(__file__).resolve().parents[3] / "data" / "catalog.json"
+EXPECTED_DATA_PROVENANCE = {
+    "status": "demo",
+    "source_name": "项目手工编写演示数据",
+    "source_url": None,
+    "updated_at": "2026-08-30",
+    "applicable_year": None,
+    "region": "多地区示例",
+    "official": False,
+    "disclaimer": "仅用于功能演示，不构成招生、排名或志愿决策依据。",
+}
 
 
 def _load_catalog_data() -> dict:
@@ -125,6 +135,7 @@ def test_list_schools_only_returns_featured_items(catalog_seed, featured_seed) -
             },
         ],
         "total": 2,
+        "data_provenance": EXPECTED_DATA_PROVENANCE,
     }
 
 
@@ -146,6 +157,7 @@ def test_list_schools_filters_by_region(catalog_seed, featured_seed) -> None:
             }
         ],
         "total": 1,
+        "data_provenance": EXPECTED_DATA_PROVENANCE,
     }
 
 
@@ -206,6 +218,7 @@ def test_school_detail_returns_modular_sections(catalog_seed) -> None:
                 "url": "https://example.com/rankings/southeast-university",
             }
         ],
+        "data_provenance": EXPECTED_DATA_PROVENANCE,
     }
 
 
@@ -259,6 +272,7 @@ def test_major_detail_returns_career_and_risk_sections(catalog_seed) -> None:
                 "url": "https://example.com/rankings/clinical-medicine",
             }
         ],
+        "data_provenance": EXPECTED_DATA_PROVENANCE,
     }
 
 
@@ -327,3 +341,21 @@ def test_list_majors_falls_back_to_all_featured_items_when_rotation_disabled(
         "clinical-medicine",
         "computer-science",
     }
+
+
+def test_public_catalog_responses_expose_data_provenance(catalog_seed, featured_seed) -> None:
+    for path in (
+        "/api/public/search-entry",
+        "/api/public/schools",
+        "/api/public/majors",
+        "/api/public/schools/southeast-university",
+        "/api/public/majors/clinical-medicine",
+    ):
+        response = client.get(path)
+
+        assert response.status_code == 200
+        provenance = response.json()["data_provenance"]
+        assert provenance["status"] == "demo"
+        assert provenance["official"] is False
+        assert provenance["updated_at"] == "2026-08-30"
+        assert "不构成招生" in provenance["disclaimer"]

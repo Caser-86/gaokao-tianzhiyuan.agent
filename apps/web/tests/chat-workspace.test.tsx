@@ -1,17 +1,20 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
-const { sendChatMessageMock } = vi.hoisted(() => ({
+const { getChatSessionMessagesMock, sendChatMessageMock } = vi.hoisted(() => ({
+  getChatSessionMessagesMock: vi.fn(),
   sendChatMessageMock: vi.fn(),
 }));
 
 vi.mock("../lib/chat-api", () => ({
+  getChatSessionMessages: getChatSessionMessagesMock,
   sendChatMessage: sendChatMessageMock,
 }));
 
 import ChatWorkspace from "../components/public/chat-workspace";
 
 beforeEach(() => {
+  getChatSessionMessagesMock.mockReset();
   sendChatMessageMock.mockReset();
   sendChatMessageMock.mockResolvedValue({
     request_id: "chat_test",
@@ -65,7 +68,6 @@ test("auto-sends the initial prompt when the chat page opens from a quick prompt
   await waitFor(() => {
     expect(sendChatMessageMock).toHaveBeenCalledWith(
       {
-        userId: "wx-openid-123",
         message: "\u67e5\u5b66\u6821",
       },
       "https://api.gaokao.test",
@@ -74,10 +76,71 @@ test("auto-sends the initial prompt when the chat page opens from a quick prompt
 
   expect(screen.getByDisplayValue("\u67e5\u5b66\u6821")).toBeInTheDocument();
   expect(
-    screen.getByText(
+    screen.getAllByText(
       "\u53ef\u4ee5\u5148\u628a\u76ee\u6807\u5b66\u6821\u8303\u56f4\u7f29\u5c0f\u5230 985/211\u3002",
     ),
+  ).toHaveLength(2);
+});
+
+test("reuses the returned session id for a follow-up message", async () => {
+  sendChatMessageMock
+    .mockResolvedValueOnce({
+      session_id: "session-web-1",
+      request_id: "chat_first",
+      output: { type: "structured_json", content: { rendered_reply: "第一轮" } },
+    })
+    .mockResolvedValueOnce({
+      session_id: "session-web-1",
+      request_id: "chat_second",
+      output: { type: "structured_json", content: { rendered_reply: "第二轮" } },
+    });
+
+  render(<ChatWorkspace apiBaseUrl="https://api.gaokao.test" userId="web-user" />);
+  const input = screen.getByLabelText("输入你的问题");
+
+  fireEvent.change(input, { target: { value: "第一轮问题" } });
+  fireEvent.click(screen.getByRole("button", { name: "发送问题" }));
+  await waitFor(() => {
+    expect(sendChatMessageMock).toHaveBeenNthCalledWith(
+      1,
+      { message: "第一轮问题" },
+      "https://api.gaokao.test",
+    );
+  });
+
+  fireEvent.change(input, { target: { value: "第二轮问题" } });
+  fireEvent.click(screen.getByRole("button", { name: "发送问题" }));
+  await waitFor(() => {
+    expect(sendChatMessageMock).toHaveBeenNthCalledWith(
+      2,
+      { message: "第二轮问题", sessionId: "session-web-1" },
+      "https://api.gaokao.test",
+    );
+  });
+});
+
+test("appends the submitted exchange to visible history immediately", async () => {
+  sendChatMessageMock.mockResolvedValueOnce({
+    session_id: "session-visible",
+    request_id: "chat-visible",
+    output: {
+      type: "structured_json",
+      content: { rendered_reply: "当前轮回答" },
+    },
+  });
+
+  render(<ChatWorkspace apiBaseUrl="https://api.gaokao.test" />);
+  const input = screen.getByRole("textbox", { name: "输入你的问题" });
+  fireEvent.change(input, { target: { value: "我的第一轮问题" } });
+  fireEvent.click(screen.getByRole("button", { name: "发送问题" }));
+
+  await waitFor(() => {
+    expect(screen.getByText("历史会话")).toBeInTheDocument();
+  });
+  expect(
+    screen.getByText("我的第一轮问题", { selector: "p" }),
   ).toBeInTheDocument();
+  expect(screen.getAllByText("当前轮回答")).toHaveLength(2);
 });
 
 test("renders suggestion cards and action links from the chat response", async () => {
@@ -178,8 +241,8 @@ test("ignores provider actions without link targets", async () => {
 
   await waitFor(() => {
     expect(
-      screen.getByText("\u6cb3\u5357\u5927\u5b66\u5206\u6790\u5df2\u751f\u6210\u3002"),
-    ).toBeInTheDocument();
+      screen.getAllByText("\u6cb3\u5357\u5927\u5b66\u5206\u6790\u5df2\u751f\u6210\u3002"),
+    ).toHaveLength(2);
   });
 
   expect(
@@ -236,10 +299,153 @@ test("allows manually sending a question when there is no initial prompt", async
   await waitFor(() => {
     expect(sendChatMessageMock).toHaveBeenCalledWith(
       {
-        userId: "wx-openid-456",
         message: "\u5e2e\u6211\u5206\u6790\u6c5f\u82cf985",
       },
       "https://api.gaokao.test",
     );
   });
+});
+
+test("restores a saved session when opened with a session id", async () => {
+  getChatSessionMessagesMock.mockResolvedValueOnce({
+    session_id: "session-restored",
+    channel: "web",
+    created_at: "2026-08-25T00:00:00Z",
+    updated_at: "2026-08-25T00:01:00Z",
+    expires_at: "2026-09-24T00:01:00Z",
+    items: [
+      {
+        id: 1,
+        request_id: "chat_restore",
+        role: "user",
+        content_type: "text",
+        content: "我适合报什么专业？",
+        created_at: "2026-08-25T00:00:00Z",
+      },
+      {
+        id: 2,
+        request_id: "chat_restore",
+        role: "assistant",
+        content_type: "structured_json",
+        content: "结构化回复",
+        payload: { rendered_reply: "可以先比较专业方向和选科要求。" },
+        created_at: "2026-08-25T00:01:00Z",
+      },
+    ],
+  });
+
+  render(
+    <ChatWorkspace
+      apiBaseUrl="https://api.gaokao.test"
+      userId="web-user"
+      sessionId="session-restored"
+    />,
+  );
+
+  await waitFor(() => {
+    expect(getChatSessionMessagesMock).toHaveBeenCalledWith(
+      "session-restored",
+      "https://api.gaokao.test",
+    );
+  });
+
+  expect(screen.getByText("历史会话")).toBeInTheDocument();
+  expect(screen.getByText("我适合报什么专业？")).toBeInTheDocument();
+  expect(
+    screen.getByText("可以先比较专业方向和选科要求。"),
+  ).toBeInTheDocument();
+});
+
+test("renders server-owned evidence citations with an explicit source boundary", async () => {
+  sendChatMessageMock.mockResolvedValueOnce({
+    request_id: "chat_evidence",
+    output: {
+      type: "structured_json",
+      content: {
+        rendered_reply: "这是一条带证据的演示回答。",
+        entities: {
+          evidence_refs: [
+            "school:demo-university:summary",
+            "school:demo-university:unsafe-source",
+            "school:demo-university:demo-note",
+          ],
+          evidence: [
+            null,
+            { id: "school:demo-university:incomplete" },
+            {
+              id: "school:demo-university:summary",
+              source_name: "演示来源",
+              year: 2026,
+              province: "河南",
+              text: "演示大学：工科方向资料，仅用于测试。",
+              source_url: "https://example.com/demo-university",
+            },
+            {
+              id: "school:demo-university:unreferenced",
+              source_name: "项目演示资料",
+              year: 2026,
+              province: "河南",
+              text: "这条没有被模型引用的演示资料不应显示。",
+              source_url: null,
+            },
+            {
+              id: "school:demo-university:unsafe-source",
+              source_name: "不安全来源",
+              year: 2026,
+              province: "河南",
+              text: "这条来源地址不应成为可点击链接。",
+              source_url: "http://127.0.0.1:8000/private",
+            },
+            {
+              id: "school:demo-university:demo-note",
+              source_name: "项目演示资料",
+              year: 2026,
+              province: "河南",
+              text: "这条演示资料没有可打开的外部来源。",
+              source_url: null,
+            },
+          ],
+        },
+      },
+    },
+  });
+
+  render(
+    <ChatWorkspace
+      apiBaseUrl="https://api.gaokao.test"
+      initialPrompt="演示大学怎么样"
+    />,
+  );
+
+  await waitFor(() => {
+    expect(
+      screen.getByRole("heading", { name: "证据与引用" }),
+    ).toBeInTheDocument();
+  });
+
+  expect(
+    screen.getByText((content) =>
+      content.includes("school:demo-university:summary"),
+    ),
+  ).toBeInTheDocument();
+  expect(screen.getByText("演示来源")).toBeInTheDocument();
+  expect(
+    screen.getByText("演示大学：工科方向资料，仅用于测试。"),
+  ).toBeInTheDocument();
+  expect(screen.getByText("3 条")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "打开来源" })).toHaveAttribute(
+    "href",
+    "https://example.com/demo-university",
+  );
+  expect(screen.getByText("不安全来源")).toBeInTheDocument();
+  expect(
+    screen.getByText("这条来源地址不应成为可点击链接。"),
+  ).toBeInTheDocument();
+  expect(screen.getByText("项目演示资料")).toBeInTheDocument();
+  expect(screen.queryByText("这条没有被模型引用的演示资料不应显示。")).not.toBeInTheDocument();
+  expect(screen.getAllByText(/引用 ID：/)).toHaveLength(3);
+  expect(screen.getAllByRole("link", { name: "打开来源" })).toHaveLength(1);
+  expect(
+    screen.getByText("演示资料：暂无可打开来源，回答不会把它当作外部网页事实。"),
+  ).toBeInTheDocument();
 });

@@ -10,7 +10,7 @@ from app.services.llm import (
 
 
 class StubResponse:
-    def __init__(self, payload: dict, status_code: int = 200) -> None:
+    def __init__(self, payload: object, status_code: int = 200) -> None:
         self._payload = payload
         self.status_code = status_code
 
@@ -22,7 +22,7 @@ class StubResponse:
                 response=httpx.Response(self.status_code, json=self._payload),
             )
 
-    def json(self) -> dict:
+    def json(self) -> object:
         return self._payload
 
 
@@ -63,6 +63,78 @@ def test_openai_compatible_provider_posts_expected_payload(monkeypatch) -> None:
     assert captured["json"]["model"] == "gpt-4o-mini"
     assert captured["json"]["response_format"] == {"type": "json_object"}
     assert captured["json"]["messages"][1]["content"] == "帮我分析河南560分金融"
+
+
+def test_openai_compatible_provider_keeps_returned_model_metadata(monkeypatch) -> None:
+    def fake_post(self, url: str, *, headers: dict, json: dict) -> StubResponse:
+        _ = (self, url, headers, json)
+        return StubResponse(
+            {
+                "model": "deepseek-v4-flash-2026-09-01",
+                "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+                "choices": [{"message": {"content": '{"status":"ok"}'}}],
+            }
+        )
+
+    monkeypatch.setattr(httpx.Client, "post", fake_post)
+    provider = OpenAICompatibleProvider(
+        base_url="https://relay.example",
+        api_key="secret-key",
+        model="ark-code-latest",
+    )
+
+    assert provider.complete_text(messages=[LLMMessage(role="user", content="test")]) == (
+        '{"status":"ok"}'
+    )
+    assert provider.requested_model == "ark-code-latest"
+    assert provider.returned_model == "deepseek-v4-flash-2026-09-01"
+    assert provider.usage == {"prompt_tokens": 10, "completion_tokens": 5}
+
+
+def test_openai_compatible_provider_supports_ark_api_v3_base_url(monkeypatch) -> None:
+    captured: dict = {}
+
+    def fake_post(self, url: str, *, headers: dict, json: dict) -> StubResponse:
+        captured["url"] = url
+        captured["json"] = json
+        return StubResponse({"choices": [{"message": {"content": '{"summary":"ok"}'}}]})
+
+    monkeypatch.setattr(httpx.Client, "post", fake_post)
+
+    provider = OpenAICompatibleProvider(
+        base_url="https://ark.cn-beijing.volces.com/api/v3",
+        api_key="secret-key",
+        model="deepseek-v4-flash",
+    )
+
+    assert provider.complete_text(messages=[LLMMessage(role="user", content="test")]) == (
+        '{"summary":"ok"}'
+    )
+    assert captured["url"] == ("https://ark.cn-beijing.volces.com/api/v3/chat/completions")
+    assert captured["json"]["model"] == "deepseek-v4-flash"
+
+
+def test_openai_compatible_provider_supports_ark_agent_plan_base_url(monkeypatch) -> None:
+    captured: dict = {}
+
+    def fake_post(self, url: str, *, headers: dict, json: dict) -> StubResponse:
+        captured["url"] = url
+        captured["json"] = json
+        return StubResponse({"choices": [{"message": {"content": '{"summary":"ok"}'}}]})
+
+    monkeypatch.setattr(httpx.Client, "post", fake_post)
+
+    provider = OpenAICompatibleProvider(
+        base_url="https://ark.cn-beijing.volces.com/api/plan/v3",
+        api_key="secret-key",
+        model="deepseek-v4-flash",
+    )
+
+    assert provider.complete_text(messages=[LLMMessage(role="user", content="test")]) == (
+        '{"summary":"ok"}'
+    )
+    assert captured["url"] == ("https://ark.cn-beijing.volces.com/api/plan/v3/chat/completions")
+    assert captured["json"]["model"] == "deepseek-v4-flash"
 
 
 def test_openai_compatible_provider_raises_request_error_on_transport_failure(
@@ -108,6 +180,26 @@ def test_openai_compatible_provider_marks_insufficient_balance_errors(
     assert exc_info.value.reason == "insufficient_balance"
 
 
+def test_openai_compatible_provider_handles_non_object_error_bodies(
+    monkeypatch,
+) -> None:
+    def fake_post(self, url: str, *, headers: dict, json: dict) -> StubResponse:
+        return StubResponse([], status_code=429)
+
+    monkeypatch.setattr(httpx.Client, "post", fake_post)
+
+    provider = OpenAICompatibleProvider(
+        base_url="https://relay.example",
+        api_key="secret-key",
+        model="gpt-4o-mini",
+    )
+
+    with pytest.raises(ProviderRequestError) as exc_info:
+        provider.complete_text(messages=[LLMMessage(role="user", content="test")])
+
+    assert exc_info.value.reason == "request_failed"
+
+
 def test_openai_compatible_provider_raises_format_error_for_missing_message_content(
     monkeypatch,
 ) -> None:
@@ -121,6 +213,35 @@ def test_openai_compatible_provider_raises_format_error_for_missing_message_cont
         api_key="secret-key",
         model="gpt-4o-mini",
         timeout_seconds=30,
+    )
+
+    with pytest.raises(ProviderResponseFormatError):
+        provider.complete_text(messages=[LLMMessage(role="user", content="test")])
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"choices": []},
+        [],
+        {"choices": [{"message": None}]},
+        {"choices": [{"message": {"content": 123}}]},
+    ],
+    ids=("empty-choices", "top-level-array", "null-message", "non-string-content"),
+)
+def test_openai_compatible_provider_rejects_malformed_response_envelopes(
+    monkeypatch,
+    payload: object,
+) -> None:
+    def fake_post(self, url: str, *, headers: dict, json: dict) -> StubResponse:
+        return StubResponse(payload)
+
+    monkeypatch.setattr(httpx.Client, "post", fake_post)
+
+    provider = OpenAICompatibleProvider(
+        base_url="https://relay.example",
+        api_key="secret-key",
+        model="gpt-4o-mini",
     )
 
     with pytest.raises(ProviderResponseFormatError):

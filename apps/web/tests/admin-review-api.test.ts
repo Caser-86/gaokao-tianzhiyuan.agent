@@ -172,6 +172,23 @@ test('approveReviewQueueAction revalidates the admin page after success', async 
   expect(revalidatePath).toHaveBeenCalledWith('/admin');
 });
 
+test('approveReviewQueueAction returns the backend failure reason', async () => {
+  fetchMock.mockResolvedValueOnce({
+    ok: false,
+    status: 503,
+    text: async () => JSON.stringify({ detail: '审核服务暂时不可用' }),
+  });
+
+  const formData = new FormData();
+  formData.set('queueId', '23');
+  formData.set('reviewedBy', 'web-admin');
+
+  await expect(approveReviewQueueAction(formData)).resolves.toEqual({
+    ok: false,
+    message: '审核服务暂时不可用',
+  });
+});
+
 test('listFeaturedContent sends authenticated request, supports preview_date, and maps admin config', async () => {
   fetchMock.mockResolvedValueOnce({
     ok: true,

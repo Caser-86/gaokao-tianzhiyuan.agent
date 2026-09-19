@@ -47,3 +47,13 @@ class MediaAnalysisEvent(SQLModel, table=True):
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC), nullable=False, index=True
     )
+
+
+class WeChatMessageReceipt(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    dedupe_key: str = Field(..., nullable=False, index=True, unique=True)
+    message_id: str = Field(default="", nullable=False, index=True)
+    nonce: str = Field(default="", nullable=False, index=True)
+    received_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC), nullable=False, index=True
+    )

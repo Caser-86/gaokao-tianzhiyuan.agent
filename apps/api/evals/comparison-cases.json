@@ -1,0 +1,31 @@
+[
+  {
+    "id": "paired-school-evidence",
+    "category": "citation-qa",
+    "split": "holdout",
+    "message": "演示大学的资料是什么？",
+    "evidence_ids": ["school:demo-school:summary"],
+    "required_evidence_ids": ["school:demo-school:summary"],
+    "required_follow_up_terms": [],
+    "forbidden_patterns": [],
+    "request_model": "ark-code-latest",
+    "budget": {
+      "max_output_tokens": 500,
+      "max_cost_yuan": 0.2
+    },
+    "direct_returned_model": "deepseek-v4-flash",
+    "grounded_returned_model": "deepseek-v4-flash",
+    "direct_output": {
+      "intent": "school_recommendation",
+      "rendered_reply": "演示大学录取概率为 99%。",
+      "follow_up_questions": [],
+      "entities": {"evidence_refs": []}
+    },
+    "grounded_output": {
+      "intent": "school_recommendation",
+      "rendered_reply": "演示大学的工科资料见引用。",
+      "follow_up_questions": [],
+      "entities": {"evidence_refs": ["school:demo-school:summary"]}
+    }
+  }
+]

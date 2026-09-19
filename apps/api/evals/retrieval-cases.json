@@ -1,0 +1,32 @@
+[
+  {
+    "id": "known-school",
+    "message": "\u4e1c\u5357\u5927\u5b66\u600e\u4e48\u6837",
+    "expected_sql_covered": true
+  },
+  {
+    "id": "known-major",
+    "message": "\u4e34\u5e8a\u533b\u5b66\u4e13\u4e1a\u4ecb\u7ecd",
+    "expected_sql_covered": true
+  },
+  {
+    "id": "open-ended-fit",
+    "message": "\u6211\u9002\u5408\u4ec0\u4e48\u4e13\u4e1a",
+    "expected_sql_covered": false
+  },
+  {
+    "id": "score-strategy",
+    "message": "\u6c5f\u82cf650\u5206\u9002\u5408\u51b2\u54ea\u4e9b985",
+    "expected_sql_covered": false
+  },
+  {
+    "id": "ranking-explanation",
+    "message": "\u8f6f\u79d1\u4e2d\u56fd\u5927\u5b66\u6392\u540d\u600e\u4e48\u770b",
+    "expected_sql_covered": false
+  },
+  {
+    "id": "out-of-catalog-school",
+    "message": "\u6e05\u534e\u5927\u5b66\u600e\u4e48\u6837",
+    "expected_sql_covered": false
+  }
+]

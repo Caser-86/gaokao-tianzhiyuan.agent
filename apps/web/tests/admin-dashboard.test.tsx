@@ -145,6 +145,7 @@ test('renders admin dashboard heading, missing-image shortcuts, and schedule hig
   render(
     <DashboardShell
       title="内容运营后台"
+      adminActionError="审核服务暂时不可用"
       queueItems={queueItems}
       featuredSchools={[
         {
@@ -204,7 +205,9 @@ test('renders admin dashboard heading, missing-image shortcuts, and schedule hig
     .getByRole('heading', { name: '2026-04-15' })
     .closest('article');
 
+  expect(screen.getByRole('main')).toHaveClass('admin-shell');
   expect(screen.getByRole('heading', { name: '内容运营后台' })).toBeInTheDocument();
+  expect(screen.getByRole('alert')).toHaveTextContent('审核服务暂时不可用');
   expect(screen.getByText('待审核内容')).toBeInTheDocument();
   expect(screen.getByText('school #101')).toBeInTheDocument();
   expect(screen.getByText('summary, strengths')).toBeInTheDocument();

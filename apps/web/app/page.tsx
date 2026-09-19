@@ -15,14 +15,10 @@ type HomePageProps = {
   }>;
 };
 
-export default async function HomePage({ searchParams }: HomePageProps) {
+export default async function HomePage({ searchParams: _searchParams }: HomePageProps) {
   try {
     const apiBaseUrl = getApiBaseUrl();
-    const resolvedSearchParams = searchParams ? await searchParams : undefined;
-    const userId =
-      resolvedSearchParams?.user_id?.trim() ||
-      resolvedSearchParams?.openid?.trim() ||
-      undefined;
+    // URL identity hints are intentionally ignored; the API resolves the subject from its session.
     const [searchEntry, schoolPayload, majorPayload] = await Promise.all([
       getSearchEntry(),
       listSchools(),
@@ -40,7 +36,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       <main className="page-shell">
         <SearchEntry
           apiBaseUrl={apiBaseUrl}
-          userId={userId}
           title={searchEntry.title}
           description={searchEntry.description}
           quickPrompts={searchEntry.quickPrompts}
@@ -110,7 +105,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         {productPayload ? (
           <PlatformHomepageShelf
             apiBaseUrl={apiBaseUrl}
-            userId={userId}
             products={productPayload.items}
           />
         ) : (

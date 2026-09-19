@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "verification_date": "2026-09-16",
+  "verification_base_commit": "78071c7",
+  "branch": "codex/interview-ready",
+  "mode": "synthetic_local_provider",
+  "report": "2026-09-16-t11-request-budget-and-observability.md",
+  "model_boundary": {
+    "provider": "local_openai_compatible_demo",
+    "requested_model": "ark-code-latest",
+    "real_volcengine_call": false,
+    "real_model_quality_measured": false,
+    "note": "仅验证协议、服务端证据回填、会话和 UI；不代表真实模型质量、token/cost 或招生准确率。"
+  },
+  "results": {
+    "api_tests_passed": 261,
+    "web_test_files": 28,
+    "web_tests_passed": 132,
+    "web_typecheck": "passed",
+    "web_lint": { "status": "passed", "errors": 0, "warnings": 3 },
+    "web_build": "passed",
+    "browser_e2e": {
+      "status": "passed",
+      "scenarios": [
+        "homepage_and_catalog_detail",
+        "grounded_chat_with_evidence_cards",
+        "two_turn_session_history",
+        "session_id_restore",
+        "provider_failure_rule_fallback",
+        "admin_school_summary_save"
+      ]
+    }
+  },
+  "artifacts": {
+    "report": "docs/verification/2026-09-16-t11-request-budget-and-observability.md",
+    "evidence_screenshot": "docs/assets/t10-chat-evidence-card.png",
+    "demo_video": "docs/assets/t10-demo.webm",
+    "playwright_output": "output/playwright/"
+  },
+  "request_budget": {
+    "message_max_chars": 4000,
+    "model_max_concurrency": 4,
+    "request_timeout_seconds": 30,
+    "rate_limit_scope": "process_local_ip_and_server_subject",
+    "daily_budget_scope": "process_local_utc_day_global",
+    "max_provider_retries": 1,
+    "trace_finalized_after_persistence": true,
+    "usage_unknown_value": null,
+    "multi_worker_shared_store_verified": false
+  }
+}
